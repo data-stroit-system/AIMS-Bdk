@@ -35,3 +35,6 @@ await _activityLogger.LogActivityAsync(
   Also add a menu to navigate to the AssetItem management page in the application.
 8. add details page for AssetItem throught link from Index page for AssetId. In this details page, allow users to add AssetItemRemarks for the opened AssetItem.
 9. include CreateBy column in AssetItemRemarks that is filled with name of the user that input the remarks
+
+10. Create new entity AssetItemDocuments with fields : DocumentTitle, FilePath, CreatedAt, CreatedBy. this entity is to store uploaded documents related to AssetItem.
+11. database is updated, now modify asset item Details page to allow Documents upload. adjust the UI to use tabs : tab 1 is for adding remarks and tab 2 is for uploading documents

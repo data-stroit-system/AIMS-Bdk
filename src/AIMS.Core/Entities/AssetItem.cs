@@ -6,6 +6,19 @@ using System.Data;
 
 namespace AIMS.Core.Entities;
 
+public class AssetItemDocuments : BaseEntity
+{
+    [MaxLength(250)]
+    public string DocumentTitle { get; set; }
+    [MaxLength(500)]
+    public string FilePath { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    [MaxLength(200)]
+    public string CreatedBy { get; set; }
+
+    public AssetItem AssetItem { get; set; }
+}
+
 public class AssetItemRemarks : BaseEntity
 {
     [MaxLength(250)]
@@ -31,6 +44,7 @@ public class AssetItem : BaseEntity
     public AssetPriority Priority { get; set; }
     public IntegrityStatus IntegrityStatus { get; set; } 
     public List<AssetItemRemarks> AssetItemRemarks { get; set; }
+    public List<AssetItemDocuments> AssetItemDocuments { get; set; }
     [MaxLength(500)]
     public string? PicturePath { get; set; }
 

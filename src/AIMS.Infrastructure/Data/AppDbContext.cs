@@ -38,6 +38,7 @@ namespace AIMS.Infrastructure.Data
         public DbSet<ToDoItem> ToDoItems { get; set; }
         public DbSet<AssetItem> AssetItems { get; set; }
         public DbSet<AssetItemRemarks> AssetRemarks { get; set; }
+        public DbSet<AssetItemDocuments> AssetItemDocuments { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
