@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using AIMS.Infrastructure.Data;
 using AIMS.Infrastructure.DomainEvents;
+using AIMS.Infrastructure.FileTransfer;
 using AIMS.Infrastructure.IdentityClass;
 using AIMS.Infrastructure.Audit;
 using AIMS.SharedKernel.Interfaces;
@@ -33,6 +34,7 @@ namespace AIMS.Infrastructure
             services.AddHttpContextAccessor();
             services.AddScoped<IAuditUserProvider, HttpContextAuditUserProvider>();
             services.AddScoped<IActivityLogger, ActivityLogger>();
+            services.AddScoped<FileUploadHelper>();
         }
 
         public static void SeedData(this IServiceCollection services)

@@ -1,5 +1,6 @@
 using AIMS.Core.Entities;
 using AIMS.Infrastructure.Data;
+using AIMS.Infrastructure.FileTransfer;
 using AIMS.SharedKernel.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,14 +15,14 @@ public class CreateModel : PageModel
     private readonly AppDbContext _context;
     private readonly IActivityLogger _activityLogger;
     private readonly IWebHostEnvironment _env;
+    private readonly FileUploadHelper _fileUpload;
 
-    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
-
-    public CreateModel(AppDbContext context, IActivityLogger activityLogger, IWebHostEnvironment env)
+    public CreateModel(AppDbContext context, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
     {
         _context = context;
         _activityLogger = activityLogger;
         _env = env;
+        _fileUpload = fileUpload;
     }
 
     [BindProperty]
@@ -38,28 +39,14 @@ public class CreateModel : PageModel
 
         if (Input.Picture != null && Input.Picture.Length > 0)
         {
-            if (Input.Picture.Length > 2 * 1024 * 1024)
+            var (isValid, error) = _fileUpload.ValidatePicture(Input.Picture);
+            if (!isValid)
             {
-                ModelState.AddModelError("Input.Picture", "File size must not exceed 2 MB.");
+                ModelState.AddModelError("Input.Picture", error);
                 return Page();
             }
 
-            var ext = Path.GetExtension(Input.Picture.FileName).ToLowerInvariant();
-            if (!AllowedExtensions.Contains(ext))
-            {
-                ModelState.AddModelError("Input.Picture", "Only image files (.jpg, .jpeg, .png, .gif, .webp) are allowed.");
-                return Page();
-            }
-
-            var dir = Path.Combine(_env.WebRootPath, "asset-pictures");
-            Directory.CreateDirectory(dir);
-            var fileName = $"{Guid.NewGuid()}{ext}";
-            var filePath = Path.Combine(dir, fileName);
-
-            using var stream = new FileStream(filePath, FileMode.Create);
-            await Input.Picture.CopyToAsync(stream);
-
-            picturePath = $"/asset-pictures/{fileName}";
+            picturePath = await _fileUpload.SaveAssetPictureAsync(Input.Picture, _env.WebRootPath);
         }
 
         var assetItem = new AssetItem

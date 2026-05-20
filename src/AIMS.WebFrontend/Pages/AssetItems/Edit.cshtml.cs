@@ -1,5 +1,6 @@
 using AIMS.Core.Entities;
 using AIMS.Infrastructure.Data;
+using AIMS.Infrastructure.FileTransfer;
 using AIMS.SharedKernel.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,14 +16,14 @@ public class EditModel : PageModel
     private readonly AppDbContext _context;
     private readonly IActivityLogger _activityLogger;
     private readonly IWebHostEnvironment _env;
+    private readonly FileUploadHelper _fileUpload;
 
-    private static readonly string[] AllowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
-
-    public EditModel(AppDbContext context, IActivityLogger activityLogger, IWebHostEnvironment env)
+    public EditModel(AppDbContext context, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
     {
         _context = context;
         _activityLogger = activityLogger;
         _env = env;
+        _fileUpload = fileUpload;
     }
 
     [BindProperty]
@@ -66,36 +67,15 @@ public class EditModel : PageModel
 
         if (Input.Picture != null && Input.Picture.Length > 0)
         {
-            if (Input.Picture.Length > 2 * 1024 * 1024)
+            var (isValid, error) = _fileUpload.ValidatePicture(Input.Picture);
+            if (!isValid)
             {
-                ModelState.AddModelError("Input.Picture", "File size must not exceed 2 MB.");
+                ModelState.AddModelError("Input.Picture", error);
                 return Page();
             }
 
-            var ext = Path.GetExtension(Input.Picture.FileName).ToLowerInvariant();
-            if (!AllowedExtensions.Contains(ext))
-            {
-                ModelState.AddModelError("Input.Picture", "Only image files (.jpg, .jpeg, .png, .gif, .webp) are allowed.");
-                return Page();
-            }
-
-            // Delete old picture if present
-            if (!string.IsNullOrEmpty(assetItem.PicturePath))
-            {
-                var oldFile = Path.Combine(_env.WebRootPath, assetItem.PicturePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-                if (System.IO.File.Exists(oldFile))
-                    System.IO.File.Delete(oldFile);
-            }
-
-            var dir = Path.Combine(_env.WebRootPath, "asset-pictures");
-            Directory.CreateDirectory(dir);
-            var fileName = $"{Guid.NewGuid()}{ext}";
-            var filePath = Path.Combine(dir, fileName);
-
-            using var stream = new FileStream(filePath, FileMode.Create);
-            await Input.Picture.CopyToAsync(stream);
-
-            assetItem.PicturePath = $"/asset-pictures/{fileName}";
+            _fileUpload.DeleteFile(assetItem.PicturePath, _env.WebRootPath);
+            assetItem.PicturePath = await _fileUpload.SaveAssetPictureAsync(Input.Picture, _env.WebRootPath);
         }
 
         var originalTitle = assetItem.Title;
