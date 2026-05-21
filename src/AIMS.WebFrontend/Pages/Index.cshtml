@@ -1,10 +1,280 @@
-﻿@page
+@page
 @model IndexModel
+@using AIMS.Core.Entities
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Dashboard";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+    <small class="text-muted">Asset Integrity Management System</small>
+</div>
+
+<!-- Summary stat cards -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-primary border-4 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="text-xs text-uppercase text-muted fw-bold mb-1">Total Assets</div>
+                    <div class="h2 mb-0 fw-bold text-primary">@Model.TotalAssets</div>
+                </div>
+                <div class="ms-3 text-primary opacity-50">
+                    <i class="fas fa-boxes-stacked fa-2x"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+                <a asp-page="/AssetItems/Index" class="small text-decoration-none text-primary">View all assets &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-danger border-4 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="text-xs text-uppercase text-muted fw-bold mb-1">High Priority</div>
+                    <div class="h2 mb-0 fw-bold text-danger">@Model.HighPriorityCount</div>
+                </div>
+                <div class="ms-3 text-danger opacity-50">
+                    <i class="fas fa-triangle-exclamation fa-2x"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+                <a asp-page="/AssetItems/Index" asp-route-priorityFilter="High" class="small text-decoration-none text-danger">View high priority &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-warning border-4 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="text-xs text-uppercase text-muted fw-bold mb-1">Fair Integrity</div>
+                    <div class="h2 mb-0 fw-bold text-warning">@Model.FairStatusCount</div>
+                </div>
+                <div class="ms-3 text-warning opacity-50">
+                    <i class="fas fa-circle-half-stroke fa-2x"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+                <a asp-page="/AssetItems/Index" asp-route-statusFilter="Fair" class="small text-decoration-none text-warning">View fair status &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-start border-danger border-4 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <div class="text-xs text-uppercase text-muted fw-bold mb-1">Poor Integrity</div>
+                    <div class="h2 mb-0 fw-bold text-danger">@Model.PoorStatusCount</div>
+                </div>
+                <div class="ms-3 text-danger opacity-50">
+                    <i class="fas fa-circle-xmark fa-2x"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0 pt-0">
+                <a asp-page="/AssetItems/Index" asp-route-statusFilter="Poor" class="small text-decoration-none text-danger">View poor status &rarr;</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Priority and Status breakdown -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-flag"></i> Priority Breakdown</h6>
+            </div>
+            <div class="card-body">
+                @if (Model.TotalAssets == 0)
+                {
+                    <p class="text-muted small mb-0">No assets recorded.</p>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small fw-semibold text-danger"><i class="fas fa-circle me-1"></i>High</span>
+                            <span class="small">@Model.HighPriorityCount</span>
+                        </div>
+                        <div class="progress" style="height:10px;">
+                            <div class="progress-bar bg-danger" style="width:@(Model.TotalAssets > 0 ? (Model.HighPriorityCount * 100 / Model.TotalAssets) : 0)%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small fw-semibold text-warning"><i class="fas fa-circle me-1"></i>Medium</span>
+                            <span class="small">@Model.MediumPriorityCount</span>
+                        </div>
+                        <div class="progress" style="height:10px;">
+                            <div class="progress-bar bg-warning" style="width:@(Model.TotalAssets > 0 ? (Model.MediumPriorityCount * 100 / Model.TotalAssets) : 0)%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small fw-semibold text-success"><i class="fas fa-circle me-1"></i>Low</span>
+                            <span class="small">@Model.LowPriorityCount</span>
+                        </div>
+                        <div class="progress" style="height:10px;">
+                            <div class="progress-bar bg-success" style="width:@(Model.TotalAssets > 0 ? (Model.LowPriorityCount * 100 / Model.TotalAssets) : 0)%"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-shield-halved"></i> Integrity Status</h6>
+            </div>
+            <div class="card-body">
+                @if (Model.TotalAssets == 0)
+                {
+                    <p class="text-muted small mb-0">No assets recorded.</p>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small fw-semibold text-success"><i class="fas fa-circle me-1"></i>Good</span>
+                            <span class="small">@Model.GoodStatusCount</span>
+                        </div>
+                        <div class="progress" style="height:10px;">
+                            <div class="progress-bar bg-success" style="width:@(Model.TotalAssets > 0 ? (Model.GoodStatusCount * 100 / Model.TotalAssets) : 0)%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small fw-semibold text-warning"><i class="fas fa-circle me-1"></i>Fair</span>
+                            <span class="small">@Model.FairStatusCount</span>
+                        </div>
+                        <div class="progress" style="height:10px;">
+                            <div class="progress-bar bg-warning" style="width:@(Model.TotalAssets > 0 ? (Model.FairStatusCount * 100 / Model.TotalAssets) : 0)%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-0">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small fw-semibold text-danger"><i class="fas fa-circle me-1"></i>Poor</span>
+                            <span class="small">@Model.PoorStatusCount</span>
+                        </div>
+                        <div class="progress" style="height:10px;">
+                            <div class="progress-bar bg-danger" style="width:@(Model.TotalAssets > 0 ? (Model.PoorStatusCount * 100 / Model.TotalAssets) : 0)%"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-layer-group"></i> Asset Types</h6>
+            </div>
+            <div class="card-body">
+                @if (Model.TotalAssets == 0)
+                {
+                    <p class="text-muted small mb-0">No assets recorded.</p>
+                }
+                else
+                {
+                    @foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+                    {
+                        var count = Model.AssetsByType.GetValueOrDefault(type, 0);
+                        <div class="d-flex justify-content-between align-items-center py-2 @(type != AssetType.Other ? "border-bottom" : "")">
+                            <span class="small fw-semibold">
+                                <a asp-page="/AssetItems/Index" asp-route-typeFilter="@type" class="text-decoration-none text-dark">@type</a>
+                            </span>
+                            <span class="badge bg-info">@count</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Assets -->
+<div class="card shadow-sm">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-clock-rotate-left"></i> Recently Added Assets</h6>
+        <a asp-page="/AssetItems/Index" class="btn btn-sm btn-outline-secondary">View All</a>
+    </div>
+    <div class="card-body p-0">
+        @if (!Model.RecentAssets.Any())
+        {
+            <div class="p-3">
+                <p class="text-muted mb-0"><i class="fas fa-circle-info me-1"></i>No assets have been added yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Asset ID</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Priority</th>
+                            <th>Integrity</th>
+                            <th>Location</th>
+                            <th>Added</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.RecentAssets)
+                        {
+                            <tr>
+                                <td>
+                                    <a asp-page="/AssetItems/Details" asp-route-id="@item.Id" class="text-decoration-none">
+                                        <code>@item.AssetId</code>
+                                    </a>
+                                </td>
+                                <td>
+                                    <a asp-page="/AssetItems/Details" asp-route-id="@item.Id" class="text-decoration-none">@item.Title</a>
+                                </td>
+                                <td><span class="badge bg-info">@item.Type</span></td>
+                                <td>
+                                    @if (item.Priority == AssetPriority.High)
+                                    {
+                                        <span class="badge bg-danger">@item.Priority</span>
+                                    }
+                                    else if (item.Priority == AssetPriority.Medium)
+                                    {
+                                        <span class="badge bg-warning text-dark">@item.Priority</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">@item.Priority</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (item.IntegrityStatus == IntegrityStatus.Good)
+                                    {
+                                        <span class="badge bg-success">@item.IntegrityStatus</span>
+                                    }
+                                    else if (item.IntegrityStatus == IntegrityStatus.Fair)
+                                    {
+                                        <span class="badge bg-warning text-dark">@item.IntegrityStatus</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">@item.IntegrityStatus</span>
+                                    }
+                                </td>
+                                <td><small>@item.Location</small></td>
+                                <td><small class="text-muted">@item.CreatedAt.ToString("dd MMM yyyy")</small></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 </div>
