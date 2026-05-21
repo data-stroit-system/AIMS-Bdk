@@ -54,6 +54,7 @@ public class FileUploadHelper
 
     public string SaveFile(Stream file, string pathToUpload, string filename)
     {
+        Directory.CreateDirectory(pathToUpload);
         var fullPath = Path.Combine(pathToUpload, filename);
         using var fileStream = new FileStream(fullPath, FileMode.Create);
         file.CopyTo(fileStream);

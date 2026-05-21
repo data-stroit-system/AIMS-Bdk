@@ -4,7 +4,6 @@
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 USER app
 WORKDIR /app
-EXPOSE 8080
 EXPOSE 8081
 
 
@@ -25,6 +24,10 @@ RUN dotnet publish "./AIMS.WebFrontend.csproj" -c $BUILD_CONFIGURATION -o /app/p
 
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final
+USER root
 WORKDIR /app
 COPY --from=publish /app/publish .
+RUN mkdir -p wwwroot/asset-pictures wwwroot/asset-documents \
+    && chown -R app:app wwwroot
+USER app
 ENTRYPOINT ["dotnet", "AIMS.WebFrontend.dll"]

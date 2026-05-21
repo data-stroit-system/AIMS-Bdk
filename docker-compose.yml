@@ -11,24 +11,24 @@ services:
     volumes:
       - sqlserver-data:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Del12345!", "-Q", "SELECT 1"]
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Del12345!", "-Q", "SELECT 1", "-C"]
       interval: 10s
       retries: 10
       timeout: 10s
+      start_period: 30s
 
   webfrontend:
     build:
-      context: ./src/AIMS.WebFrontend
-      dockerfile: Dockerfile
-    image: aims-webfrontend
+      context: .
+      dockerfile: src/AIMS.WebFrontend/Dockerfile
     container_name: aims-webfrontend
     depends_on:
       sqlserver:
-        condition: service_healthy
+        condition: service_started
     ports:
-      - '8080:8080'
+      - '8081:8081'
     environment:
-      ASPNETCORE_URLS: 'http://+:8080'
+      ASPNETCORE_URLS: 'http://+:8081'
       ASPNETCORE_ENVIRONMENT: 'Development'
       ConnectionStrings__DefaultConnection: 'Server=sqlserver;Database=aimsdbv2;User Id=sa;Password=Del12345!;Trusted_Connection=False;MultipleActiveResultSets=True;TrustServerCertificate=True'
     restart: unless-stopped
