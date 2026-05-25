@@ -1,6 +1,25 @@
-version: '3.9'
 services:
+  postgres:
+    profiles: ["postgresql"]
+    image: postgres:16-alpine
+    container_name: aims-postgres
+    environment:
+      POSTGRES_DB: aimsdb
+      POSTGRES_USER: aims
+      POSTGRES_PASSWORD: aims_password
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aims -d aimsdb"]
+      interval: 10s
+      retries: 10
+      timeout: 5s
+      start_period: 20s
+
   sqlserver:
+    profiles: ["sqlserver"]
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: aims-sqlserver
     environment:
@@ -11,7 +30,7 @@ services:
     volumes:
       - sqlserver-data:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Del12345!", "-Q", "SELECT 1", "-C"]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Del12345!' -Q 'SELECT 1' -No"]
       interval: 10s
       retries: 10
       timeout: 10s
@@ -23,15 +42,22 @@ services:
       dockerfile: src/AIMS.WebFrontend/Dockerfile
     container_name: aims-webfrontend
     depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
       sqlserver:
-        condition: service_started
+        condition: service_healthy
+        required: false
     ports:
       - '8081:8081'
     environment:
       ASPNETCORE_URLS: 'http://+:8081'
       ASPNETCORE_ENVIRONMENT: 'Development'
-      ConnectionStrings__DefaultConnection: 'Server=sqlserver;Database=aimsdbv2;User Id=sa;Password=Del12345!;Trusted_Connection=False;MultipleActiveResultSets=True;TrustServerCertificate=True'
-    restart: unless-stopped
+      DatabaseProvider: ${DATABASE_PROVIDER:-PostgreSQL}
+      ConnectionStrings__PostgreSQL: 'Host=postgres;Port=5432;Database=aimsdb;Username=aims;Password=aims_password'
+      ConnectionStrings__SqlServer: 'Server=sqlserver;Database=aimsdb;User Id=sa;Password=Del12345!;MultipleActiveResultSets=True;TrustServerCertificate=True'
+    restart: on-failure
 
 volumes:
+  postgres-data:
   sqlserver-data:

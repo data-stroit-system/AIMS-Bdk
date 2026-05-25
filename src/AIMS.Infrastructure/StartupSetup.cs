@@ -8,22 +8,30 @@ using AIMS.Infrastructure.Audit;
 using AIMS.SharedKernel.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AIMS.Infrastructure
 {
     public static class StartupSetup
     {
-        public static void AddDbContext(this IServiceCollection services, string connectionString)
+        public static void AddDbContext(this IServiceCollection services, IConfiguration configuration)
         {
+            var raw = (configuration["DatabaseProvider"] ?? "PostgreSQL").Trim();
+            var isSqlServer = raw.Equals("SqlServer", StringComparison.OrdinalIgnoreCase)
+                           || raw.Equals("MSSQL", StringComparison.OrdinalIgnoreCase)
+                           || raw.Equals("SQLServer", StringComparison.OrdinalIgnoreCase);
+            var connKey = isSqlServer ? "SqlServer" : "PostgreSQL";
+            var connStr = configuration.GetConnectionString(connKey)
+                ?? throw new InvalidOperationException($"Connection string '{connKey}' not found.");
 
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(connectionString))
-                //.AddIdentity<ApplicationUser, ApplicationRole>(options => options.SignIn.RequireConfirmedAccount = false)
-                //.AddEntityFrameworkStores<AppDbContext>()
-                ; // will be created in web project root}
-
-
+            {
+                if (isSqlServer)
+                    options.UseSqlServer(connStr, b => b.MigrationsAssembly("AIMS.Migrations.SqlServer"));
+                else
+                    options.UseNpgsql(connStr, b => b.MigrationsAssembly("AIMS.Migrations.PostgreSQL"));
+            });
         }
 
         /// <summary>
@@ -40,7 +48,7 @@ namespace AIMS.Infrastructure
         public static void SeedData(this IServiceCollection services)
         {
             using var fac = services.BuildServiceProvider();
-            fac.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+            fac.GetRequiredService<AppDbContext>().Database.Migrate();
         }
 
         /// <summary>
