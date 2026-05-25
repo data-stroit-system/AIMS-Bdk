@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace AIMS.Infrastructure.Migrations
+namespace AIMS.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260519061313_AddCreatedByAssetitem")]
-    partial class AddCreatedByAssetitem
+    [Migration("20260525034816_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -54,6 +54,10 @@ namespace AIMS.Infrastructure.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
+                    b.Property<string>("PicturePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
@@ -67,6 +71,39 @@ namespace AIMS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AssetItems");
+                });
+
+            modelBuilder.Entity("AIMS.Core.Entities.AssetItemDocuments", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AssetItemId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("DocumentTitle")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("FilePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetItemId");
+
+                    b.ToTable("AssetItemDocuments");
                 });
 
             modelBuilder.Entity("AIMS.Core.Entities.AssetItemRemarks", b =>
@@ -408,6 +445,15 @@ namespace AIMS.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("AIMS.Core.Entities.AssetItemDocuments", b =>
+                {
+                    b.HasOne("AIMS.Core.Entities.AssetItem", "AssetItem")
+                        .WithMany("AssetItemDocuments")
+                        .HasForeignKey("AssetItemId");
+
+                    b.Navigation("AssetItem");
+                });
+
             modelBuilder.Entity("AIMS.Core.Entities.AssetItemRemarks", b =>
                 {
                     b.HasOne("AIMS.Core.Entities.AssetItem", "AssetItem")
@@ -470,6 +516,8 @@ namespace AIMS.Infrastructure.Migrations
 
             modelBuilder.Entity("AIMS.Core.Entities.AssetItem", b =>
                 {
+                    b.Navigation("AssetItemDocuments");
+
                     b.Navigation("AssetItemRemarks");
                 });
 #pragma warning restore 612, 618

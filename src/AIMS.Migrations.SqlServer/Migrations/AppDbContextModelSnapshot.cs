@@ -4,19 +4,16 @@ using AIMS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace AIMS.Infrastructure.Migrations
+namespace AIMS.Migrations.SqlServer.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260512083051_AddAuditLogTable")]
-    partial class AddAuditLogTable
+    partial class AppDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,6 +33,13 @@ namespace AIMS.Infrastructure.Migrations
                     b.Property<string>("AssetId")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("Description")
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
@@ -46,6 +50,10 @@ namespace AIMS.Infrastructure.Migrations
                     b.Property<string>("Location")
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("PicturePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("Priority")
                         .HasColumnType("int");
@@ -62,6 +70,39 @@ namespace AIMS.Infrastructure.Migrations
                     b.ToTable("AssetItems");
                 });
 
+            modelBuilder.Entity("AIMS.Core.Entities.AssetItemDocuments", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AssetItemId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("DocumentTitle")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("FilePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetItemId");
+
+                    b.ToTable("AssetItemDocuments");
+                });
+
             modelBuilder.Entity("AIMS.Core.Entities.AssetItemRemarks", b =>
                 {
                     b.Property<int>("Id")
@@ -75,6 +116,10 @@ namespace AIMS.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(250)
@@ -96,11 +141,19 @@ namespace AIMS.Infrastructure.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Action")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ChangedColumns")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("EntityId")
                         .HasMaxLength(50)
@@ -120,8 +173,20 @@ namespace AIMS.Infrastructure.Migrations
                     b.Property<string>("OldValues")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("RequestPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Result")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("UserId")
                         .HasMaxLength(256)
@@ -377,6 +442,15 @@ namespace AIMS.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("AIMS.Core.Entities.AssetItemDocuments", b =>
+                {
+                    b.HasOne("AIMS.Core.Entities.AssetItem", "AssetItem")
+                        .WithMany("AssetItemDocuments")
+                        .HasForeignKey("AssetItemId");
+
+                    b.Navigation("AssetItem");
+                });
+
             modelBuilder.Entity("AIMS.Core.Entities.AssetItemRemarks", b =>
                 {
                     b.HasOne("AIMS.Core.Entities.AssetItem", "AssetItem")
@@ -439,6 +513,8 @@ namespace AIMS.Infrastructure.Migrations
 
             modelBuilder.Entity("AIMS.Core.Entities.AssetItem", b =>
                 {
+                    b.Navigation("AssetItemDocuments");
+
                     b.Navigation("AssetItemRemarks");
                 });
 #pragma warning restore 612, 618
