@@ -33,6 +33,7 @@ builder.Services.ConfigureApplicationCookie(opt =>
 //builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
 //    .AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.AddRazorPages();
+builder.Services.AddHttpClient();
 ContainerSetup.InitializeWeb(Assembly.GetExecutingAssembly(), builder.Services);
 builder.Services.SeedData();
 builder.Services.AddAutofac(c => 
