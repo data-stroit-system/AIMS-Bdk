@@ -1,41 +1,34 @@
 #2. Database Providers
 
-How to switch providers
+# How to switch providers
 
-Local development — edit appsettings.json:
-{ "DatabaseProvider": "PostgreSQL" }   // or "SqlServer"
-
-Podman Compose:
-# PostgreSQL
-$env:DATABASE_PROVIDER = "PostgreSql"
-podman compose --profile postgresql up --build -d
+To switch to Oracle: change "DatabaseProvider": "Oracle" in appsettings.json and fill in the Oracle connection string. No code changes needed.
 
 
-# SQL Server — any of these work now:
-$env:DATABASE_PROVIDER = "SqlServer"   # or "SQLServer" or "MSSQL"
-podman compose --profile sqlserver up --build -d
+When you add a new entity, do this:
+
+1. Add the CREATE TABLE block to the Schema constant
+In DatabaseInitializer.cs:20, append a new IF OBJECT_ID(...) IS NULL CREATE TABLE block for your entity, following the same pattern as the existing tables:
 
 
-Key changes
+IF OBJECT_ID('YourNewTable', 'U') IS NULL
+CREATE TABLE YourNewTable (
+    Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    -- your columns here
+    CreatedAt datetime2 NOT NULL DEFAULT GETUTCDATE(),
+    CreatedBy nvarchar(200) NULL
+);
+2. For existing databases — add column/alter statements
+If the database already exists and you're adding columns to an existing table, use this pattern:
 
-┌─────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────┐
-│            File             │                                   What changed                                    │
-├─────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
-│ AIMS.Migrations.PostgreSQL/ │ New project — Npgsql migrations                                                   │
-├─────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
-│ AIMS.Migrations.SqlServer/  │ New project — SQL Server migrations                                               │
-├─────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
-│ StartupSetup.cs             │ Reads DatabaseProvider from config, branches on provider, sets MigrationsAssembly │
-├─────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
-│ StartupSetup.cs             │ EnsureCreated() → Migrate() (proper tracked migrations)                           │
-├─────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
-│ Program.cs                  │ Passes IConfiguration instead of raw connection string                            │
-├─────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
-│ AppDbContextFactory.cs      │ Same provider-aware logic for dotnet ef tooling                                   │
-├─────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
-│ appsettings.json            │ Two named connection strings + DatabaseProvider key                               │
-├─────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
-│ docker-compose.yml          │ Profiles (postgresql / sqlserver), required: false depends_on                     │
-├─────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────┤
-│ Dockerfile                  │ Copies all 6 csproj files for proper restore layer caching                        │
-└─────────────────────────────┴───────────────────────────────────────────────────────────────────────────────────┘
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('ExistingTable') AND name = 'NewColumn')
+    ALTER TABLE ExistingTable ADD NewColumn nvarchar(250) NULL;
+3. Restart the app — Initialize() runs on startup
+The DatabaseInitializer.Initialize() is called during app startup via services.InitializeDatabase() in StartupSetup.cs:31. It re-runs every time, but the IF OBJECT_ID ... IS NULL guards make the DDL idempotent, so it's safe.
+
+Summary of the workflow:
+
+New table → append IF OBJECT_ID ... IS NULL CREATE TABLE block to Schema
+New column on existing table → append IF NOT EXISTS ... ALTER TABLE ... ADD block to Schema
+Run the app → schema applies automatically

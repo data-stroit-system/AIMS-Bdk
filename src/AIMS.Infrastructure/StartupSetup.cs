@@ -1,13 +1,12 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
+using AIMS.Infrastructure.Audit;
 using AIMS.Infrastructure.Data;
-using AIMS.Infrastructure.DomainEvents;
 using AIMS.Infrastructure.FileTransfer;
 using AIMS.Infrastructure.IdentityClass;
-using AIMS.Infrastructure.Audit;
+using AIMS.Infrastructure.Services;
 using AIMS.SharedKernel.Interfaces;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,52 +14,44 @@ namespace AIMS.Infrastructure
 {
     public static class StartupSetup
     {
-        public static void AddDbContext(this IServiceCollection services, IConfiguration configuration)
+        public static void AddDapperContext(this IServiceCollection services, IConfiguration configuration)
         {
-            var raw = (configuration["DatabaseProvider"] ?? "PostgreSQL").Trim();
-            var isSqlServer = raw.Equals("SqlServer", StringComparison.OrdinalIgnoreCase)
-                           || raw.Equals("MSSQL", StringComparison.OrdinalIgnoreCase)
-                           || raw.Equals("SQLServer", StringComparison.OrdinalIgnoreCase);
-            var connKey = isSqlServer ? "SqlServer" : "PostgreSQL";
-            var connStr = configuration.GetConnectionString(connKey)
-                ?? throw new InvalidOperationException($"Connection string '{connKey}' not found.");
-
-            services.AddDbContext<AppDbContext>(options =>
+            var provider = configuration["DatabaseProvider"] ?? "SqlServer";
+            if (provider.Equals("Oracle", StringComparison.OrdinalIgnoreCase))
             {
-                if (isSqlServer)
-                    options.UseSqlServer(connStr, b => b.MigrationsAssembly("AIMS.Migrations.SqlServer"));
-                else
-                    options.UseNpgsql(connStr, b => b.MigrationsAssembly("AIMS.Migrations.PostgreSQL"));
-            });
+                services.AddSingleton<IDapperContext, OracleDapperContext>();
+                services.AddSingleton<ISqlDialect, OracleDialect>();
+                services.AddSingleton<ISchemaInitializer, OracleSchemaInitializer>();
+            }
+            else
+            {
+                services.AddSingleton<IDapperContext, DapperContext>();
+                services.AddSingleton<ISqlDialect, SqlServerDialect>();
+                services.AddSingleton<ISchemaInitializer, DatabaseInitializer>();
+            }
         }
 
-        /// <summary>
-        /// Registers the audit trail services including the HttpContext-based user provider and activity logger.
-        /// </summary>
         public static void AddAuditTrail(this IServiceCollection services)
         {
             services.AddHttpContextAccessor();
             services.AddScoped<IAuditUserProvider, HttpContextAuditUserProvider>();
             services.AddScoped<IActivityLogger, ActivityLogger>();
             services.AddScoped<FileUploadHelper>();
+            services.AddScoped<AssetItemService>();
         }
 
-        public static void SeedData(this IServiceCollection services)
+        public static void InitializeDatabase(this IServiceCollection services)
         {
-            using var fac = services.BuildServiceProvider();
-            fac.GetRequiredService<AppDbContext>().Database.Migrate();
+            using var provider = services.BuildServiceProvider();
+            provider.GetRequiredService<ISchemaInitializer>().Initialize();
         }
 
-        /// <summary>
-        /// Seeds the default Admin role and optionally creates a default admin user.
-        /// </summary>
         public static async Task SeedRolesAndAdminUserAsync(this IServiceProvider serviceProvider)
         {
             using var scope = serviceProvider.CreateScope();
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-            // Seed default roles
             string[] roles = { "Admin", "Manager", "User" };
             foreach (var roleName in roles)
             {
@@ -81,7 +72,6 @@ namespace AIMS.Infrastructure
                 }
             }
 
-            // Seed default admin user if it doesn't exist
             var adminEmail = "admin@aims.local";
             var adminUser = await userManager.FindByEmailAsync(adminEmail);
             if (adminUser == null)
@@ -97,9 +87,7 @@ namespace AIMS.Infrastructure
 
                 var result = await userManager.CreateAsync(adminUser, "Admin@123");
                 if (result.Succeeded)
-                {
                     await userManager.AddToRoleAsync(adminUser, "Admin");
-                }
             }
         }
     }

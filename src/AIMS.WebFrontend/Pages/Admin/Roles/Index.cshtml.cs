@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace AIMS.WebFrontend.Pages.Admin.Roles;
 
@@ -17,7 +16,7 @@ public class IndexModel : PageModel
     private readonly IActivityLogger _activityLogger;
 
     public IndexModel(
-        RoleManager<ApplicationRole> roleManager, 
+        RoleManager<ApplicationRole> roleManager,
         UserManager<ApplicationUser> userManager,
         IActivityLogger activityLogger)
     {
@@ -30,7 +29,7 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        var roles = await _roleManager.Roles.OrderBy(r => r.Name).ToListAsync();
+        var roles = _roleManager.Roles.OrderBy(r => r.Name).ToList();
 
         foreach (var role in roles)
         {
@@ -73,7 +72,6 @@ public class IndexModel : PageModel
         var result = await _roleManager.DeleteAsync(role);
         if (result.Succeeded)
         {
-            // Log role deletion activity
             await _activityLogger.LogActivityAsync(
                 ActivityType.RoleDeleted,
                 $"Deleted role '{roleName}'",

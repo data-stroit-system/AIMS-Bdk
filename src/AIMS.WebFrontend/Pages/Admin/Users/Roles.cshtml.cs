@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace AIMS.WebFrontend.Pages.Admin.Users;
 
@@ -17,7 +16,7 @@ public class RolesModel : PageModel
     private readonly IActivityLogger _activityLogger;
 
     public RolesModel(
-        UserManager<ApplicationUser> userManager, 
+        UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
         IActivityLogger activityLogger)
     {
@@ -35,16 +34,13 @@ public class RolesModel : PageModel
     public async Task<IActionResult> OnGetAsync(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
-        if (user == null)
-        {
-            return NotFound();
-        }
+        if (user == null) return NotFound();
 
         UserId = user.Id;
         UserFullName = user.FullName ?? "Unknown";
         UserEmail = user.Email ?? string.Empty;
         UserRoles = (await _userManager.GetRolesAsync(user)).ToList();
-        AvailableRoles = await _roleManager.Roles.OrderBy(r => r.Name).ToListAsync();
+        AvailableRoles = _roleManager.Roles.OrderBy(r => r.Name).ToList();
 
         return Page();
     }
@@ -52,23 +48,18 @@ public class RolesModel : PageModel
     public async Task<IActionResult> OnPostAsync(string id, List<string> selectedRoles)
     {
         var user = await _userManager.FindByIdAsync(id);
-        if (user == null)
-        {
-            return NotFound();
-        }
+        if (user == null) return NotFound();
 
         var currentRoles = await _userManager.GetRolesAsync(user);
 
-        // Prevent removing Admin role from yourself
-        if (user.UserName == User.Identity?.Name && 
-            currentRoles.Contains("Admin") && 
+        if (user.UserName == User.Identity?.Name &&
+            currentRoles.Contains("Admin") &&
             !selectedRoles.Contains("Admin"))
         {
             TempData["Error"] = "You cannot remove the Admin role from your own account.";
             return RedirectToPage(new { id });
         }
 
-        // Remove roles that are no longer selected
         var rolesToRemove = currentRoles.Except(selectedRoles).ToList();
         if (rolesToRemove.Any())
         {
@@ -79,19 +70,15 @@ public class RolesModel : PageModel
                 return RedirectToPage(new { id });
             }
 
-            // Log role removal
             foreach (var role in rolesToRemove)
-            {
                 await _activityLogger.LogActivityAsync(
                     ActivityType.RoleRemoved,
                     $"Removed role '{role}' from user '{user.UserName}'",
                     "ApplicationUser",
                     user.Id,
                     "Success");
-            }
         }
 
-        // Add newly selected roles
         var rolesToAdd = selectedRoles.Except(currentRoles).ToList();
         if (rolesToAdd.Any())
         {
@@ -102,16 +89,13 @@ public class RolesModel : PageModel
                 return RedirectToPage(new { id });
             }
 
-            // Log role assignment
             foreach (var role in rolesToAdd)
-            {
                 await _activityLogger.LogActivityAsync(
                     ActivityType.RoleAssigned,
                     $"Assigned role '{role}' to user '{user.UserName}'",
                     "ApplicationUser",
                     user.Id,
                     "Success");
-            }
         }
 
         TempData["Success"] = $"Roles for '{user.FullName}' have been updated successfully.";

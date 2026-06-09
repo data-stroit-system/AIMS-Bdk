@@ -1,17 +1,17 @@
 using AIMS.Core.Entities;
 using AIMS.Infrastructure.Data;
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace AIMS.WebFrontend.Pages;
 
 [Authorize]
 public class IndexModel : PageModel
 {
-    private readonly AppDbContext _context;
+    private readonly DapperContext _context;
 
-    public IndexModel(AppDbContext context)
+    public IndexModel(DapperContext context)
     {
         _context = context;
     }
@@ -32,7 +32,8 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
-        var assets = await _context.AssetItems.ToListAsync();
+        using var conn = _context.CreateConnection();
+        var assets = (await conn.QueryAsync<AssetItem>("SELECT * FROM AssetItems")).ToList();
 
         TotalAssets = assets.Count;
 
