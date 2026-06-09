@@ -58,7 +58,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
 
         @"BEGIN EXECUTE IMMEDIATE '
             CREATE TABLE AssetItems (
-                Id              NUMBER(10,0) GENERATED ALWAYS AS IDENTITY NOT NULL,
+                Id              NUMBER(10,0) NOT NULL,
                 Title           NVARCHAR2(150),
                 AssetId         VARCHAR2(4000),
                 Description     NVARCHAR2(250),
@@ -73,9 +73,22 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
 
+        @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE AssetItems_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE '
+            CREATE OR REPLACE TRIGGER TRG_AssetItems_BI
+            BEFORE INSERT ON AssetItems
+            FOR EACH ROW
+            WHEN (new.Id IS NULL)
+            BEGIN
+                SELECT AssetItems_SEQ.NEXTVAL INTO :new.Id FROM dual;
+            END;';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
         @"BEGIN EXECUTE IMMEDIATE '
             CREATE TABLE AuditLogs (
-                Id             NUMBER(10,0) GENERATED ALWAYS AS IDENTITY NOT NULL,
+                Id             NUMBER(10,0) NOT NULL,
                 Category       NVARCHAR2(50),
                 EntityName     NVARCHAR2(100),
                 EntityId       NVARCHAR2(50),
@@ -95,9 +108,22 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
 
+        @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE AuditLogs_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE '
+            CREATE OR REPLACE TRIGGER TRG_AuditLogs_BI
+            BEFORE INSERT ON AuditLogs
+            FOR EACH ROW
+            WHEN (new.Id IS NULL)
+            BEGIN
+                SELECT AuditLogs_SEQ.NEXTVAL INTO :new.Id FROM dual;
+            END;';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
         @"BEGIN EXECUTE IMMEDIATE '
             CREATE TABLE ToDoItems (
-                Id          NUMBER(10,0) GENERATED ALWAYS AS IDENTITY NOT NULL,
+                Id          NUMBER(10,0) NOT NULL,
                 Title       VARCHAR2(4000) NOT NULL,
                 Description VARCHAR2(4000),
                 IsDone      NUMBER(1,0) DEFAULT 0 NOT NULL,
@@ -105,9 +131,22 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
 
+        @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE ToDoItems_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE '
+            CREATE OR REPLACE TRIGGER TRG_ToDoItems_BI
+            BEFORE INSERT ON ToDoItems
+            FOR EACH ROW
+            WHEN (new.Id IS NULL)
+            BEGIN
+                SELECT ToDoItems_SEQ.NEXTVAL INTO :new.Id FROM dual;
+            END;';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
         @"BEGIN EXECUTE IMMEDIATE '
             CREATE TABLE AspNetRoleClaims (
-                Id         NUMBER(10,0) GENERATED ALWAYS AS IDENTITY NOT NULL,
+                Id         NUMBER(10,0) NOT NULL,
                 RoleId     NVARCHAR2(450) NOT NULL,
                 ClaimType  VARCHAR2(4000),
                 ClaimValue VARCHAR2(4000),
@@ -117,9 +156,22 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
 
+        @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE AspNetRoleClaims_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE '
+            CREATE OR REPLACE TRIGGER TRG_AspNetRoleClaims_BI
+            BEFORE INSERT ON AspNetRoleClaims
+            FOR EACH ROW
+            WHEN (new.Id IS NULL)
+            BEGIN
+                SELECT AspNetRoleClaims_SEQ.NEXTVAL INTO :new.Id FROM dual;
+            END;';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
         @"BEGIN EXECUTE IMMEDIATE '
             CREATE TABLE AspNetUserClaims (
-                Id         NUMBER(10,0) GENERATED ALWAYS AS IDENTITY NOT NULL,
+                Id         NUMBER(10,0) NOT NULL,
                 UserId     NVARCHAR2(450) NOT NULL,
                 ClaimType  VARCHAR2(4000),
                 ClaimValue VARCHAR2(4000),
@@ -127,6 +179,19 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 CONSTRAINT FK_AspNetUserClaims_AspNetUsers_UserId
                     FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id) ON DELETE CASCADE
             )';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE AspNetUserClaims_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE '
+            CREATE OR REPLACE TRIGGER TRG_AspNetUserClaims_BI
+            BEFORE INSERT ON AspNetUserClaims
+            FOR EACH ROW
+            WHEN (new.Id IS NULL)
+            BEGIN
+                SELECT AspNetUserClaims_SEQ.NEXTVAL INTO :new.Id FROM dual;
+            END;';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
 
         @"BEGIN EXECUTE IMMEDIATE '
@@ -167,7 +232,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
 
         @"BEGIN EXECUTE IMMEDIATE '
             CREATE TABLE AssetItemDocuments (
-                Id             NUMBER(10,0) GENERATED ALWAYS AS IDENTITY NOT NULL,
+                Id             NUMBER(10,0) NOT NULL,
                 DocumentTitle  NVARCHAR2(250),
                 FilePath       NVARCHAR2(500),
                 CreatedAt      TIMESTAMP DEFAULT SYS_EXTRACT_UTC(SYSTIMESTAMP) NOT NULL,
@@ -179,9 +244,22 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
 
+        @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE AssetItemDocuments_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE '
+            CREATE OR REPLACE TRIGGER TRG_AssetItemDocuments_BI
+            BEFORE INSERT ON AssetItemDocuments
+            FOR EACH ROW
+            WHEN (new.Id IS NULL)
+            BEGIN
+                SELECT AssetItemDocuments_SEQ.NEXTVAL INTO :new.Id FROM dual;
+            END;';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
         @"BEGIN EXECUTE IMMEDIATE '
             CREATE TABLE AssetRemarks (
-                Id          NUMBER(10,0) GENERATED ALWAYS AS IDENTITY NOT NULL,
+                Id          NUMBER(10,0) NOT NULL,
                 Description NVARCHAR2(250),
                 CreatedAt   TIMESTAMP DEFAULT SYS_EXTRACT_UTC(SYSTIMESTAMP) NOT NULL,
                 CreatedBy   NVARCHAR2(200),
@@ -192,6 +270,18 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
 
+        @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE AssetRemarks_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE '
+            CREATE OR REPLACE TRIGGER TRG_AssetRemarks_BI
+            BEFORE INSERT ON AssetRemarks
+            FOR EACH ROW
+            WHEN (new.Id IS NULL)
+            BEGIN
+                SELECT AssetRemarks_SEQ.NEXTVAL INTO :new.Id FROM dual;
+            END;';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
         // Oracle unique indexes: NULL values are excluded from unique indexes automatically,
         // so the WHERE ... IS NOT NULL filter from SQL Server is not needed.
         @"BEGIN EXECUTE IMMEDIATE 'CREATE UNIQUE INDEX RoleNameIndex ON AspNetRoles(NormalizedName)';
