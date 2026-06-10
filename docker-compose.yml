@@ -1,22 +1,16 @@
 services:
-  postgres:
-    profiles: ["postgresql"]
-    image: postgres:16-alpine
-    container_name: aims-postgres
-    environment:
-      POSTGRES_DB: aimsdb
-      POSTGRES_USER: aims
-      POSTGRES_PASSWORD: aims_password
+  oracle:
+    profiles: ["oracle"]
+    image: oracleinanutshell/oracle-xe-11g
+    container_name: aims-oracle
     ports:
-      - '5432:5432'
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - '1521:1521'
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aims -d aimsdb"]
+      test: ["CMD-SHELL", "echo 'select 1 from dual;' | ORACLE_HOME=/u01/app/oracle/product/11.2.0/xe ORACLE_SID=XE /u01/app/oracle/product/11.2.0/xe/bin/sqlplus -s system/oracle@//localhost:1521/xe | grep -Eq '^[[:space:]]*1[[:space:]]*$'"]
       interval: 10s
-      retries: 10
-      timeout: 5s
-      start_period: 20s
+      retries: 30
+      timeout: 10s
+      start_period: 60s
 
   sqlserver:
     profiles: ["sqlserver"]
@@ -42,10 +36,10 @@ services:
       dockerfile: src/AIMS.WebFrontend/Dockerfile
     container_name: aims-webfrontend
     depends_on:
-      postgres:
+      sqlserver:
         condition: service_healthy
         required: false
-      sqlserver:
+      oracle:
         condition: service_healthy
         required: false
     ports:
@@ -53,11 +47,10 @@ services:
     environment:
       ASPNETCORE_URLS: 'http://+:8081'
       ASPNETCORE_ENVIRONMENT: 'Development'
-      DatabaseProvider: ${DATABASE_PROVIDER:-PostgreSQL}
-      ConnectionStrings__PostgreSQL: 'Host=postgres;Port=5432;Database=aimsdb;Username=aims;Password=aims_password'
+      DatabaseProvider: ${DATABASE_PROVIDER:-Oracle}
       ConnectionStrings__SqlServer: 'Server=sqlserver;Database=aimsdb;User Id=sa;Password=Del12345!;MultipleActiveResultSets=True;TrustServerCertificate=True'
+      ConnectionStrings__Oracle: 'Data Source=oracle:1521/xe;User Id=system;Password=oracle;'
     restart: on-failure
 
 volumes:
-  postgres-data:
   sqlserver-data:

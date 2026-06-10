@@ -15,8 +15,6 @@ COPY ["src/AIMS.WebFrontend/AIMS.WebFrontend.csproj", "src/AIMS.WebFrontend/"]
 COPY ["src/AIMS.Infrastructure/AIMS.Infrastructure.csproj", "src/AIMS.Infrastructure/"]
 COPY ["src/AIMS.Core/AIMS.Core.csproj", "src/AIMS.Core/"]
 COPY ["src/AIMS.SharedKernel/AIMS.SharedKernel.csproj", "src/AIMS.SharedKernel/"]
-COPY ["src/AIMS.Migrations.PostgreSQL/AIMS.Migrations.PostgreSQL.csproj", "src/AIMS.Migrations.PostgreSQL/"]
-COPY ["src/AIMS.Migrations.SqlServer/AIMS.Migrations.SqlServer.csproj", "src/AIMS.Migrations.SqlServer/"]
 RUN dotnet restore "./src/AIMS.WebFrontend/AIMS.WebFrontend.csproj"
 COPY . .
 WORKDIR "/src/src/AIMS.WebFrontend"

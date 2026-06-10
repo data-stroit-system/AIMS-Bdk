@@ -1,9 +1,23 @@
 #2. Database Providers
 
 # How to switch providers
+## SQL Server
+set DATABASE_PROVIDER=SqlServer
+podman compose --profile sqlserver up -d
 
-To switch to Oracle: change "DatabaseProvider": "Oracle" in appsettings.json and fill in the Oracle connection string. No code changes needed.
+## Oracle
+set DATABASE_PROVIDER=Oracle
+podman compose --profile oracle up -d
 
+(In PowerShell use $env:DATABASE_PROVIDER="Oracle" instead of set. Note: DatabaseProvider currently defaults to Oracle if you don't set the env var at all, so for SQL Server you must set DATABASE_PROVIDER=SqlServer explicitly.)
+
+Useful follow-ups
+
+podman compose --profile oracle ps          REM check container status
+podman compose --profile oracle logs -f webfrontend   REM follow app logs
+podman compose --profile oracle down        REM stop and remove containers
+
+---------------------------------------------------------------------------------
 
 When you add a new entity, do this:
 
