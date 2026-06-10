@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace AIMS.WebFrontend.Pages.Admin.Users;
 
@@ -18,7 +17,7 @@ public class IndexModel : PageModel
     private const int PageSize = 15;
 
     public IndexModel(
-        UserManager<ApplicationUser> userManager, 
+        UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
         IActivityLogger activityLogger)
     {
@@ -41,33 +40,27 @@ public class IndexModel : PageModel
     public async Task OnGetAsync(int page = 1)
     {
         CurrentPage = page < 1 ? 1 : page;
-        AvailableRoles = await _roleManager.Roles.OrderBy(r => r.Name).ToListAsync();
+        AvailableRoles = _roleManager.Roles.OrderBy(r => r.Name).ToList();
 
         var query = _userManager.Users.AsQueryable();
 
-        // Apply search filter
         if (!string.IsNullOrEmpty(SearchTerm))
         {
-            query = query.Where(u => 
+            query = query.Where(u =>
                 (u.FullName != null && u.FullName.Contains(SearchTerm)) ||
                 (u.Email != null && u.Email.Contains(SearchTerm)) ||
                 (u.UserName != null && u.UserName.Contains(SearchTerm)));
         }
 
-        // Get all users first, then filter by role if needed
-        var allUsers = await query.OrderBy(u => u.FullName).ToListAsync();
+        var allUsers = query.OrderBy(u => u.FullName).ToList();
 
-        // Build view models with roles
         var userViewModels = new List<UserViewModel>();
         foreach (var user in allUsers)
         {
             var roles = await _userManager.GetRolesAsync(user);
 
-            // Apply role filter
             if (!string.IsNullOrEmpty(RoleFilter) && !roles.Contains(RoleFilter))
-            {
                 continue;
-            }
 
             userViewModels.Add(new UserViewModel
             {
@@ -81,13 +74,11 @@ public class IndexModel : PageModel
             });
         }
 
-        // Calculate pagination
         var totalCount = userViewModels.Count;
         TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
         TotalPages = TotalPages < 1 ? 1 : TotalPages;
         CurrentPage = CurrentPage > TotalPages ? TotalPages : CurrentPage;
 
-        // Get paginated results
         Users = userViewModels
             .Skip((CurrentPage - 1) * PageSize)
             .Take(PageSize)
@@ -96,7 +87,6 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnPostDeleteAsync(string id)
     {
-        // Only Admin can delete users
         if (!User.IsInRole("Admin"))
         {
             TempData["Error"] = "You do not have permission to delete users.";
@@ -106,7 +96,6 @@ public class IndexModel : PageModel
         var user = await _userManager.FindByIdAsync(id);
         if (user != null)
         {
-            // Prevent deleting yourself
             if (user.UserName == User.Identity?.Name)
             {
                 TempData["Error"] = "You cannot delete your own account.";
@@ -120,7 +109,6 @@ public class IndexModel : PageModel
             var result = await _userManager.DeleteAsync(user);
             if (result.Succeeded)
             {
-                // Log user deletion activity
                 await _activityLogger.LogActivityAsync(
                     ActivityType.UserDeleted,
                     $"Deleted user '{userName}' ({fullName})",

@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace AIMS.WebFrontend.Pages.Admin.Users;
 
@@ -18,7 +17,7 @@ public class CreateModel : PageModel
     private readonly IActivityLogger _activityLogger;
 
     public CreateModel(
-        UserManager<ApplicationUser> userManager, 
+        UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
         IActivityLogger activityLogger)
     {
@@ -32,19 +31,17 @@ public class CreateModel : PageModel
 
     public List<ApplicationRole> AvailableRoles { get; set; } = new();
 
-    public async Task OnGetAsync()
+    public void OnGet()
     {
-        AvailableRoles = await _roleManager.Roles.OrderBy(r => r.Name).ToListAsync();
+        AvailableRoles = _roleManager.Roles.OrderBy(r => r.Name).ToList();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        AvailableRoles = await _roleManager.Roles.OrderBy(r => r.Name).ToListAsync();
+        AvailableRoles = _roleManager.Roles.OrderBy(r => r.Name).ToList();
 
         if (!ModelState.IsValid)
-        {
             return Page();
-        }
 
         var user = new ApplicationUser
         {
@@ -59,23 +56,18 @@ public class CreateModel : PageModel
 
         if (result.Succeeded)
         {
-            // Assign selected roles
             if (Input.SelectedRoles.Any())
             {
                 var roleResult = await _userManager.AddToRolesAsync(user, Input.SelectedRoles);
                 if (!roleResult.Succeeded)
                 {
                     foreach (var error in roleResult.Errors)
-                    {
                         ModelState.AddModelError(string.Empty, error.Description);
-                    }
-                    // User was created but roles failed - delete user and show error
                     await _userManager.DeleteAsync(user);
                     return Page();
                 }
             }
 
-            // Log user creation activity
             await _activityLogger.LogActivityAsync(
                 ActivityType.UserCreated,
                 $"Created new user '{user.UserName}' ({user.FullName}) with roles: {string.Join(", ", Input.SelectedRoles)}",
@@ -88,9 +80,7 @@ public class CreateModel : PageModel
         }
 
         foreach (var error in result.Errors)
-        {
             ModelState.AddModelError(string.Empty, error.Description);
-        }
 
         return Page();
     }
@@ -119,7 +109,7 @@ public class CreateUserInput
 
     [Required]
     [DataType(DataType.Password)]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least {2} characters long.")]
+    [StringLength(100, MinimumLength = 6)]
     [Display(Name = "Password")]
     public string Password { get; set; } = string.Empty;
 

@@ -26,7 +26,7 @@
         const QGIS_SERVER = 'http://159.223.33.82/qgisserver';
         const MAP_PROJECT = '/home/qgis/projects/world.qgs';
 
-        const map = L.map('map').setView([1.0, 114.7], 5);
+        const map = L.map('map').setView([0.131, 117.472], 14);
         const statusEl = document.getElementById('map-status');
 
         const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -35,8 +35,10 @@
         }).addTo(map);
 
         const baseLayers = { 'OpenStreetMap': osm };
+        let currentLayers = 'world';
 
         function addWmsLayer(layers) {
+            currentLayers = layers;
             const wms = L.tileLayer.wms(QGIS_SERVER, {
                 MAP: MAP_PROJECT,
                 layers: layers,
@@ -51,6 +53,33 @@
             statusEl.textContent = 'Layers: ' + layers;
             statusEl.classList.replace('text-muted', 'text-success');
         }
+
+        map.on('click', function (e) {
+            const popup = L.popup().setLatLng(e.latlng).setContent('<em>Loading&hellip;</em>').openOn(map);
+
+            const size = map.getSize();
+            const bounds = map.getBounds();
+            const sw = bounds.getSouthWest();
+            const ne = bounds.getNorthEast();
+            const bbox = `${sw.lat},${sw.lng},${ne.lat},${ne.lng}`;
+            const pt = e.containerPoint;
+
+            const url = `?handler=FeatureInfo`
+                + `&layers=${encodeURIComponent(currentLayers)}`
+                + `&bbox=${encodeURIComponent(bbox)}`
+                + `&width=${size.x}&height=${size.y}`
+                + `&i=${Math.round(pt.x)}&j=${Math.round(pt.y)}`;
+
+            fetch(url)
+                .then(r => r.text())
+                .then(text => {
+                    const trimmed = text.trim();
+                    popup.setContent(trimmed
+                        ? `<pre style="max-height:200px;overflow:auto;margin:0;font-size:11px;white-space:pre-wrap">${trimmed}</pre>`
+                        : '<em>No feature info at this location.</em>');
+                })
+                .catch(() => popup.setContent('<em>Feature info unavailable.</em>'));
+        });
 
         const capsUrl = QGIS_SERVER
             + '?MAP=' + encodeURIComponent(MAP_PROJECT)

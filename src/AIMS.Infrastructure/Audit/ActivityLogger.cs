@@ -3,21 +3,19 @@ using System.Threading.Tasks;
 using AIMS.Core.Entities;
 using AIMS.Infrastructure.Data;
 using AIMS.SharedKernel.Interfaces;
+using Dapper;
 using Microsoft.AspNetCore.Http;
 
 namespace AIMS.Infrastructure.Audit;
 
-/// <summary>
-/// Implementation of IActivityLogger that logs user activities to the database.
-/// </summary>
 public class ActivityLogger : IActivityLogger
 {
-    private readonly AppDbContext _context;
+    private readonly IDapperContext _context;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IAuditUserProvider _auditUserProvider;
 
     public ActivityLogger(
-        AppDbContext context,
+        IDapperContext context,
         IHttpContextAccessor httpContextAccessor,
         IAuditUserProvider auditUserProvider)
     {
@@ -36,25 +34,29 @@ public class ActivityLogger : IActivityLogger
         string? userName = null)
     {
         var httpContext = _httpContextAccessor.HttpContext;
-
-        var auditLog = new AuditLog
-        {
-            Category = AuditCategory.Activity,
-            EntityName = entityName ?? activityType,
-            EntityId = entityId ?? string.Empty,
-            Action = activityType,
-            Description = description,
-            UserId = userId ?? _auditUserProvider.GetUserId(),
-            UserName = userName ?? _auditUserProvider.GetUserName(),
-            IpAddress = _auditUserProvider.GetIpAddress(),
-            UserAgent = GetUserAgent(httpContext),
-            RequestPath = GetRequestPath(httpContext),
-            Result = result ?? "Success",
-            Timestamp = DateTime.UtcNow
-        };
-
-        _context.AuditLogs.Add(auditLog);
-        await _context.SaveChangesAsync();
+        using var conn = _context.CreateConnection();
+        await conn.ExecuteAsync(@"
+            INSERT INTO AuditLogs
+                (Category, EntityName, EntityId, Action, Description, UserId, UserName,
+                 IpAddress, UserAgent, RequestPath, Result, Timestamp)
+            VALUES
+                (@Category, @EntityName, @EntityId, @Action, @Description, @UserId, @UserName,
+                 @IpAddress, @UserAgent, @RequestPath, @Result, @Timestamp)",
+            new
+            {
+                Category = AuditCategory.Activity,
+                EntityName = entityName ?? activityType,
+                EntityId = entityId ?? string.Empty,
+                Action = activityType,
+                Description = description,
+                UserId = userId ?? _auditUserProvider.GetUserId(),
+                UserName = userName ?? _auditUserProvider.GetUserName(),
+                IpAddress = _auditUserProvider.GetIpAddress(),
+                UserAgent = GetUserAgent(httpContext),
+                RequestPath = GetRequestPath(httpContext),
+                Result = result ?? "Success",
+                Timestamp = DateTime.UtcNow
+            });
     }
 
     public async Task LogSecurityActivityAsync(
@@ -65,45 +67,42 @@ public class ActivityLogger : IActivityLogger
         string? userName = null)
     {
         var httpContext = _httpContextAccessor.HttpContext;
-
-        var auditLog = new AuditLog
-        {
-            Category = AuditCategory.Security,
-            EntityName = "Security",
-            EntityId = string.Empty,
-            Action = activityType,
-            Description = description,
-            UserId = userId ?? _auditUserProvider.GetUserId(),
-            UserName = userName ?? _auditUserProvider.GetUserName(),
-            IpAddress = _auditUserProvider.GetIpAddress(),
-            UserAgent = GetUserAgent(httpContext),
-            RequestPath = GetRequestPath(httpContext),
-            Result = result ?? "Success",
-            Timestamp = DateTime.UtcNow
-        };
-
-        _context.AuditLogs.Add(auditLog);
-        await _context.SaveChangesAsync();
+        using var conn = _context.CreateConnection();
+        await conn.ExecuteAsync(@"
+            INSERT INTO AuditLogs
+                (Category, EntityName, EntityId, Action, Description, UserId, UserName,
+                 IpAddress, UserAgent, RequestPath, Result, Timestamp)
+            VALUES
+                (@Category, @EntityName, @EntityId, @Action, @Description, @UserId, @UserName,
+                 @IpAddress, @UserAgent, @RequestPath, @Result, @Timestamp)",
+            new
+            {
+                Category = AuditCategory.Security,
+                EntityName = "Security",
+                EntityId = string.Empty,
+                Action = activityType,
+                Description = description,
+                UserId = userId ?? _auditUserProvider.GetUserId(),
+                UserName = userName ?? _auditUserProvider.GetUserName(),
+                IpAddress = _auditUserProvider.GetIpAddress(),
+                UserAgent = GetUserAgent(httpContext),
+                RequestPath = GetRequestPath(httpContext),
+                Result = result ?? "Success",
+                Timestamp = DateTime.UtcNow
+            });
     }
 
     private static string? GetUserAgent(HttpContext? httpContext)
     {
         if (httpContext == null) return null;
-
-        var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
-        // Truncate if too long
-        return userAgent.Length > 500 ? userAgent.Substring(0, 500) : userAgent;
+        var ua = httpContext.Request.Headers["User-Agent"].ToString();
+        return ua.Length > 500 ? ua[..500] : ua;
     }
 
     private static string? GetRequestPath(HttpContext? httpContext)
     {
         if (httpContext == null) return null;
-
-        var path = httpContext.Request.Path.ToString();
-        var queryString = httpContext.Request.QueryString.ToString();
-        var fullPath = path + queryString;
-
-        // Truncate if too long
-        return fullPath.Length > 500 ? fullPath.Substring(0, 500) : fullPath;
+        var full = httpContext.Request.Path + httpContext.Request.QueryString;
+        return full.Length > 500 ? full[..500] : full;
     }
 }

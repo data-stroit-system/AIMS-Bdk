@@ -1,10 +1,11 @@
 using AIMS.Core.Entities;
 using AIMS.Infrastructure.Data;
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 
 namespace AIMS.WebFrontend.Pages.Admin;
@@ -12,12 +13,14 @@ namespace AIMS.WebFrontend.Pages.Admin;
 [Authorize(Roles = "Admin,Manager,User")]
 public class AuditLogsModel : PageModel
 {
-    private readonly AppDbContext _context;
+    private readonly IDapperContext _context;
+    private readonly ISqlDialect _dialect;
     private const int PageSize = 25;
 
-    public AuditLogsModel(AppDbContext context)
+    public AuditLogsModel(IDapperContext context, ISqlDialect dialect)
     {
         _context = context;
+        _dialect = dialect;
     }
 
     public List<AuditLog> AuditLogs { get; set; } = new();
@@ -26,7 +29,6 @@ public class AuditLogsModel : PageModel
     public int TotalPages { get; set; } = 1;
     public bool CanViewAllLogs { get; set; }
 
-    // Filter properties
     [BindProperty(SupportsGet = true)]
     public string? EntityNameFilter { get; set; }
 
@@ -45,84 +47,77 @@ public class AuditLogsModel : PageModel
     public async Task OnGetAsync([FromQuery] int page = 1)
     {
         CurrentPage = page < 1 ? 1 : page;
-
-        // Admin and Manager can view all logs, User can only view their own
         CanViewAllLogs = User.IsInRole("Admin") || User.IsInRole("Manager");
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var currentUserName = User.Identity?.Name;
 
-        // Build query with filters
-        var query = _context.AuditLogs.AsQueryable();
+        using var conn = _context.CreateConnection();
 
-        // If user is not Admin or Manager, filter to only their own audit logs
-        if (!CanViewAllLogs)
-        {
-            query = query.Where(a => a.UserId == currentUserId || a.UserName == currentUserName);
-        }
+        // Build base restriction clause
+        var userRestriction = CanViewAllLogs
+            ? string.Empty
+            : " AND (UserId = @CurrentUserId OR UserName = @CurrentUserName)";
 
-        // Get available entity names for filter dropdown (respecting user's access)
-        AvailableEntities = await query
-            .Select(a => a.EntityName)
-            .Distinct()
-            .OrderBy(e => e)
-            .ToListAsync();
+        // Distinct entity names for the filter dropdown
+        AvailableEntities = (await conn.QueryAsync<string>(
+            $"SELECT DISTINCT EntityName FROM AuditLogs WHERE EntityName IS NOT NULL {userRestriction} ORDER BY EntityName",
+            new { CurrentUserId = currentUserId, CurrentUserName = currentUserName })).ToList();
 
-        // Re-apply the base query for filtering
-        query = _context.AuditLogs.AsQueryable();
-        if (!CanViewAllLogs)
-        {
-            query = query.Where(a => a.UserId == currentUserId || a.UserName == currentUserName);
-        }
+        // Build filter clause
+        var where = new StringBuilder($"WHERE 1=1 {userRestriction}");
+        var p = new DynamicParameters();
+        p.Add("CurrentUserId", currentUserId);
+        p.Add("CurrentUserName", currentUserName);
 
         if (!string.IsNullOrEmpty(EntityNameFilter))
         {
-            query = query.Where(a => a.EntityName == EntityNameFilter);
+            where.Append(" AND EntityName = @EntityName");
+            p.Add("EntityName", EntityNameFilter);
         }
 
         if (!string.IsNullOrEmpty(ActionFilter))
         {
-            query = query.Where(a => a.Action == ActionFilter);
+            where.Append(" AND Action = @Action");
+            p.Add("Action", ActionFilter);
         }
 
-        // Only Admin and Manager can filter by other users
         if (!string.IsNullOrEmpty(UserNameFilter) && CanViewAllLogs)
         {
-            query = query.Where(a => a.UserName != null && a.UserName.Contains(UserNameFilter));
+            where.Append(" AND UserName LIKE @UserNameFilter");
+            p.Add("UserNameFilter", $"%{UserNameFilter}%");
         }
 
         if (FromDate.HasValue)
         {
-            query = query.Where(a => a.Timestamp >= FromDate.Value.ToUniversalTime());
+            where.Append(" AND Timestamp >= @FromDate");
+            p.Add("FromDate", FromDate.Value.ToUniversalTime());
         }
 
         if (ToDate.HasValue)
         {
-            var toDateEnd = ToDate.Value.AddDays(1).ToUniversalTime();
-            query = query.Where(a => a.Timestamp < toDateEnd);
+            where.Append(" AND Timestamp < @ToDate");
+            p.Add("ToDate", ToDate.Value.AddDays(1).ToUniversalTime());
         }
 
-        // Calculate pagination
-        var totalCount = await query.CountAsync();
+        var whereClause = where.ToString();
+        p.Add("Offset", (CurrentPage - 1) * PageSize);
+        p.Add("PageSize", PageSize);
+
+        var totalCount = await conn.QuerySingleAsync<int>(
+            $"SELECT COUNT(*) FROM AuditLogs {whereClause}", p);
+
         TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
         TotalPages = TotalPages < 1 ? 1 : TotalPages;
         CurrentPage = CurrentPage > TotalPages ? TotalPages : CurrentPage;
 
-        // Get paginated results
-        AuditLogs = await query
-            .OrderByDescending(a => a.Timestamp)
-            .Skip((CurrentPage - 1) * PageSize)
-            .Take(PageSize)
-            .ToListAsync();
+        AuditLogs = (await conn.QueryAsync<AuditLog>(
+            _dialect.Paginate($"SELECT * FROM AuditLogs {whereClause}", "Timestamp DESC"),
+            p)).ToList();
     }
 
-    /// <summary>
-    /// Formats JSON string for display.
-    /// </summary>
     public string FormatJson(string? json)
     {
-        if (string.IsNullOrEmpty(json))
-            return string.Empty;
-
+        if (string.IsNullOrEmpty(json)) return string.Empty;
         try
         {
             var doc = JsonDocument.Parse(json);

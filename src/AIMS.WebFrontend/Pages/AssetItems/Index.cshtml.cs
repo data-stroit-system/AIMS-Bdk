@@ -1,24 +1,20 @@
 using AIMS.Core.Entities;
-using AIMS.Infrastructure.Data;
-using AIMS.SharedKernel.Interfaces;
+using AIMS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 
 namespace AIMS.WebFrontend.Pages.AssetItems;
 
 [Authorize]
 public class IndexModel : PageModel
 {
-    private readonly AppDbContext _context;
-    private readonly IActivityLogger _activityLogger;
+    private readonly AssetItemService _assetItemService;
     private const int PageSize = 10;
 
-    public IndexModel(AppDbContext context, IActivityLogger activityLogger)
+    public IndexModel(AssetItemService assetItemService)
     {
-        _context = context;
-        _activityLogger = activityLogger;
+        _assetItemService = assetItemService;
     }
 
     public List<AssetItem> AssetItems { get; set; } = new();
@@ -41,44 +37,15 @@ public class IndexModel : PageModel
     {
         CurrentPage = page < 1 ? 1 : page;
 
-        var query = _context.AssetItems.AsQueryable();
+        AssetType? typeFilter = Enum.TryParse<AssetType>(TypeFilter, out var t) ? t : null;
+        AssetPriority? priorityFilter = Enum.TryParse<AssetPriority>(PriorityFilter, out var pr) ? pr : null;
+        IntegrityStatus? statusFilter = Enum.TryParse<IntegrityStatus>(StatusFilter, out var s) ? s : null;
 
-        // Apply search filter
-        if (!string.IsNullOrEmpty(SearchTerm))
-        {
-            query = query.Where(a => a.Title.Contains(SearchTerm) ||
-                                      a.AssetId.Contains(SearchTerm) ||
-                                      a.Description.Contains(SearchTerm) ||
-                                      a.Location.Contains(SearchTerm));
-        }
+        var (items, totalCount) = await _assetItemService.GetPagedAsync(
+            SearchTerm, typeFilter, priorityFilter, statusFilter, CurrentPage, PageSize);
 
-        // Apply type filter
-        if (!string.IsNullOrEmpty(TypeFilter) && Enum.TryParse<AssetType>(TypeFilter, out var typeEnum))
-        {
-            query = query.Where(a => a.Type == typeEnum);
-        }
-
-        // Apply priority filter
-        if (!string.IsNullOrEmpty(PriorityFilter) && Enum.TryParse<AssetPriority>(PriorityFilter, out var priorityEnum))
-        {
-            query = query.Where(a => a.Priority == priorityEnum);
-        }
-
-        // Apply integrity status filter
-        if (!string.IsNullOrEmpty(StatusFilter) && Enum.TryParse<IntegrityStatus>(StatusFilter, out var statusEnum))
-        {
-            query = query.Where(a => a.IntegrityStatus == statusEnum);
-        }
-
-        // Get total count for pagination
-        int totalCount = await query.CountAsync();
+        AssetItems = items;
         TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
-
-        // Get the page data
-        AssetItems = await query
-            .OrderByDescending(a => a.Id)
-            .Skip((CurrentPage - 1) * PageSize)
-            .Take(PageSize)
-            .ToListAsync();
+        TotalPages = TotalPages < 1 ? 1 : TotalPages;
     }
 }

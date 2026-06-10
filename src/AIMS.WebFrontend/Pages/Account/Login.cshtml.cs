@@ -1,44 +1,37 @@
 using AIMS.Core.Entities;
-using AIMS.Infrastructure.Data;
 using AIMS.Infrastructure.IdentityClass;
 using AIMS.SharedKernel.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace AIMS.WebFrontend.Pages.Account
 {
     public class LoginModel : PageModel
     {
-        private readonly AppDbContext _appDbContext;
         private readonly SignInManager<ApplicationUser> _singInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IActivityLogger _activityLogger;
 
         public LoginModel(
-            AppDbContext appDbContext, 
-            SignInManager<ApplicationUser> singInManager, 
+            SignInManager<ApplicationUser> singInManager,
             UserManager<ApplicationUser> userManager,
             IActivityLogger activityLogger)
         {
-            _appDbContext = appDbContext;
             _singInManager = singInManager;
             _userManager = userManager;
             _activityLogger = activityLogger;
         }
-        public void OnGet()
-        {
-        }
+
+        public void OnGet() { }
 
         public async Task<IActionResult> OnPost()
         {
             try
             {
-                var user = _userManager.Users.Where(x => x.UserName == LoginInput.UserName).FirstOrDefault();
+                var user = _userManager.Users.FirstOrDefault(x => x.UserName == LoginInput.UserName);
                 if (user == null)
                 {
-                    // Log failed login attempt - user not found
                     await _activityLogger.LogSecurityActivityAsync(
                         ActivityType.LoginFailed,
                         $"Login attempt with unknown username: {LoginInput.UserName}",
@@ -55,7 +48,6 @@ namespace AIMS.WebFrontend.Pages.Account
                 {
                     await _singInManager.SignInAsync(user, false);
 
-                    // Log successful login
                     await _activityLogger.LogSecurityActivityAsync(
                         ActivityType.Login,
                         $"User '{user.UserName}' logged in successfully",
@@ -66,7 +58,6 @@ namespace AIMS.WebFrontend.Pages.Account
                     return Redirect("/");
                 }
 
-                // Log failed login attempt - wrong password
                 await _activityLogger.LogSecurityActivityAsync(
                     ActivityType.LoginFailed,
                     $"Failed login attempt for user: {user.UserName} (invalid password)",
