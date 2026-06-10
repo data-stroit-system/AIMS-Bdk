@@ -151,7 +151,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 ClaimType  VARCHAR2(4000),
                 ClaimValue VARCHAR2(4000),
                 CONSTRAINT PK_AspNetRoleClaims PRIMARY KEY (Id),
-                CONSTRAINT FK_AspNetRoleClaims_AspNetRoles_RoleId
+                CONSTRAINT FK_RoleClaims_Roles
                     FOREIGN KEY (RoleId) REFERENCES AspNetRoles(Id) ON DELETE CASCADE
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
@@ -176,7 +176,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 ClaimType  VARCHAR2(4000),
                 ClaimValue VARCHAR2(4000),
                 CONSTRAINT PK_AspNetUserClaims PRIMARY KEY (Id),
-                CONSTRAINT FK_AspNetUserClaims_AspNetUsers_UserId
+                CONSTRAINT FK_UserClaims_Users
                     FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id) ON DELETE CASCADE
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
@@ -201,7 +201,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 ProviderDisplayName VARCHAR2(4000),
                 UserId              NVARCHAR2(450) NOT NULL,
                 CONSTRAINT PK_AspNetUserLogins PRIMARY KEY (LoginProvider, ProviderKey),
-                CONSTRAINT FK_AspNetUserLogins_AspNetUsers_UserId
+                CONSTRAINT FK_UserLogins_Users
                     FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id) ON DELETE CASCADE
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
@@ -211,9 +211,9 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 UserId NVARCHAR2(450) NOT NULL,
                 RoleId NVARCHAR2(450) NOT NULL,
                 CONSTRAINT PK_AspNetUserRoles PRIMARY KEY (UserId, RoleId),
-                CONSTRAINT FK_AspNetUserRoles_AspNetRoles_RoleId
+                CONSTRAINT FK_UserRoles_Roles
                     FOREIGN KEY (RoleId) REFERENCES AspNetRoles(Id) ON DELETE CASCADE,
-                CONSTRAINT FK_AspNetUserRoles_AspNetUsers_UserId
+                CONSTRAINT FK_UserRoles_Users
                     FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id)
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
@@ -225,7 +225,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 Name          NVARCHAR2(450) NOT NULL,
                 Value         VARCHAR2(4000),
                 CONSTRAINT PK_AspNetUserTokens PRIMARY KEY (UserId, LoginProvider, Name),
-                CONSTRAINT FK_AspNetUserTokens_AspNetUsers_UserId
+                CONSTRAINT FK_UserTokens_Users
                     FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id) ON DELETE CASCADE
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
@@ -239,7 +239,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 CreatedBy      NVARCHAR2(200),
                 AssetItemId    NUMBER(10,0),
                 CONSTRAINT PK_AssetItemDocuments PRIMARY KEY (Id),
-                CONSTRAINT FK_AssetItemDocuments_AssetItems_AssetItemId
+                CONSTRAINT FK_ItemDocs_Items
                     FOREIGN KEY (AssetItemId) REFERENCES AssetItems(Id)
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
@@ -265,7 +265,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 CreatedBy   NVARCHAR2(200),
                 AssetItemId NUMBER(10,0),
                 CONSTRAINT PK_AssetRemarks PRIMARY KEY (Id),
-                CONSTRAINT FK_AssetRemarks_AssetItems_AssetItemId
+                CONSTRAINT FK_Remarks_Items
                     FOREIGN KEY (AssetItemId) REFERENCES AssetItems(Id)
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",

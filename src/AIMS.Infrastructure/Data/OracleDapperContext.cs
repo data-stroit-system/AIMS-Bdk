@@ -1,7 +1,6 @@
 using System;
 using System.Data;
 using Microsoft.Extensions.Configuration;
-using Oracle.ManagedDataAccess.Client;
 
 namespace AIMS.Infrastructure.Data;
 
@@ -15,5 +14,5 @@ internal sealed class OracleDapperContext : IDapperContext
             ?? throw new InvalidOperationException("Connection string 'Oracle' not found.");
     }
 
-    public IDbConnection CreateConnection() => new OracleConnection(_connectionString);
+    public IDbConnection CreateConnection() => new OracleParamConnection(_connectionString);
 }

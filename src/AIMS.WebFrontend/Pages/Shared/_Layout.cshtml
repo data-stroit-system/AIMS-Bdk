@@ -132,6 +132,15 @@
                 <div class="sb-sidenav-footer">
                     <div class="small">Logged in as:</div>
                     @(User.Identity?.Name ?? "Guest")
+                    &nbsp;
+                    @if (User.Identity?.IsAuthenticated ?? false)
+                    {
+                        <span class="badge bg-secondary">
+                            @string.Join(", ", User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value))
+                        </span>
+                    }
+                    
+
                 </div>
             </nav>
         </div>

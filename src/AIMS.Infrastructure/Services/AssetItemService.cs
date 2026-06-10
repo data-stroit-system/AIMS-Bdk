@@ -56,7 +56,7 @@ public sealed class AssetItemService
             $"SELECT COUNT(*) FROM AssetItems {whereClause}", p);
 
         var items = (await conn.QueryAsync<AssetItem>(
-            $"SELECT * FROM AssetItems {whereClause} ORDER BY Id DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+            _dialect.Paginate($"SELECT * FROM AssetItems {whereClause}", "Id DESC"),
             p)).ToList();
 
         return (items, totalCount);

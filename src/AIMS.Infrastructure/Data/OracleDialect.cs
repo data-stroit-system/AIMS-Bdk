@@ -14,7 +14,7 @@ internal sealed class OracleDialect : ISqlDialect
 
     public int InsertAndGetId(IDbConnection conn, string quotedTable, string cols, string atParams, object param)
     {
-        var oraConn = (OracleConnection)conn;
+        var oraConn = conn is OracleParamConnection wrapper ? wrapper.Inner : (OracleConnection)conn;
         if (oraConn.State != ConnectionState.Open)
             oraConn.Open();
 
@@ -38,6 +38,12 @@ internal sealed class OracleDialect : ISqlDialect
 
         return ((OracleDecimal)returnParam.Value).ToInt32();
     }
+
+    public string Paginate(string selectSql, string orderBy) =>
+        $@"SELECT * FROM (
+            SELECT page_.*, ROW_NUMBER() OVER (ORDER BY {orderBy}) AS RN_
+            FROM ({selectSql}) page_
+        ) WHERE RN_ > @Offset AND RN_ <= @Offset + @PageSize";
 
     private static object ToOracleValue(object? value) => value switch
     {

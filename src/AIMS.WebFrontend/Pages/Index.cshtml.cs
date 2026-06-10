@@ -9,9 +9,9 @@ namespace AIMS.WebFrontend.Pages;
 [Authorize]
 public class IndexModel : PageModel
 {
-    private readonly DapperContext _context;
+    private readonly IDapperContext _context;
 
-    public IndexModel(DapperContext context)
+    public IndexModel(IDapperContext context)
     {
         _context = context;
     }

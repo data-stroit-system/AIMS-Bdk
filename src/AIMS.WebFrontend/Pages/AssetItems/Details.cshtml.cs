@@ -55,6 +55,8 @@ public class DetailsModel : PageModel
 
         ModelState.Remove("DocumentInput.DocumentTitle");
         ModelState.Remove("DocumentInput.DocumentFile");
+        ModelState.Remove("DocumentTitle");
+        ModelState.Remove("DocumentFile");
 
         if (!ModelState.IsValid)
         {
@@ -83,6 +85,7 @@ public class DetailsModel : PageModel
             return Forbid();
 
         ModelState.Remove("Input.Description");
+        ModelState.Remove("Description");
 
         if (!ModelState.IsValid)
         {

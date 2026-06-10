@@ -13,12 +13,14 @@ namespace AIMS.WebFrontend.Pages.Admin;
 [Authorize(Roles = "Admin,Manager,User")]
 public class AuditLogsModel : PageModel
 {
-    private readonly DapperContext _context;
+    private readonly IDapperContext _context;
+    private readonly ISqlDialect _dialect;
     private const int PageSize = 25;
 
-    public AuditLogsModel(DapperContext context)
+    public AuditLogsModel(IDapperContext context, ISqlDialect dialect)
     {
         _context = context;
+        _dialect = dialect;
     }
 
     public List<AuditLog> AuditLogs { get; set; } = new();
@@ -109,7 +111,7 @@ public class AuditLogsModel : PageModel
         CurrentPage = CurrentPage > TotalPages ? TotalPages : CurrentPage;
 
         AuditLogs = (await conn.QueryAsync<AuditLog>(
-            $"SELECT * FROM AuditLogs {whereClause} ORDER BY Timestamp DESC OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY",
+            _dialect.Paginate($"SELECT * FROM AuditLogs {whereClause}", "Timestamp DESC"),
             p)).ToList();
     }
 
