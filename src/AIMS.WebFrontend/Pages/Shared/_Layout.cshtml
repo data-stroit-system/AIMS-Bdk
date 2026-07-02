@@ -1,5 +1,7 @@
 @using AIMS.Infrastructure.IdentityClass
+@using AIMS.Infrastructure.Services
 @inject Microsoft.AspNetCore.Identity.SignInManager<ApplicationUser> SignInManager
+@inject PlantService PlantService
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,8 +50,14 @@
         <div class="sims-shell">
             <!-- Left: Asset Tree -->
             <aside class="sims-panel-left" id="mainSidebar">
-                <div class="sims-panel-left-header">
-                    <i class="fas fa-sitemap sims-me-2"></i> Asset Tree
+                <div class="sims-panel-left-header sims-d-flex sims-align-center sims-justify-between">
+                    <span><i class="fas fa-sitemap sims-me-2"></i> Asset Tree</span>
+                    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                    {
+                        <a asp-page="/Plants/Index" title="Manage plants" style="color:inherit">
+                            <i class="fas fa-gear"></i>
+                        </a>
+                    }
                 </div>
                 <div class="sims-panel-left-scroll" id="assetTree">
                     <!-- Plants loaded dynamically or server-rendered -->
@@ -62,13 +70,71 @@
                         </li>
                         @if (User.Identity?.IsAuthenticated ?? false)
                         {
-                            <li class="sims-tree-item">
+                            @* <li class="sims-tree-item">
                                 <a class="sims-tree-link @(Context.Request.Path.StartsWithSegments("/AssetItems") ? "active" : "")"
                                    asp-page="/AssetItems/Index">
                                     <span class="sims-tree-icon"><i class="fas fa-boxes-stacked"></i></span>
                                     <span class="sims-tree-label">Assets</span>
                                 </a>
-                            </li>
+                            </li> *@
+                          
+                            // Slide-4 asset tree: flat plant list, the plant being viewed is
+                            // expanded server-side with its asset tags and an "+ add asset" link.
+                            var plantTreeNodes = await PlantService.GetTreeAsync();
+                            var canManagePlants = User.IsInRole("Admin") || User.IsInRole("Manager");
+                            int? selectedPlantId = int.TryParse(Context.Request.Query["plantId"], out var qPlantId) ? qPlantId : null;
+                            int? currentAssetId = null;
+                            var detailsMatch = System.Text.RegularExpressions.Regex.Match(
+                                Context.Request.Path.Value ?? string.Empty,
+                                "/AssetItems/Details/(\\d+)",
+                                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                            if (detailsMatch.Success)
+                            {
+                                currentAssetId = int.Parse(detailsMatch.Groups[1].Value);
+                                selectedPlantId ??= plantTreeNodes
+                                    .SelectMany(n => n.Assets)
+                                    .FirstOrDefault(a => a.Id == currentAssetId)?.PlantId;
+                            }
+                            foreach (var node in plantTreeNodes)
+                            {
+                                var isSelected = node.Plant.Id == selectedPlantId;
+                                <li class="sims-tree-item">
+                                    <a class="sims-tree-link @(isSelected ? "plant-selected" : "")"
+                                       asp-page="/AssetItems/Index" asp-route-plantId="@node.Plant.Id"
+                                       title="@node.Plant.Name @node.Plant.Description">
+                                        <i class="fas fa-chevron-right sims-tree-chevron @(isSelected ? "expanded" : "")"></i>
+                                        <span class="sims-tree-label">@node.Plant.Name @node.Plant.Description</span>
+                                    </a>
+                                    @if (isSelected)
+                                    {
+                                        <ul class="sims-tree-children show">
+                                            @foreach (var asset in node.Assets)
+                                            {
+                                                <li>
+                                                    <a class="sims-tree-link @(asset.Id == currentAssetId ? "plant-selected" : "")"
+                                                       asp-page="/AssetItems/Details" asp-route-id="@asset.Id" title="@asset.Title">
+                                                        <span class="sims-tree-label">@asset.AssetId</span>
+                                                    </a>
+                                                </li>
+                                            }
+                                            @if (canManagePlants)
+                                            {
+                                                <li>
+                                                    <a class="sims-tree-add d-block" style="text-decoration:none"
+                                                       asp-page="/AssetItems/Create" asp-route-plantId="@node.Plant.Id">+ add asset</a>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                </li>
+                            }
+                            if (canManagePlants)
+                            {
+                                <li class="sims-tree-item">
+                                    <a class="sims-tree-add d-block" style="text-decoration:none;padding-left:16px"
+                                       asp-page="/Plants/Create">+ add Plant</a>
+                                </li>
+                            }
                             <li class="sims-tree-item">
                                 <a class="sims-tree-link" asp-page="/MapDemo/Index">
                                     <span class="sims-tree-icon"><i class="fas fa-map-location-dot"></i></span>
@@ -134,14 +200,8 @@
             </main>
 
             <!-- Right Panel: context summary (optional, hidden by default) -->
-            <aside class="sims-panel-right" id="rightPanel">
-                <div class="sims-panel-right-header">
-                    <i class="fas fa-circle-info sims-me-2"></i> Summary
-                </div>
-                <div class="sims-panel-right-scroll" id="rightPanelContent">
-                    <p class="sims-text-sm sims-text-muted">Select an asset to view details.</p>
-                </div>
-            </aside>
+            @RenderSection("RightPanel", required: false)
+            
         </div>
     }
     else

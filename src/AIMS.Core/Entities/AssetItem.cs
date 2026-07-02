@@ -28,7 +28,13 @@ public class AssetItemRemarks : BaseEntity
 
     public AssetItem AssetItem { get; set; }
 }
-
+public class Plant : BaseEntity
+{
+    [MaxLength(20)] public string? Code { get; set; }
+    [MaxLength(200)] public string Name { get; set; }
+    [MaxLength(200)] public string Description { get; set; }
+    public List<AssetItem> AssetItems { get; set; }
+}
 public class AssetItem : BaseEntity
 {
     [MaxLength(200)] public string? GisRefNo { get; set; }
@@ -36,9 +42,6 @@ public class AssetItem : BaseEntity
     public string AssetId { get; set; } = string.Empty;
 
     [MaxLength(200)] public string? Title { get; set; }
-
-    [MaxLength(200)] public string? PlantCode { get; set; }
-    [MaxLength(200)] public string? PlantDescription { get; set; }
 
     [MaxLength(200)] public string? EquipmentCode { get; set; }
     [MaxLength(200)] public string? EquipmentDescription { get; set; }
@@ -89,6 +92,9 @@ public class AssetItem : BaseEntity
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [MaxLength(200)]
     public string? CreatedBy { get; set; }
+
+    public int? PlantId { get; set; }
+    public Plant Plant { get; set; }
 
     public void UpdateStatus(IntegrityStatus status)
     {

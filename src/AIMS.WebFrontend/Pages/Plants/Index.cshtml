@@ -1,0 +1,120 @@
+@page
+@model AIMS.WebFrontend.Pages.Plants.IndexModel
+@{
+    ViewData["Title"] = "Plants";
+}
+
+<div class="sims-d-flex sims-align-center sims-justify-between sims-mb-4">
+    <div>
+        <h3 style="margin:0"><i class="fas fa-industry sims-me-2"></i>Plants</h3>
+        <span class="sims-text-sm sims-text-muted">Manage plants and their assets</span>
+    </div>
+    @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+    {
+        <a asp-page="Create" class="sims-btn sims-btn-primary sims-btn-lg">
+            <i class="fas fa-circle-plus"></i> Add New Plant
+        </a>
+    }
+</div>
+
+<div class="sims-card">
+    <div class="sims-card-header">
+        <i class="fas fa-list"></i> Plant List
+        @if (Model.Plants.Any())
+        {
+            <span class="sims-badge sims-badge-gray ms-2">@Model.Plants.Count result(s)</span>
+        }
+    </div>
+    <div class="sims-card-body" style="padding:0">
+        @if (!Model.Plants.Any())
+        {
+            <div class="p-4 sims-text-muted">
+                <i class="fas fa-circle-info"></i> No plants found.
+                @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                {
+                    <a asp-page="Create">Create one now</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="sims-table">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Assets</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var plant in Model.Plants)
+                        {
+                            var assetCount = Model.AssetCounts.TryGetValue(plant.Id, out var c) ? c : 0;
+                            <tr>
+                                <td class="sims-text-sm">@plant.Code</td>
+                                <td>
+                                    <a asp-page="/AssetItems/Index" asp-route-plantId="@plant.Id">
+                                        <i class="fas fa-industry sims-me-2"></i>@plant.Name
+                                    </a>
+                                </td>
+                                <td class="sims-text-sm">@plant.Description</td>
+                                <td>
+                                    <span class="sims-badge sims-badge-sky">@assetCount asset(s)</span>
+                                </td>
+                                <td>
+                                    <div class="sims-d-flex sims-gap-2">
+                                        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                        {
+                                            <a asp-page="Edit" asp-route-id="@plant.Id" class="sims-btn sims-btn-outline sims-btn-sm" title="Edit">
+                                                <i class="fas fa-pencil"></i>
+                                            </a>
+                                            <button type="button" class="sims-btn sims-btn-danger sims-btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#deletePlantModal-@plant.Id"
+                                                    title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="sims-text-xs sims-text-muted">View only</span>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Delete Modals -->
+@foreach (var plant in Model.Plants)
+{
+    <div class="modal fade" id="deletePlantModal-@plant.Id" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Delete plant <strong>@plant.Name</strong>?
+                    <br><span class="sims-text-sm sims-text-muted">Asset items assigned to this plant will be unassigned, not deleted.</span>
+                    <br><span class="sims-text-sm sims-badge sims-badge-red sims-mt-2">This cannot be undone.</span>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="sims-btn sims-btn-outline" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" asp-page-handler="Delete" asp-route-id="@plant.Id" style="display:inline">
+                        <button type="submit" class="sims-btn sims-btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}

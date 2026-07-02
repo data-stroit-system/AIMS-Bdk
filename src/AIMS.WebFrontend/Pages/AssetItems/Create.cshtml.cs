@@ -13,13 +13,15 @@ namespace AIMS.WebFrontend.Pages.AssetItems;
 public class CreateModel : PageModel
 {
     private readonly AssetItemService _assetItemService;
+    private readonly PlantService _plantService;
     private readonly IActivityLogger _activityLogger;
     private readonly IWebHostEnvironment _env;
     private readonly FileUploadHelper _fileUpload;
 
-    public CreateModel(AssetItemService assetItemService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
+    public CreateModel(AssetItemService assetItemService, PlantService plantService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
     {
         _assetItemService = assetItemService;
+        _plantService = plantService;
         _activityLogger = activityLogger;
         _env = env;
         _fileUpload = fileUpload;
@@ -28,16 +30,25 @@ public class CreateModel : PageModel
     [BindProperty]
     public CreateAssetItemInput Input { get; set; } = new();
 
-    public List<PlantCode> PlantCodes => PlantCode.All.ToList();
     public List<EquipmentCode> EquipmentCodes => EquipmentCode.All.ToList();
     public List<CivilAssetCode> CivilAssetCodes => CivilAssetCode.All.ToList();
+    public List<Plant> Plants { get; set; } = new();
 
-    public void OnGet() { }
+    public async Task OnGetAsync(int? plantId)
+    {
+        Plants = await _plantService.ListAsync();
+        if (plantId.HasValue)
+            Input.PlantId = plantId;
+    }
 
     public async Task<IActionResult> OnPostAsync()
     {
+        Plants = await _plantService.ListAsync();
+
         if (!ModelState.IsValid)
+        {
             return Page();
+        }
 
         string? picturePath = null;
 
@@ -52,26 +63,15 @@ public class CreateModel : PageModel
             picturePath = await _fileUpload.SaveAssetPictureAsync(Input.Picture, _env.WebRootPath);
         }
 
-        var plantDesc = PlantCode.GetDescription(Input.PlantCode);
         var equipDesc = EquipmentCode.GetDescription(Input.EquipmentCode);
         var civilDesc = CivilAssetCode.GetDescription(Input.CivilAssetCode);
 
-        var assetId = Input.AssetId;
-        if (string.IsNullOrWhiteSpace(assetId))
-        {
-            assetId = AssetItem.GenerateAssetId(
-                Input.PlantCode, Input.EquipmentCode,
-                Input.EquipmentOrder,
-                Input.CivilAssetCode, Input.CivilAssetOrder);
-        }
-
+        // AssetId (Asset Tag No.) is generated server-side by AssetItemService from
+        // Plant/Equipment/Civil codes — it is never accepted as client input.
         var item = new AssetItem
         {
             GisRefNo = Input.GisRefNo,
-            AssetId = assetId,
             Title = Input.Title,
-            PlantCode = Input.PlantCode,
-            PlantDescription = plantDesc,
             EquipmentCode = Input.EquipmentCode,
             EquipmentDescription = equipDesc,
             EquipmentDesc = Input.EquipmentDesc,
@@ -103,7 +103,8 @@ public class CreateModel : PageModel
             IntegrityStatus = Input.IntegrityStatus,
             PicturePath = picturePath,
             CreatedAt = DateTime.UtcNow,
-            CreatedBy = User.Identity?.Name ?? "Unknown"
+            CreatedBy = User.Identity?.Name ?? "Unknown",
+            PlantId = Input.PlantId
         };
 
         var newId = await _assetItemService.CreateAsync(item);
@@ -119,13 +120,12 @@ public class CreateModel : PageModel
 
     public class CreateAssetItemInput
     {
+        [Display(Name = "Plant")]
+        public int? PlantId { get; set; }
+
         [StringLength(200)] public string? GisRefNo { get; set; }
 
-        [StringLength(100)] public string AssetId { get; set; } = string.Empty;
-
         [Required, StringLength(200)] public string Title { get; set; } = string.Empty;
-
-        [Required, StringLength(200)] public string PlantCode { get; set; } = string.Empty;
 
         [Required, StringLength(200)] public string EquipmentCode { get; set; } = string.Empty;
 

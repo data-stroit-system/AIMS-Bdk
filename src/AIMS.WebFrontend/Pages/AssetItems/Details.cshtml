@@ -14,8 +14,8 @@
         <h3 style="margin:0">@Model.AssetItem.AssetId</h3>
         <span class="sims-text-sm sims-text-muted">
             @Model.AssetItem.Title
-            @if (!string.IsNullOrEmpty(Model.AssetItem.PlantDescription))
-            { <span>&middot; @Model.AssetItem.PlantDescription</span> }
+            @if (!string.IsNullOrEmpty(Model.Plant?.Description))
+            { <span>&middot; @Model.Plant.Description</span> }
         </span>
     </div>
     <div class="sims-d-flex sims-gap-2">
@@ -60,6 +60,22 @@
                 <table class="sims-table sims-mb-4" style="border:1px solid var(--sims-border);border-radius:8px;">
                     <tbody>
                         <tr>
+                            <td style="width:140px;font-weight:600;background:#f9fafb;">Plant</td>
+                            <td colspan="3">
+                                @if (Model.Plant != null)
+                                {
+                                    <a asp-page="Index" asp-route-plantId="@Model.Plant.Id">
+                                        <span class="sims-badge sims-badge-sky"><i class="fas fa-industry"></i> @Model.Plant.Name</span>
+                                    </a>
+                                    <span class="sims-text-sm sims-text-muted">@Model.Plant.Description</span>
+                                }
+                                else
+                                {
+                                    <span class="sims-text-xs sims-text-muted">-</span>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
                             <td style="width:140px;font-weight:600;background:#f9fafb;">Asset register No.</td>
                             <td style="width:auto">@item.Id</td>
                             <td style="width:140px;font-weight:600;background:#f9fafb;">GIS Ref. No.</td>
@@ -74,8 +90,8 @@
                         <tr>
                             <td style="font-weight:600;background:#f9fafb;">Plant Code</td>
                             <td>
-                                <span class="sims-badge sims-badge-sky">@item.PlantCode</span>
-                                @item.PlantDescription
+                                <span class="sims-badge sims-badge-sky">@Model.Plant?.Code</span>
+                                @Model.Plant?.Description
                             </td>
                             <td style="font-weight:600;background:#f9fafb;">Equipment Code</td>
                             <td>

@@ -27,27 +27,27 @@
             <div class="row g-3">
                 <div class="col-md-3">
                     <div class="sims-form-group">
+                        <label asp-for="Input.PlantId" class="sims-form-label">Plant <span class="required">*</span></label>
+                        <select asp-for="Input.PlantId" class="sims-form-control sims-form-select">
+                            <option value="">&lt;Plant selection&gt;</option>
+                            @foreach (var plant in Model.Plants)
+                            {
+                                <option value="@plant.Id" data-code="@plant.Code">@plant.Code - @plant.Name</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Input.PlantId" class="d-block mt-1 text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
                         <label asp-for="Input.GisRefNo" class="sims-form-label">GIS Ref. No.</label>
                         <input asp-for="Input.GisRefNo" class="sims-form-control" placeholder="<number>" />
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="sims-form-group">
-                        <label asp-for="Input.AssetId" class="sims-form-label">Asset Tag No. <span class="sims-form-hint">(auto if blank)</span></label>
-                        <input asp-for="Input.AssetId" class="sims-form-control" placeholder="<auto generate tag number>" />
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.PlantCode" class="sims-form-label">Plant Code <span class="required">*</span></label>
-                        <select asp-for="Input.PlantCode" class="sims-form-control sims-form-select">
-                            <option value="">&lt;Plant code selection&gt;</option>
-                            @foreach (var pc in PlantCode.All)
-                            {
-                                <option value="@pc.Code">@pc.Code - @pc.Description</option>
-                            }
-                        </select>
-                        <span asp-validation-for="Input.PlantCode" class="d-block mt-1 text-danger"></span>
+                        <label class="sims-form-label">Asset Tag No. <span class="sims-form-hint">(auto generated)</span></label>
+                        <input id="assetTagPreview" class="sims-form-control" readonly placeholder="<auto generated tag number>" />
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -316,16 +316,15 @@
     <script>
         $(function() {
             function updateAssetId() {
-                var pc = $('#Input_PlantCode').val() || '';
+                var pc = $('#Input_PlantId option:selected').data('code') || '';
                 var ec = $('#Input_EquipmentCode').val() || '';
                 var eo = $('#Input_EquipmentOrder').val() || '';
                 var cc = $('#Input_CivilAssetCode').val() || '';
                 var co = $('#Input_CivilAssetOrder').val() || '';
-                if (pc && ec && eo && cc && co) {
-                    $('#Input_AssetId').attr('placeholder', pc + ec + '-' + eo + '/' + cc + '-' + co);
-                }
+                $('#assetTagPreview').val(pc + ec + '-' + eo + '/' + cc + '-' + co);
             }
-            $('#Input_PlantCode, #Input_EquipmentCode, #Input_EquipmentOrder, #Input_CivilAssetCode, #Input_CivilAssetOrder').on('change input', updateAssetId);
+            $('#Input_PlantId, #Input_EquipmentCode, #Input_EquipmentOrder, #Input_CivilAssetCode, #Input_CivilAssetOrder').on('change input', updateAssetId);
+            updateAssetId();
         });
     </script>
 }

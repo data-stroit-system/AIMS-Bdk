@@ -13,19 +13,22 @@ namespace AIMS.WebFrontend.Pages.AssetItems;
 public class DetailsModel : PageModel
 {
     private readonly AssetItemService _assetItemService;
+    private readonly PlantService _plantService;
     private readonly IActivityLogger _activityLogger;
     private readonly IWebHostEnvironment _env;
     private readonly FileUploadHelper _fileUpload;
 
-    public DetailsModel(AssetItemService assetItemService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
+    public DetailsModel(AssetItemService assetItemService, PlantService plantService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
     {
         _assetItemService = assetItemService;
+        _plantService = plantService;
         _activityLogger = activityLogger;
         _env = env;
         _fileUpload = fileUpload;
     }
 
     public AssetItem AssetItem { get; set; } = null!;
+    public Plant? Plant { get; set; }
     public List<AssetItemRemarks> Remarks { get; set; } = new();
     public List<AssetItemDocuments> Documents { get; set; } = new();
     public string ActiveTab { get; set; } = "remarks";
@@ -42,6 +45,8 @@ public class DetailsModel : PageModel
         if (assetItem == null) return NotFound();
 
         AssetItem = assetItem;
+        if (assetItem.PlantId.HasValue)
+            Plant = await _plantService.GetByIdAsync(assetItem.PlantId.Value);
         Remarks = await _assetItemService.GetRemarksAsync(id);
         Documents = await _assetItemService.GetDocumentsAsync(id);
         ActiveTab = Request.Query["tab"].ToString() == "documents" ? "documents" : "remarks";
@@ -175,6 +180,8 @@ public class DetailsModel : PageModel
     private async Task LoadDetailsAsync(int id)
     {
         AssetItem = (await _assetItemService.GetByIdAsync(id))!;
+        if (AssetItem.PlantId.HasValue)
+            Plant = await _plantService.GetByIdAsync(AssetItem.PlantId.Value);
         Remarks = await _assetItemService.GetRemarksAsync(id);
         Documents = await _assetItemService.GetDocumentsAsync(id);
     }

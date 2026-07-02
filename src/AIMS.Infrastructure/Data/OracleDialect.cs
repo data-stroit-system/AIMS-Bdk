@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 
@@ -9,6 +10,10 @@ namespace AIMS.Infrastructure.Data;
 
 internal sealed class OracleDialect : ISqlDialect
 {
+    // Bind names like :Access or :Comment hit ORA-01745 because they are Oracle
+    // reserved words; prefix every bind variable so the name is never reserved.
+    private static readonly Regex ParamRegex = new(@"@(\w+)", RegexOptions.Compiled);
+
     public string Quote(string identifier) => $"\"{identifier}\"";
 
     public string SelectFromDual => "FROM DUAL";
@@ -19,7 +24,7 @@ internal sealed class OracleDialect : ISqlDialect
         if (oraConn.State != ConnectionState.Open)
             oraConn.Open();
 
-        var oraParams = atParams.Replace("@", ":");
+        var oraParams = ParamRegex.Replace(atParams, ":p_$1");
         using var cmd = oraConn.CreateCommand();
         cmd.BindByName = true;
         cmd.CommandText = $"INSERT INTO {quotedTable} ({cols}) VALUES ({oraParams}) RETURNING Id INTO :returnedId";
@@ -27,7 +32,7 @@ internal sealed class OracleDialect : ISqlDialect
         foreach (var prop in param.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             var value = ToOracleValue(prop.GetValue(param));
-            cmd.Parameters.Add(new OracleParameter(prop.Name, value));
+            cmd.Parameters.Add(new OracleParameter("p_" + prop.Name, value));
         }
 
         var returnParam = new OracleParameter("returnedId", OracleDbType.Int32)
@@ -40,13 +45,13 @@ internal sealed class OracleDialect : ISqlDialect
         return ((OracleDecimal)returnParam.Value).ToInt32();
     }
 
-    public Task<int> ExecuteUpdateAsync(IDbConnection conn, string sql, Dictionary<string, object?> parameters)
+    public async Task<int> ExecuteUpdateAsync(IDbConnection conn, string sql, Dictionary<string, object?> parameters)
     {
         var oraConn = conn is OracleParamConnection wrapper ? wrapper.Inner : (OracleConnection)conn;
         if (oraConn.State != ConnectionState.Open)
             oraConn.Open();
 
-        var oraSql = sql.Replace("@", ":");
+        var oraSql = ParamRegex.Replace(sql, ":p_$1");
 
         using var cmd = oraConn.CreateCommand();
         cmd.BindByName = true;
@@ -55,11 +60,12 @@ internal sealed class OracleDialect : ISqlDialect
         foreach (var kvp in parameters)
         {
             var value = ToOracleValue(kvp.Value);
-            cmd.Parameters.Add(new OracleParameter(kvp.Key, value));
+            cmd.Parameters.Add(new OracleParameter("p_" + kvp.Key, value));
         }
 
-        //return Task.Run(() => cmd.ExecuteNonQuery());
-        return cmd.ExecuteNonQueryAsync();
+        // Must await here: returning the task un-awaited lets `using var cmd`
+        // dispose the command while the statement is still executing.
+        return await cmd.ExecuteNonQueryAsync();
     }
 
     public string Paginate(string selectSql, string orderBy) =>

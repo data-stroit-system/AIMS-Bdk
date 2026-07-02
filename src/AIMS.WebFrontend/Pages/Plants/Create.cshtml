@@ -1,0 +1,55 @@
+@page
+@model AIMS.WebFrontend.Pages.Plants.CreateModel
+@{
+    ViewData["Title"] = "Add Plant";
+}
+
+<div class="sims-d-flex sims-align-center sims-justify-between sims-mb-4">
+    <div>
+        <h3 style="margin:0"><i class="fas fa-circle-plus sims-me-2"></i>Add New Plant</h3>
+        <span class="sims-text-sm sims-text-muted">Create a new plant</span>
+    </div>
+    <a asp-page="Index" class="sims-btn sims-btn-outline">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="sims-card">
+    <div class="sims-card-header">
+        <i class="fas fa-industry"></i> Plant Information
+    </div>
+    <div class="sims-card-body">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger sims-mb-3"></div>
+
+            <div class="sims-mb-3">
+                <label asp-for="Input.Code" class="sims-form-label">Code</label>
+                <input asp-for="Input.Code" class="sims-form-control" placeholder="e.g. 20" autocomplete="off" />
+                <span asp-validation-for="Input.Code" class="text-danger sims-text-sm"></span>
+            </div>
+
+            <div class="sims-mb-3">
+                <label asp-for="Input.Name" class="sims-form-label">Name <span class="text-danger">*</span></label>
+                <input asp-for="Input.Name" class="sims-form-control" placeholder="e.g. Badak LNG Plant" autocomplete="off" />
+                <span asp-validation-for="Input.Name" class="text-danger sims-text-sm"></span>
+            </div>
+
+            <div class="sims-mb-3">
+                <label asp-for="Input.Description" class="sims-form-label">Description</label>
+                <input asp-for="Input.Description" class="sims-form-control" placeholder="Short description of the plant" autocomplete="off" />
+                <span asp-validation-for="Input.Description" class="text-danger sims-text-sm"></span>
+            </div>
+
+            <div class="sims-d-flex sims-gap-2 sims-mt-3">
+                <button type="submit" class="sims-btn sims-btn-primary">
+                    <i class="fas fa-floppy-disk"></i> Save Plant
+                </button>
+                <a asp-page="Index" class="sims-btn sims-btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

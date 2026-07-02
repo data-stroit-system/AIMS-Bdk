@@ -8,7 +8,17 @@
 <div class="sims-d-flex sims-align-center sims-justify-between sims-mb-4">
     <div>
         <h3 style="margin:0"><i class="fas fa-boxes-stacked sims-me-2"></i>Asset Items</h3>
-        <span class="sims-text-sm sims-text-muted">Manage structural integrity assets</span>
+        @if (Model.FilterPlant != null)
+        {
+            <span class="sims-text-sm sims-text-muted">
+                Plant: <span class="sims-badge sims-badge-sky">@Model.FilterPlant.Name</span>
+                <a asp-page="Index" class="ms-1" title="Show all assets">&times;</a>
+            </span>
+        }
+        else
+        {
+            <span class="sims-text-sm sims-text-muted">Manage structural integrity assets</span>
+        }
     </div>
     @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
     {
@@ -25,6 +35,10 @@
     </div>
     <div class="sims-card-body">
         <form method="get" id="filterForm">
+            @if (Model.PlantId.HasValue)
+            {
+                <input type="hidden" name="plantId" value="@Model.PlantId" />
+            }
             <div class="row g-3">
                 <div class="col-md-12">
                     <label for="searchTerm" class="sims-form-label">Search</label>
@@ -171,8 +185,9 @@
                                 <td><a asp-page="Details" asp-route-id="@item.Id"><code>@item.AssetId</code></a></td>
                                 <td><a asp-page="Details" asp-route-id="@item.Id">@item.Title</a></td>
                                 <td class="sims-text-sm">
-                                    <span class="sims-badge sims-badge-sky">@item.PlantCode</span>
-                                    @item.PlantDescription
+                                    @{ var itemPlant = item.PlantId.HasValue ? Model.PlantsById.GetValueOrDefault(item.PlantId.Value) : null; }
+                                    <span class="sims-badge sims-badge-sky">@itemPlant?.Code</span>
+                                    @itemPlant?.Description
                                 </td>
                                 <td class="sims-text-sm">
                                     <span class="sims-badge sims-badge-gray">@item.EquipmentCode</span>
@@ -228,12 +243,12 @@
                         {
                             <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="1"
                                asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">
+                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
                                 <i class="fas fa-angles-left"></i>
                             </a>
                             <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="@(Model.CurrentPage - 1)"
                                asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">
+                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
                                 <i class="fas fa-angle-left"></i>
                             </a>
                         }
@@ -242,18 +257,18 @@
                             <a class="sims-btn @(i == Model.CurrentPage ? "sims-btn-primary" : "sims-btn-outline") sims-btn-sm"
                                asp-page="Index" asp-route-page="@i"
                                asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">@i</a>
+                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">@i</a>
                         }
                         @if (Model.CurrentPage < Model.TotalPages)
                         {
                             <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="@(Model.CurrentPage + 1)"
                                asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">
+                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
                                 <i class="fas fa-angle-right"></i>
                             </a>
                             <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="@Model.TotalPages"
                                asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">
+                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
                                 <i class="fas fa-angles-right"></i>
                             </a>
                         }

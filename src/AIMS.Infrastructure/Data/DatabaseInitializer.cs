@@ -1,4 +1,7 @@
+using AIMS.Core.Entities;
 using Dapper;
+using System.Data;
+using System.Linq;
 
 namespace AIMS.Infrastructure.Data;
 
@@ -15,6 +18,67 @@ public class DatabaseInitializer : ISchemaInitializer
     {
         using var conn = _context.CreateConnection();
         conn.Execute(Schema);
+        MigrateLegacyPlantData(conn);
+        RegenerateAssetIds(conn);
+    }
+
+    /// <summary>
+    /// Recomputes AssetId (Asset Tag No.) in C# for rows that have full Plant/Equipment/Civil
+    /// data, so it always matches AssetItemService's generation formula. Rows lacking that
+    /// structured data (legacy freeform tags) are left untouched. Safe to run on every startup.
+    /// </summary>
+    private static void RegenerateAssetIds(IDbConnection conn)
+    {
+        var plantCodes = conn.Query<(int Id, string? Code)>("SELECT Id, Code FROM Plants")
+            .ToDictionary(p => p.Id, p => p.Code);
+
+        var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, int? EquipmentOrder, string? CivilAssetCode, int? CivilAssetOrder, string? AssetId)>(
+            "SELECT Id, PlantId, EquipmentCode, EquipmentOrder, CivilAssetCode, CivilAssetOrder, AssetId FROM AssetItems " +
+            "WHERE PlantId IS NOT NULL AND EquipmentCode IS NOT NULL AND CivilAssetCode IS NOT NULL");
+
+        foreach (var item in items)
+        {
+            var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
+            var generated = AssetItem.GenerateAssetId(
+                plantCode ?? string.Empty, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
+                item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder);
+
+            if (generated != item.AssetId)
+            {
+                conn.Execute("UPDATE AssetItems SET AssetId = @AssetId WHERE Id = @Id", new { AssetId = generated, Id = item.Id });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Seeds Plants from the legacy PlantCode lookup table (idempotent, matched by Code),
+    /// then backfills AssetItems.PlantId from any leftover legacy PlantCode column and
+    /// drops it. Safe to run on every startup.
+    /// </summary>
+    private static void MigrateLegacyPlantData(IDbConnection conn)
+    {
+        foreach (var pc in PlantCode.All)
+        {
+            var exists = conn.ExecuteScalar<int>("SELECT COUNT(*) FROM Plants WHERE Code = @Code", new { pc.Code });
+            if (exists == 0)
+            {
+                conn.Execute(
+                    "INSERT INTO Plants (Code, Name, Description) VALUES (@Code, @Name, @Description)",
+                    new { pc.Code, Name = $"Plant {pc.Code}", pc.Description });
+            }
+        }
+
+        var hasPlantCode = conn.ExecuteScalar<int?>("SELECT COL_LENGTH('AssetItems', 'PlantCode')") != null;
+        if (!hasPlantCode) return;
+
+        conn.Execute(@"
+            UPDATE AssetItems
+            SET PlantId = (SELECT p.Id FROM Plants p WHERE p.Code = AssetItems.PlantCode)
+            WHERE PlantId IS NULL AND PlantCode IS NOT NULL
+              AND EXISTS (SELECT 1 FROM Plants p WHERE p.Code = AssetItems.PlantCode)");
+
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantCode");
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantDescription");
     }
 
     private const string Schema = @"
@@ -48,14 +112,23 @@ CREATE TABLE AspNetUsers (
     AccessFailedCount int NOT NULL DEFAULT 0
 );
 
+IF OBJECT_ID('Plants', 'U') IS NULL
+CREATE TABLE Plants (
+    Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Code nvarchar(20) NULL,
+    Name nvarchar(200) NULL,
+    Description nvarchar(200) NULL
+);
+
+IF OBJECT_ID('Plants', 'U') IS NOT NULL AND COL_LENGTH('Plants', 'Code') IS NULL
+ALTER TABLE Plants ADD Code nvarchar(20) NULL;
+
 IF OBJECT_ID('AssetItems', 'U') IS NULL
 CREATE TABLE AssetItems (
     Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
     GisRefNo nvarchar(200) NULL,
     AssetId nvarchar(max) NULL,
     Title nvarchar(200) NULL,
-    PlantCode nvarchar(200) NULL,
-    PlantDescription nvarchar(200) NULL,
     EquipmentCode nvarchar(200) NULL,
     EquipmentDescription nvarchar(200) NULL,
     EquipmentDesc nvarchar(200) NULL,
@@ -87,16 +160,14 @@ CREATE TABLE AssetItems (
     IntegrityStatus int NOT NULL DEFAULT 0,
     PicturePath nvarchar(500) NULL,
     CreatedAt datetime2 NOT NULL DEFAULT GETUTCDATE(),
-    CreatedBy nvarchar(200) NULL
+    CreatedBy nvarchar(200) NULL,
+    PlantId int NULL,
+    CONSTRAINT FK_AssetItems_Plants_PlantId FOREIGN KEY (PlantId) REFERENCES Plants(Id)
 );
 
 -- Add new columns for existing tables (idempotent)
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'GisRefNo') IS NULL
 ALTER TABLE AssetItems ADD GisRefNo nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'PlantCode') IS NULL
-ALTER TABLE AssetItems ADD PlantCode nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'PlantDescription') IS NULL
-ALTER TABLE AssetItems ADD PlantDescription nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentCode') IS NULL
 ALTER TABLE AssetItems ADD EquipmentCode nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentDescription') IS NULL
@@ -145,6 +216,11 @@ IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Condit
 ALTER TABLE AssetItems ADD Condition nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Comment') IS NULL
 ALTER TABLE AssetItems ADD Comment nvarchar(1000) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'PlantId') IS NULL
+BEGIN
+    ALTER TABLE AssetItems ADD PlantId int NULL;
+    EXEC('ALTER TABLE AssetItems ADD CONSTRAINT FK_AssetItems_Plants_PlantId FOREIGN KEY (PlantId) REFERENCES Plants(Id)');
+END;
 
 IF OBJECT_ID('AuditLogs', 'U') IS NULL
 CREATE TABLE AuditLogs (

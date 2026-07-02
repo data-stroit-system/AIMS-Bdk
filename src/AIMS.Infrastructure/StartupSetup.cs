@@ -38,6 +38,7 @@ namespace AIMS.Infrastructure
             services.AddScoped<IActivityLogger, ActivityLogger>();
             services.AddScoped<FileUploadHelper>();
             services.AddScoped<AssetItemService>();
+            services.AddScoped<PlantService>();
         }
 
         public static void InitializeDatabase(this IServiceCollection services)

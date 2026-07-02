@@ -2,6 +2,7 @@ using AIMS.Core.Entities;
 using AIMS.Infrastructure.Data;
 using Dapper;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,25 +28,24 @@ public sealed class AssetItemService
 
     private string AllColumns => $@"
         Id, GisRefNo, AssetId, Title,
-        PlantCode, PlantDescription,
         EquipmentCode, EquipmentDescription, EquipmentDesc, EquipmentOrder,
         CivilAssetCode, CivilAssetDescription, CivilAssetDesc, CivilAssetOrder,
         QrCode, {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)},
         CoordinateN, CoordinateE, Zone, Area, Train,
         DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)},
         Description, Type, Location, Priority, IntegrityStatus, PicturePath,
-        CreatedAt, CreatedBy";
+        CreatedAt, CreatedBy, PlantId";
 
     public async Task<(List<AssetItem> Items, int TotalCount)> GetPagedAsync(
         string? searchTerm, AssetType? typeFilter, AssetPriority? priorityFilter,
-        IntegrityStatus? statusFilter, int page, int pageSize)
+        IntegrityStatus? statusFilter, int page, int pageSize, int? plantIdFilter = null)
     {
         var where = new StringBuilder("WHERE 1=1");
         var p = new DynamicParameters();
 
         if (!string.IsNullOrEmpty(searchTerm))
         {
-            where.Append(" AND (Title LIKE @Search OR AssetId LIKE @Search OR Description LIKE @Search OR Location LIKE @Search OR PlantDescription LIKE @Search OR EquipmentDesc LIKE @Search OR CivilAssetDesc LIKE @Search)");
+            where.Append(" AND (Title LIKE @Search OR AssetId LIKE @Search OR Description LIKE @Search OR Location LIKE @Search OR EquipmentDesc LIKE @Search OR CivilAssetDesc LIKE @Search)");
             p.Add("Search", $"%{searchTerm}%");
         }
         if (typeFilter.HasValue)
@@ -62,6 +62,11 @@ public sealed class AssetItemService
         {
             where.Append(" AND IntegrityStatus = @IntegrityStatus");
             p.Add("IntegrityStatus", (int)statusFilter.Value);
+        }
+        if (plantIdFilter.HasValue)
+        {
+            where.Append(" AND PlantId = @PlantId");
+            p.Add("PlantId", plantIdFilter.Value);
         }
 
         var whereClause = where.ToString();
@@ -86,51 +91,73 @@ public sealed class AssetItemService
             $"SELECT {AllColumns} FROM AssetItems WHERE Id = @Id", new { Id = id });
     }
 
-    public Task<int> CreateAsync(AssetItem item)
+    /// <summary>
+    /// Asset Tag No. is always derived in C# from Plant/Equipment/Civil codes — never
+    /// database-generated and never accepted from client input.
+    /// </summary>
+    private async Task<string> GenerateAssetIdAsync(IDbConnection conn, AssetItem item)
+    {
+        string? plantCode = null;
+        if (item.PlantId.HasValue)
+        {
+            plantCode = await conn.QuerySingleOrDefaultAsync<string?>(
+                "SELECT Code FROM Plants WHERE Id = @PlantId", new { PlantId = item.PlantId.Value });
+        }
+
+        return AssetItem.GenerateAssetId(
+            plantCode ?? string.Empty, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
+            item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder);
+    }
+
+    public async Task<int> CreateAsync(AssetItem item)
     {
         using var conn = _context.CreateConnection();
+        item.AssetId = await GenerateAssetIdAsync(conn, item);
+
+        // Table name is created unquoted (uppercase on Oracle) — quoting it makes Oracle
+        // look up a case-sensitive "AssetItems" and fail with ORA-00942.
         var id = _dialect.InsertAndGetId(conn,
-            _dialect.Quote("AssetItems"),
+            "AssetItems",
             $"GisRefNo, AssetId, Title, " +
-            "PlantCode, PlantDescription, " +
             "EquipmentCode, EquipmentDescription, EquipmentDesc, EquipmentOrder, " +
             "CivilAssetCode, CivilAssetDescription, CivilAssetDesc, CivilAssetOrder, " +
             $"QrCode, {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)}, " +
             "CoordinateN, CoordinateE, Zone, Area, Train, " +
             $"DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)}, " +
-            "Description, Type, Location, Priority, IntegrityStatus, PicturePath, CreatedAt, CreatedBy",
+            "Description, Type, Location, Priority, IntegrityStatus, PicturePath, CreatedAt, CreatedBy, PlantId",
             "@GisRefNo, @AssetId, @Title, " +
-            "@PlantCode, @PlantDescription, " +
             "@EquipmentCode, @EquipmentDescription, @EquipmentDesc, @EquipmentOrder, " +
             "@CivilAssetCode, @CivilAssetDescription, @CivilAssetDesc, @CivilAssetOrder, " +
             "@QrCode, @Function, @Material, @YearInstalled, @Owner, @Constrain, @Access, " +
             "@CoordinateN, @CoordinateE, @Zone, @Area, @Train, " +
             "@DateOfInspection, @Inspector, @Condition, @Comment, " +
-            "@Description, @Type, @Location, @Priority, @IntegrityStatus, @PicturePath, @CreatedAt, @CreatedBy",
+            "@Description, @Type, @Location, @Priority, @IntegrityStatus, @PicturePath, @CreatedAt, @CreatedBy, @PlantId",
             new
             {
                 item.GisRefNo, item.AssetId, item.Title,
-                item.PlantCode, item.PlantDescription,
                 item.EquipmentCode, item.EquipmentDescription, item.EquipmentDesc, item.EquipmentOrder,
                 item.CivilAssetCode, item.CivilAssetDescription, item.CivilAssetDesc, item.CivilAssetOrder,
                 item.QrCode, item.Function, item.Material, item.YearInstalled, item.Owner, item.Constrain, item.Access,
                 item.CoordinateN, item.CoordinateE, item.Zone, item.Area, item.Train,
                 item.DateOfInspection, item.Inspector, item.Condition, item.Comment,
-                item.Description, Type = (int?)item.Type,
-                item.Location, Priority = (int?)item.Priority,
-                IntegrityStatus = (int?)item.IntegrityStatus,
-                item.PicturePath, item.CreatedAt, item.CreatedBy
+                // Type/Priority/IntegrityStatus columns are NOT NULL DEFAULT 0;
+                // binding NULL explicitly bypasses the default and fails the insert.
+                item.Description, Type = (int?)item.Type ?? 0,
+                item.Location, Priority = (int?)item.Priority ?? 0,
+                IntegrityStatus = (int?)item.IntegrityStatus ?? 0,
+                item.PicturePath, item.CreatedAt, item.CreatedBy, item.PlantId
             });
-        return Task.FromResult(id);
+        return id;
     }
 
     public async Task UpdateAsync(int id, AssetItem updates)
     {
         using var conn = _context.CreateConnection();
+        updates.AssetId = await GenerateAssetIdAsync(conn, updates);
+
         var sql = $@"
-            UPDATE {_dialect.Quote("AssetItems")}
+            UPDATE AssetItems
             SET GisRefNo = @GisRefNo, AssetId = @AssetId, Title = @Title,
-                PlantCode = @PlantCode, PlantDescription = @PlantDescription,
                 EquipmentCode = @EquipmentCode, EquipmentDescription = @EquipmentDescription,
                 EquipmentDesc = @EquipmentDesc, EquipmentOrder = @EquipmentOrder,
                 CivilAssetCode = @CivilAssetCode, CivilAssetDescription = @CivilAssetDescription,
@@ -144,7 +171,7 @@ public sealed class AssetItemService
                 {_dialect.Quote(Cn)} = @Condition, {_dialect.Quote(Cm)} = @Comment,
                 Description = @Description, Type = @Type, Location = @Location,
                 Priority = @Priority, IntegrityStatus = @IntegrityStatus,
-                PicturePath = @PicturePath
+                PicturePath = @PicturePath, PlantId = @PlantId
             WHERE Id = @Id";
 
         var parameters = new Dictionary<string, object?>
@@ -152,8 +179,6 @@ public sealed class AssetItemService
             { "GisRefNo", updates.GisRefNo },
             { "AssetId", updates.AssetId },
             { "Title", updates.Title },
-            { "PlantCode", updates.PlantCode },
-            { "PlantDescription", updates.PlantDescription },
             { "EquipmentCode", updates.EquipmentCode },
             { "EquipmentDescription", updates.EquipmentDescription },
             { "EquipmentDesc", updates.EquipmentDesc },
@@ -179,11 +204,12 @@ public sealed class AssetItemService
             { "Condition", updates.Condition },
             { "Comment", updates.Comment },
             { "Description", updates.Description },
-            { "Type", (int?)updates.Type },
+            { "Type", (int?)updates.Type ?? 0 },
             { "Location", updates.Location },
-            { "Priority", (int?)updates.Priority },
-            { "IntegrityStatus", (int?)updates.IntegrityStatus },
+            { "Priority", (int?)updates.Priority ?? 0 },
+            { "IntegrityStatus", (int?)updates.IntegrityStatus ?? 0 },
             { "PicturePath", updates.PicturePath },
+            { "PlantId", updates.PlantId },
             { "Id", id }
         };
 

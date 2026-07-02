@@ -1,6 +1,6 @@
 @page
 @model IndexModel
-@using AIMS.Core.Entities
+@using System.Text.Json
 @{
     ViewData["Title"] = "Dashboard";
 }
@@ -13,230 +13,193 @@
     <span class="sims-badge sims-badge-blue">Rev A / 20260701</span>
 </div>
 
-<!-- Stat Cards -->
-<div class="sims-stat-grid">
-    <div class="sims-stat-card">
-        <div class="sims-stat-card-icon blue"><i class="fas fa-boxes-stacked"></i></div>
-        <div>
-            <div class="sims-stat-card-value">@Model.TotalAssets</div>
-            <div class="sims-stat-card-label">Total Assets</div>
-        </div>
-    </div>
-    <div class="sims-stat-card">
-        <div class="sims-stat-card-icon red"><i class="fas fa-triangle-exclamation"></i></div>
-        <div>
-            <div class="sims-stat-card-value">@Model.HighPriorityCount</div>
-            <div class="sims-stat-card-label">High Priority</div>
-        </div>
-    </div>
-    <div class="sims-stat-card">
-        <div class="sims-stat-card-icon amber"><i class="fas fa-circle-half-stroke"></i></div>
-        <div>
-            <div class="sims-stat-card-value">@Model.FairStatusCount</div>
-            <div class="sims-stat-card-label">Fair Integrity</div>
-        </div>
-    </div>
-    <div class="sims-stat-card">
-        <div class="sims-stat-card-icon red"><i class="fas fa-circle-xmark"></i></div>
-        <div>
-            <div class="sims-stat-card-value">@Model.PoorStatusCount</div>
-            <div class="sims-stat-card-label">Poor Integrity</div>
-        </div>
-    </div>
-</div>
-
-<!-- Plant Summary + Breakdown -->
-<div class="row g-4">
-    <div class="col-lg-8">
-        <div class="sims-card">
-            <div class="sims-card-header">
-                <i class="fas fa-chart-pie"></i> Plant Summary
-            </div>
-            <div class="sims-card-body">
-                @if (Model.TotalAssets == 0)
-                {
-                    <p class="sims-text-muted">No assets recorded.</p>
-                }
-                else
-                {
-                    <div class="table-responsive">
-                        <table class="sims-table">
-                            <thead>
-                                <tr>
-                                    <th>Status</th>
-                                    <th>Count</th>
-                                    <th>Distribution</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><span class="condition-dot good"></span> Good</td>
-                                    <td class="sims-fw-bold">@Model.GoodStatusCount</td>
-                                    <td>
-                                        <div class="sims-d-flex sims-align-center sims-gap-2">
-                                            <div class="sims-progress sims-w-100">
-                                                <div class="sims-progress-bar green" style="width:@(Model.TotalAssets > 0 ? (Model.GoodStatusCount * 100 / Model.TotalAssets) : 0)%"></div>
-                                            </div>
-                                            <span class="sims-text-sm sims-text-muted">@(Model.TotalAssets > 0 ? (Model.GoodStatusCount * 100 / Model.TotalAssets) : 0)%</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><span class="condition-dot fair"></span> Fair</td>
-                                    <td class="sims-fw-bold">@Model.FairStatusCount</td>
-                                    <td>
-                                        <div class="sims-d-flex sims-align-center sims-gap-2">
-                                            <div class="sims-progress sims-w-100">
-                                                <div class="sims-progress-bar amber" style="width:@(Model.TotalAssets > 0 ? (Model.FairStatusCount * 100 / Model.TotalAssets) : 0)%"></div>
-                                            </div>
-                                            <span class="sims-text-sm sims-text-muted">@(Model.TotalAssets > 0 ? (Model.FairStatusCount * 100 / Model.TotalAssets) : 0)%</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td><span class="condition-dot poor"></span> Poor</td>
-                                    <td class="sims-fw-bold">@Model.PoorStatusCount</td>
-                                    <td>
-                                        <div class="sims-d-flex sims-align-center sims-gap-2">
-                                            <div class="sims-progress sims-w-100">
-                                                <div class="sims-progress-bar red" style="width:@(Model.TotalAssets > 0 ? (Model.PoorStatusCount * 100 / Model.TotalAssets) : 0)%"></div>
-                                            </div>
-                                            <span class="sims-text-sm sims-text-muted">@(Model.TotalAssets > 0 ? (Model.PoorStatusCount * 100 / Model.TotalAssets) : 0)%</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-4">
-        <div class="sims-card">
-            <div class="sims-card-header">
-                <i class="fas fa-flag"></i> Priority Breakdown
-            </div>
-            <div class="sims-card-body">
-                @if (Model.TotalAssets == 0)
-                {
-                    <p class="sims-text-muted">No assets recorded.</p>
-                }
-                else
-                {
-                    <div class="sims-mb-3">
-                        <div class="sims-d-flex sims-justify-between sims-mb-1">
-                            <span><span class="condition-dot poor"></span> High</span>
-                            <span class="sims-fw-bold">@Model.HighPriorityCount</span>
-                        </div>
-                        <div class="sims-progress">
-                            <div class="sims-progress-bar red" style="width:@(Model.TotalAssets > 0 ? (Model.HighPriorityCount * 100 / Model.TotalAssets) : 0)%"></div>
-                        </div>
-                    </div>
-                    <div class="sims-mb-3">
-                        <div class="sims-d-flex sims-justify-between sims-mb-1">
-                            <span><span class="condition-dot fair"></span> Medium</span>
-                            <span class="sims-fw-bold">@Model.MediumPriorityCount</span>
-                        </div>
-                        <div class="sims-progress">
-                            <div class="sims-progress-bar amber" style="width:@(Model.TotalAssets > 0 ? (Model.MediumPriorityCount * 100 / Model.TotalAssets) : 0)%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="sims-d-flex sims-justify-between sims-mb-1">
-                            <span><span class="condition-dot good"></span> Low</span>
-                            <span class="sims-fw-bold">@Model.LowPriorityCount</span>
-                        </div>
-                        <div class="sims-progress">
-                            <div class="sims-progress-bar green" style="width:@(Model.TotalAssets > 0 ? (Model.LowPriorityCount * 100 / Model.TotalAssets) : 0)%"></div>
-                        </div>
-                    </div>
-                }
-            </div>
-        </div>
-
-        <div class="sims-card">
-            <div class="sims-card-header">
-                <i class="fas fa-layer-group"></i> Asset Types
-            </div>
-            <div class="sims-card-body">
-                @if (Model.TotalAssets == 0)
-                {
-                    <p class="sims-text-muted">No assets recorded.</p>
-                }
-                else
-                {
-                    @foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
-                    {
-                        var count = Model.AssetsByType.GetValueOrDefault(type, 0);
-                        <div class="sims-d-flex sims-justify-between sims-align-center py-2 @(type != AssetType.Other ? "border-bottom" : "")">
-                            <a asp-page="/AssetItems/Index" asp-route-typeFilter="@type" class="sims-text-sm text-decoration-none">@type</a>
-                            <span class="sims-badge sims-badge-sky">@count</span>
-                        </div>
-                    }
-                }
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Assets -->
+<!-- Site Map -->
 <div class="sims-card">
     <div class="sims-card-header">
-        <i class="fas fa-clock-rotate-left"></i> Recently Added Assets
-        <a asp-page="/AssetItems/Index" class="sims-btn sims-btn-outline sims-btn-sm ms-auto">View All</a>
+        <i class="fas fa-map-location-dot"></i> Site Map
+        <small id="map-status" class="sims-text-sm sims-text-muted ms-auto">Loading layers&hellip;</small>
     </div>
     <div class="sims-card-body" style="padding:0">
-        @if (!Model.RecentAssets.Any())
-        {
-            <div class="p-3 sims-text-muted"><i class="fas fa-circle-info"></i> No assets have been added yet.</div>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="sims-table">
-                    <thead>
-                        <tr>
-                            <th>Asset ID</th>
-                            <th>Title</th>
-                            <th>Type</th>
-                            <th>Priority</th>
-                            <th>Integrity</th>
-                            <th>Location</th>
-                            <th>Added</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var item in Model.RecentAssets)
-                        {
-                            <tr>
-                                <td><a asp-page="/AssetItems/Details" asp-route-id="@item.Id"><code>@item.AssetId</code></a></td>
-                                <td><a asp-page="/AssetItems/Details" asp-route-id="@item.Id">@item.Title</a></td>
-                                <td><span class="sims-badge sims-badge-sky">@item.Type</span></td>
-                                <td>
-                                    @if (item.Priority == AssetPriority.High)
-                                    { <span class="sims-badge sims-badge-red">@item.Priority</span> }
-                                    else if (item.Priority == AssetPriority.Medium)
-                                    { <span class="sims-badge sims-badge-amber">@item.Priority</span> }
-                                    else
-                                    { <span class="sims-badge sims-badge-green">@item.Priority</span> }
-                                </td>
-                                <td>
-                                    @if (item.IntegrityStatus == IntegrityStatus.Good)
-                                    { <span class="sims-badge sims-badge-green">@item.IntegrityStatus</span> }
-                                    else if (item.IntegrityStatus == IntegrityStatus.Fair)
-                                    { <span class="sims-badge sims-badge-amber">@item.IntegrityStatus</span> }
-                                    else
-                                    { <span class="sims-badge sims-badge-red">@item.IntegrityStatus</span> }
-                                </td>
-                                <td class="sims-text-sm">@item.Location</td>
-                                <td class="sims-text-sm sims-text-muted">@item.CreatedAt.ToString("dd MMM yyyy")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
+        <div id="map" style="height: 500px; width: 100%;"></div>
     </div>
 </div>
+@section RightPanel {
+    <aside class="sims-panel-right" id="rightPanel">
+        <div class="sims-panel-right-header">
+            <i class="fas fa-circle-info sims-me-2"></i> Summary
+        </div>
+        <div class="sims-panel-right-scroll" id="rightPanelContent">
+            <div class="sims-card-header" style="padding-left:0">
+                <i class="fas fa-chart-pie"></i> Plant Summary
+            </div>
+            @if (Model.TotalAssets == 0)
+            {
+                <p class="sims-text-muted">No assets recorded.</p>
+            }
+            else
+            {
+                <canvas id="plantSummaryChart" height="180"></canvas>
+            }
+
+            <div class="sims-card-header" style="padding-left:0;border-top:1px solid var(--sims-border);margin-top:16px">
+                <i class="fas fa-heart-pulse"></i> Condition Breakdown &ndash; All Plant
+            </div>
+            @if (Model.TotalAssets == 0)
+            {
+                <p class="sims-text-muted">No assets recorded.</p>
+            }
+            else
+            {
+                var unknownCount = Model.TotalAssets - Model.GoodStatusCount - Model.FairStatusCount - Model.PoorStatusCount;
+                <div class="sims-mb-3">
+                    <div class="sims-d-flex sims-justify-between sims-mb-1">
+                        <span><span class="condition-dot good"></span> Good</span>
+                        <span class="sims-fw-bold">@Model.GoodStatusCount</span>
+                    </div>
+                    <div class="sims-progress">
+                        <div class="sims-progress-bar green" style="width:@(Model.GoodStatusCount * 100 / Model.TotalAssets)%"></div>
+                    </div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-d-flex sims-justify-between sims-mb-1">
+                        <span><span class="condition-dot fair"></span> Fair</span>
+                        <span class="sims-fw-bold">@Model.FairStatusCount</span>
+                    </div>
+                    <div class="sims-progress">
+                        <div class="sims-progress-bar amber" style="width:@(Model.FairStatusCount * 100 / Model.TotalAssets)%"></div>
+                    </div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-d-flex sims-justify-between sims-mb-1">
+                        <span><span class="condition-dot poor"></span> Poor</span>
+                        <span class="sims-fw-bold">@Model.PoorStatusCount</span>
+                    </div>
+                    <div class="sims-progress">
+                        <div class="sims-progress-bar red" style="width:@(Model.PoorStatusCount * 100 / Model.TotalAssets)%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="sims-d-flex sims-justify-between sims-mb-1">
+                        <span><span class="condition-dot unknown"></span> Unknown</span>
+                        <span class="sims-fw-bold">@unknownCount</span>
+                    </div>
+                    <div class="sims-progress">
+                        <div class="sims-progress-bar gray" style="width:@(unknownCount * 100 / Model.TotalAssets)%"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    </aside>
+}
+
+@section Scripts {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        (function () {
+            const QGIS_SERVER = 'http://159.223.33.82/qgisserver';
+            const MAP_PROJECT = '/home/qgis/projects/world.qgs';
+
+            const map = L.map('map').setView([0.131, 117.472], 14);
+            const statusEl = document.getElementById('map-status');
+
+            const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            const baseLayers = { 'OpenStreetMap': osm };
+
+            function addWmsLayer(layers) {
+                const wms = L.tileLayer.wms(QGIS_SERVER, {
+                    MAP: MAP_PROJECT,
+                    layers: layers,
+                    format: 'image/png',
+                    transparent: true,
+                    version: '1.3.0',
+                    attribution: 'QGIS Server'
+                });
+
+                L.control.layers(baseLayers, { 'QGIS WMS': wms }, { collapsed: false }).addTo(map);
+
+                statusEl.textContent = 'Layers: ' + layers;
+                statusEl.classList.replace('sims-text-muted', 'text-success');
+            }
+
+            const capsUrl = QGIS_SERVER
+                + '?MAP=' + encodeURIComponent(MAP_PROJECT)
+                + '&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities';
+
+            fetch(capsUrl)
+                .then(r => {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.text();
+                })
+                .then(xml => {
+                    const doc = new DOMParser().parseFromString(xml, 'text/xml');
+                    if (doc.querySelector('parsererror')) throw new Error('Bad XML');
+
+                    const layerEls = Array.from(doc.getElementsByTagNameNS('*', 'Layer'));
+                    const seen = new Set();
+                    const names = [];
+                    for (const layer of layerEls) {
+                        for (const child of layer.children) {
+                            if (child.localName === 'Name') {
+                                const name = child.textContent.trim();
+                                if (name && !seen.has(name)) {
+                                    seen.add(name);
+                                    names.push(name);
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    addWmsLayer(names.length ? names.join(',') : 'world');
+                })
+                .catch(() => {
+                    addWmsLayer('world');
+                    statusEl.textContent = 'Auto-discovery unavailable, using default layer';
+                    statusEl.classList.replace('sims-text-muted', 'text-warning');
+                });
+        })();
+    </script>
+
+    @if (Model.TotalAssets > 0)
+    {
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+        <script>
+            (function () {
+                const labels = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.PlantName)));
+                const good = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.Good)));
+                const fair = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.Fair)));
+                const poor = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.Poor)));
+                const unknown = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.Unknown)));
+
+                new Chart(document.getElementById('plantSummaryChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Good', data: good, backgroundColor: '#10b981' },
+                            { label: 'Fair', data: fair, backgroundColor: '#f59e0b' },
+                            { label: 'Poor', data: poor, backgroundColor: '#ef4444' },
+                            { label: 'Unknown', data: unknown, backgroundColor: '#6b7280' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { beginAtZero: true, ticks: { precision: 0 } }
+                        },
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            })();
+        </script>
+    }
+}

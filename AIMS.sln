@@ -17,6 +17,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		Copilot-Q.md = Copilot-Q.md
 		README.md = README.md
+		.claude\settings.local.json = .claude\settings.local.json
 	EndProjectSection
 EndProject
 Global
@@ -77,7 +78,7 @@ Global
 		{E0C58E7D-A468-426E-B22E-E79EBCE8E00F}.Release|x64.Build.0 = Release|Any CPU
 		{E0C58E7D-A468-426E-B22E-E79EBCE8E00F}.Release|x86.ActiveCfg = Release|Any CPU
 		{E0C58E7D-A468-426E-B22E-E79EBCE8E00F}.Release|x86.Build.0 = Release|Any CPU
-EndGlobalSection
+	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
@@ -86,7 +87,7 @@ EndGlobalSection
 		{5B576034-9E89-436F-A476-A70E31D2064B} = {29A93B01-6BCC-4813-B640-B66000237EB8}
 		{4DA3ECAA-BA81-4818-8ABF-E46C418E1693} = {29A93B01-6BCC-4813-B640-B66000237EB8}
 		{E0C58E7D-A468-426E-B22E-E79EBCE8E00F} = {29A93B01-6BCC-4813-B640-B66000237EB8}
-EndGlobalSection
+	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {861873BF-E070-4F3B-ADEA-405F89E2499E}
 	EndGlobalSection

@@ -168,6 +168,19 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
 }
 .sims-tree-add:hover { color: #93c5fd; }
 
+/* Slide-4 asset tree: plant rows with > chevron, selected plant in teal */
+.sims-tree-chevron {
+    font-size: 10px; width: 14px; text-align: center;
+    transition: transform 0.2s;
+}
+.sims-tree-chevron.expanded { transform: rotate(90deg); }
+.sims-tree-link.plant-selected {
+    color: #6E98A7;
+    border-left-color: #6E98A7;
+    font-weight: 600;
+}
+.sims-tree-link.plant-selected:hover { color: #8fb5c2; }
+
 /* ===== Center Content ===== */
 .sims-panel-center {
     flex: 1;
@@ -424,6 +437,7 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
 .sims-progress-bar.green { background: var(--sims-green); }
 .sims-progress-bar.amber { background: var(--sims-amber); }
 .sims-progress-bar.red { background: var(--sims-red); }
+.sims-progress-bar.gray { background: var(--sims-gray); }
 
 /* ===== Condition indicator ===== */
 .condition-dot {
@@ -435,6 +449,7 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
 .condition-dot.good { background: var(--sims-green); }
 .condition-dot.fair { background: var(--sims-amber); }
 .condition-dot.poor { background: var(--sims-red); }
+.condition-dot.unknown { background: var(--sims-gray); }
 
 /* ===== Image Gallery ===== */
 .sims-gallery { display: flex; gap: 12px; flex-wrap: wrap; }
