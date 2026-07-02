@@ -19,6 +19,8 @@ internal sealed class OracleParamConnection : DbConnection
         _inner = new OracleConnection(connectionString);
     }
 
+    protected override DbProviderFactory DbProviderFactory => OracleClientFactory.Instance;
+
     /// <summary>The underlying ODP.NET connection, for code that needs Oracle-specific APIs.</summary>
     public OracleConnection Inner => _inner;
 
@@ -116,13 +118,13 @@ internal sealed class OracleParamCommand : DbCommand
 
     public override int ExecuteNonQuery()
     {
-        FixBooleanParameters();
+        FixParameters();
         return _inner.ExecuteNonQuery();
     }
 
     public override object? ExecuteScalar()
     {
-        FixBooleanParameters();
+        FixParameters();
         return _inner.ExecuteScalar();
     }
 
@@ -132,26 +134,40 @@ internal sealed class OracleParamCommand : DbCommand
 
     protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
     {
-        FixBooleanParameters();
+        FixParameters();
         return _inner.ExecuteReader(behavior);
     }
 
     public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
     {
-        FixBooleanParameters();
+        FixParameters();
         return _inner.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public override Task<object?> ExecuteScalarAsync(CancellationToken cancellationToken)
     {
-        FixBooleanParameters();
+        FixParameters();
         return _inner.ExecuteScalarAsync(cancellationToken)!;
     }
 
     protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
     {
-        FixBooleanParameters();
+        FixParameters();
         return await _inner.ExecuteReaderAsync(behavior, cancellationToken);
+    }
+
+    /// <summary>
+    /// Dapper adds parameters with @Name prefix, but our CommandText regex converts
+    /// @Name to :Name in the SQL. Oracle requires parameter names to match without @.
+    /// Strip @ prefix from all parameter names so they match the :Name bind variables.
+    /// </summary>
+    private void FixParameterNames()
+    {
+        foreach (OracleParameter p in _inner.Parameters)
+        {
+            if (p.ParameterName.StartsWith("@"))
+                p.ParameterName = p.ParameterName.Substring(1);
+        }
     }
 
     /// <summary>
@@ -168,6 +184,12 @@ internal sealed class OracleParamCommand : DbCommand
             if (p.DbType == DbType.Boolean)
                 p.DbType = DbType.Int32;
         }
+    }
+
+    private void FixParameters()
+    {
+        FixParameterNames();
+        FixBooleanParameters();
     }
 
     protected override void Dispose(bool disposing)

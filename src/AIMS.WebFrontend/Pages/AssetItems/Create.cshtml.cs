@@ -28,6 +28,10 @@ public class CreateModel : PageModel
     [BindProperty]
     public CreateAssetItemInput Input { get; set; } = new();
 
+    public List<PlantCode> PlantCodes => PlantCode.All.ToList();
+    public List<EquipmentCode> EquipmentCodes => EquipmentCode.All.ToList();
+    public List<CivilAssetCode> CivilAssetCodes => CivilAssetCode.All.ToList();
+
     public void OnGet() { }
 
     public async Task<IActionResult> OnPostAsync()
@@ -45,14 +49,53 @@ public class CreateModel : PageModel
                 ModelState.AddModelError("Input.Picture", error);
                 return Page();
             }
-
             picturePath = await _fileUpload.SaveAssetPictureAsync(Input.Picture, _env.WebRootPath);
+        }
+
+        var plantDesc = PlantCode.GetDescription(Input.PlantCode);
+        var equipDesc = EquipmentCode.GetDescription(Input.EquipmentCode);
+        var civilDesc = CivilAssetCode.GetDescription(Input.CivilAssetCode);
+
+        var assetId = Input.AssetId;
+        if (string.IsNullOrWhiteSpace(assetId))
+        {
+            assetId = AssetItem.GenerateAssetId(
+                Input.PlantCode, Input.EquipmentCode,
+                Input.EquipmentOrder,
+                Input.CivilAssetCode, Input.CivilAssetOrder);
         }
 
         var item = new AssetItem
         {
+            GisRefNo = Input.GisRefNo,
+            AssetId = assetId,
             Title = Input.Title,
-            AssetId = Input.AssetId,
+            PlantCode = Input.PlantCode,
+            PlantDescription = plantDesc,
+            EquipmentCode = Input.EquipmentCode,
+            EquipmentDescription = equipDesc,
+            EquipmentDesc = Input.EquipmentDesc,
+            EquipmentOrder = Input.EquipmentOrder,
+            CivilAssetCode = Input.CivilAssetCode,
+            CivilAssetDescription = civilDesc,
+            CivilAssetDesc = Input.CivilAssetDesc,
+            CivilAssetOrder = Input.CivilAssetOrder,
+            QrCode = Input.QrCode,
+            Function = Input.Function,
+            Material = Input.Material,
+            YearInstalled = Input.YearInstalled,
+            Owner = Input.Owner,
+            Constrain = Input.Constrain,
+            Access = Input.Access,
+            CoordinateN = Input.CoordinateN,
+            CoordinateE = Input.CoordinateE,
+            Zone = Input.Zone,
+            Area = Input.Area,
+            Train = Input.Train,
+            DateOfInspection = Input.DateOfInspection,
+            Inspector = Input.Inspector,
+            Condition = Input.Condition,
+            Comment = Input.Comment,
             Description = Input.Description,
             Type = Input.Type,
             Location = Input.Location,
@@ -76,28 +119,51 @@ public class CreateModel : PageModel
 
     public class CreateAssetItemInput
     {
-        [Required]
-        [StringLength(150)]
-        public string Title { get; set; } = string.Empty;
+        [StringLength(200)] public string? GisRefNo { get; set; }
 
-        [Required]
-        [StringLength(50)]
-        public string AssetId { get; set; } = string.Empty;
+        [StringLength(100)] public string AssetId { get; set; } = string.Empty;
 
-        [StringLength(250)]
-        public string? Description { get; set; }
+        [Required, StringLength(200)] public string Title { get; set; } = string.Empty;
 
-        [Required]
-        public AssetType Type { get; set; }
+        [Required, StringLength(200)] public string PlantCode { get; set; } = string.Empty;
 
-        [StringLength(250)]
-        public string? Location { get; set; }
+        [Required, StringLength(200)] public string EquipmentCode { get; set; } = string.Empty;
 
-        [Required]
-        public AssetPriority Priority { get; set; }
+        [StringLength(200)] public string? EquipmentDesc { get; set; }
+        public int? EquipmentOrder { get; set; }
 
-        [Required]
-        public IntegrityStatus IntegrityStatus { get; set; }
+        [Required, StringLength(200)] public string CivilAssetCode { get; set; } = string.Empty;
+
+        [StringLength(200)] public string? CivilAssetDesc { get; set; }
+        public int? CivilAssetOrder { get; set; }
+
+        [StringLength(500)] public string? QrCode { get; set; }
+
+        [StringLength(200)] public string? Function { get; set; }
+        [StringLength(200)] public string? Material { get; set; }
+        public int? YearInstalled { get; set; }
+
+        [StringLength(200)] public string? Owner { get; set; }
+        [StringLength(200)] public string? Constrain { get; set; }
+        [StringLength(200)] public string? Access { get; set; }
+
+        [StringLength(200)] public string? CoordinateN { get; set; }
+        [StringLength(200)] public string? CoordinateE { get; set; }
+
+        [StringLength(200)] public string? Zone { get; set; }
+        [StringLength(200)] public string? Area { get; set; }
+        [StringLength(200)] public string? Train { get; set; }
+
+        public DateTime? DateOfInspection { get; set; }
+        [StringLength(200)] public string? Inspector { get; set; }
+        [StringLength(200)] public string? Condition { get; set; }
+        [StringLength(1000)] public string? Comment { get; set; }
+
+        [StringLength(250)] public string? Description { get; set; }
+        public AssetType? Type { get; set; }
+        [StringLength(250)] public string? Location { get; set; }
+        public AssetPriority? Priority { get; set; }
+        public IntegrityStatus? IntegrityStatus { get; set; }
 
         public IFormFile? Picture { get; set; }
     }

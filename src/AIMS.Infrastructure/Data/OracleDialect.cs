@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
 using Oracle.ManagedDataAccess.Client;
@@ -8,7 +9,7 @@ namespace AIMS.Infrastructure.Data;
 
 internal sealed class OracleDialect : ISqlDialect
 {
-    public string Quote(string identifier) => identifier;
+    public string Quote(string identifier) => $"\"{identifier}\"";
 
     public string SelectFromDual => "FROM DUAL";
 
@@ -37,6 +38,28 @@ internal sealed class OracleDialect : ISqlDialect
         cmd.ExecuteNonQuery();
 
         return ((OracleDecimal)returnParam.Value).ToInt32();
+    }
+
+    public Task<int> ExecuteUpdateAsync(IDbConnection conn, string sql, Dictionary<string, object?> parameters)
+    {
+        var oraConn = conn is OracleParamConnection wrapper ? wrapper.Inner : (OracleConnection)conn;
+        if (oraConn.State != ConnectionState.Open)
+            oraConn.Open();
+
+        var oraSql = sql.Replace("@", ":");
+
+        using var cmd = oraConn.CreateCommand();
+        cmd.BindByName = true;
+        cmd.CommandText = oraSql;
+
+        foreach (var kvp in parameters)
+        {
+            var value = ToOracleValue(kvp.Value);
+            cmd.Parameters.Add(new OracleParameter(kvp.Key, value));
+        }
+
+        //return Task.Run(() => cmd.ExecuteNonQuery());
+        return cmd.ExecuteNonQueryAsync();
     }
 
     public string Paginate(string selectSql, string orderBy) =>

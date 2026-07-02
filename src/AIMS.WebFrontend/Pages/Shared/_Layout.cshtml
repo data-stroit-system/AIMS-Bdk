@@ -6,182 +6,184 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - SIMS</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/startbootstrap-sb-admin@7/dist/css/styles.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/AIMS.WebFrontend.styles.css" asp-append-version="true" />
 </head>
-<body class="sb-nav-fixed">
-
-    <!-- Top navigation -->
-    <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
-        <a class="navbar-brand ps-3" asp-page="/Index">SIMS</a>
-        <button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!">
-            <i class="fas fa-bars"></i>
-        </button>
-        <ul class="navbar-nav ms-auto ms-md-0 me-3 me-lg-4">
-            @if (SignInManager.IsSignedIn(User))
-            {
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" id="navbarDropdown" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-user fa-fw"></i> @User.Identity?.Name
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+<body>
+    @if (SignInManager.IsSignedIn(User))
+    {
+        <!-- Top Bar -->
+        <header class="sims-topbar">
+            <div class="sims-d-flex sims-align-center sims-gap-2">
+                <button class="sims-hamburger" id="toggleSidebar" aria-label="Toggle sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <a asp-page="/Index" class="sims-topbar-brand">
+                    <i class="fas fa-shield-halved"></i> SIMS
+                </a>
+            </div>
+            <div class="sims-topbar-right">
+                <span class="sims-text-sm sims-text-muted">@User.Identity?.Name</span>
+                <div class="dropdown">
+                    <button class="btn btn-link dropdown-toggle sims-text-sm" data-bs-toggle="dropdown">
+                        <i class="fas fa-user-circle"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><span class="dropdown-item-text fw-bold">@User.Identity?.Name</span></li>
+                        <li><hr class="dropdown-divider"></li>
                         <li>
-                            <form class="px-3 py-1" asp-page="/Account/Logout" method="post">
-                                <button type="submit" class="btn btn-link p-0 text-dark text-decoration-none">
-                                    <i class="fas fa-sign-out-alt fa-fw me-1"></i> Logout
+                            <form asp-page="/Account/Logout" method="post">
+                                <button type="submit" class="dropdown-item">
+                                    <i class="fas fa-sign-out-alt me-1"></i> Logout
                                 </button>
                             </form>
                         </li>
                     </ul>
-                </li>
-            }
-            else
-            {
-                <li class="nav-item">
-                    <a class="nav-link" asp-page="/Account/Login">
-                        <i class="fas fa-sign-in-alt fa-fw"></i> Login
-                    </a>
-                </li>
-            }
-        </ul>
-    </nav>
+                </div>
+            </div>
+        </header>
 
-    <div id="layoutSidenav">
-
-        <!-- Sidebar -->
-        <div id="layoutSidenav_nav">
-            <nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion">
-                <div class="sb-sidenav-menu">
-                    <div class="nav">
-                        <div class="sb-sidenav-menu-heading">Main</div>
-                        <a class="nav-link" asp-page="/Index">
-                            <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
-                            Dashboard
-                        </a>
-
+        <!-- Shell: 3-panel layout -->
+        <div class="sims-shell">
+            <!-- Left: Asset Tree -->
+            <aside class="sims-panel-left" id="mainSidebar">
+                <div class="sims-panel-left-header">
+                    <i class="fas fa-sitemap sims-me-2"></i> Asset Tree
+                </div>
+                <div class="sims-panel-left-scroll" id="assetTree">
+                    <!-- Plants loaded dynamically or server-rendered -->
+                    <ul class="sims-tree-list">
+                        <li class="sims-tree-item">
+                            <a class="sims-tree-link active" asp-page="/Index">
+                                <span class="sims-tree-icon"><i class="fas fa-tachometer-alt"></i></span>
+                                <span class="sims-tree-label">Dashboard</span>
+                            </a>
+                        </li>
                         @if (User.Identity?.IsAuthenticated ?? false)
                         {
-                            <a class="nav-link" asp-page="/AssetItems/Index">
-                                <div class="sb-nav-link-icon"><i class="fas fa-boxes-stacked"></i></div>
-                                Assets
-                            </a>
-                            <a class="nav-link" asp-page="/MapDemo/Index">
-                                <div class="sb-nav-link-icon"><i class="fas fa-map-location-dot"></i></div>
-                                Map Demo
-                            </a>
+                            <li class="sims-tree-item">
+                                <a class="sims-tree-link @(Context.Request.Path.StartsWithSegments("/AssetItems") ? "active" : "")"
+                                   asp-page="/AssetItems/Index">
+                                    <span class="sims-tree-icon"><i class="fas fa-boxes-stacked"></i></span>
+                                    <span class="sims-tree-label">Assets</span>
+                                </a>
+                            </li>
+                            <li class="sims-tree-item">
+                                <a class="sims-tree-link" asp-page="/MapDemo/Index">
+                                    <span class="sims-tree-icon"><i class="fas fa-map-location-dot"></i></span>
+                                    <span class="sims-tree-label">Map Demo</span>
+                                </a>
+                            </li>
                         }
-
                         @if (User.IsInRole("Admin"))
                         {
-                            <div class="sb-sidenav-menu-heading">Administration</div>
-                            <a class="nav-link collapsed" href="#collapseAdmin" data-bs-toggle="collapse" data-bs-target="#collapseAdmin" aria-expanded="false" aria-controls="collapseAdmin">
-                                <div class="sb-nav-link-icon"><i class="fas fa-user-shield"></i></div>
-                                Admin
-                                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
-                            </a>
-                            <div class="collapse" id="collapseAdmin" data-bs-parent="#sidenavAccordion">
-                                <nav class="sb-sidenav-menu-nested nav">
-                                    <a class="nav-link" asp-page="/Admin/Users/Index">
-                                        <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
-                                        User Management
-                                    </a>
-                                    <a class="nav-link" asp-page="/Admin/Roles/Index">
-                                        <div class="sb-nav-link-icon"><i class="fas fa-user-tag"></i></div>
-                                        Role Management
-                                    </a>
-                                    <a class="nav-link" asp-page="/Admin/AuditLogs">
-                                        <div class="sb-nav-link-icon"><i class="fas fa-clipboard-list"></i></div>
-                                        Audit Trail
-                                    </a>
-                                </nav>
-                            </div>
+                            <li class="sims-tree-item">
+                                <a class="sims-tree-link collapsed"
+                                   data-bs-toggle="collapse" href="#adminSubmenu" role="button">
+                                    <span class="sims-tree-icon"><i class="fas fa-user-shield"></i></span>
+                                    <span class="sims-tree-label">Administration</span>
+                                    <i class="fas fa-chevron-down ms-auto"></i>
+                                </a>
+                                <ul class="sims-tree-children collapse" id="adminSubmenu">
+                                    <li><a class="sims-tree-link" asp-page="/Admin/Users/Index">User Management</a></li>
+                                    <li><a class="sims-tree-link" asp-page="/Admin/Roles/Index">Role Management</a></li>
+                                    <li><a class="sims-tree-link" asp-page="/Admin/AuditLogs">Audit Trail</a></li>
+                                </ul>
+                            </li>
                         }
                         else if (User.IsInRole("Manager"))
                         {
-                            <div class="sb-sidenav-menu-heading">Management</div>
-                            <a class="nav-link collapsed" href="#collapseManagement" data-bs-toggle="collapse" data-bs-target="#collapseManagement" aria-expanded="false" aria-controls="collapseManagement">
-                                <div class="sb-nav-link-icon"><i class="fas fa-users-gear"></i></div>
-                                Management
-                                <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
-                            </a>
-                            <div class="collapse" id="collapseManagement" data-bs-parent="#sidenavAccordion">
-                                <nav class="sb-sidenav-menu-nested nav">
-                                    <a class="nav-link" asp-page="/Admin/Users/Index">
-                                        <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
-                                        View Users
-                                    </a>
-                                    <a class="nav-link" asp-page="/Admin/AuditLogs">
-                                        <div class="sb-nav-link-icon"><i class="fas fa-clipboard-list"></i></div>
-                                        Audit Trail
-                                    </a>
-                                </nav>
-                            </div>
+                            <li class="sims-tree-item">
+                                <a class="sims-tree-link collapsed"
+                                   data-bs-toggle="collapse" href="#mgmtSubmenu" role="button">
+                                    <span class="sims-tree-icon"><i class="fas fa-users-gear"></i></span>
+                                    <span class="sims-tree-label">Management</span>
+                                    <i class="fas fa-chevron-down ms-auto"></i>
+                                </a>
+                                <ul class="sims-tree-children collapse" id="mgmtSubmenu">
+                                    <li><a class="sims-tree-link" asp-page="/Admin/Users/Index">View Users</a></li>
+                                    <li><a class="sims-tree-link" asp-page="/Admin/AuditLogs">Audit Trail</a></li>
+                                </ul>
+                            </li>
                         }
                         else if (User.IsInRole("User"))
                         {
-                            <div class="sb-sidenav-menu-heading">My Account</div>
-                            <a class="nav-link" asp-page="/Admin/AuditLogs">
-                                <div class="sb-nav-link-icon"><i class="fas fa-clipboard-list"></i></div>
-                                My Audit Trail
-                            </a>
+                            <li class="sims-tree-item">
+                                <a class="sims-tree-link" asp-page="/Admin/AuditLogs">
+                                    <span class="sims-tree-icon"><i class="fas fa-clipboard-list"></i></span>
+                                    <span class="sims-tree-label">My Audit Trail</span>
+                                </a>
+                            </li>
                         }
-                    </div>
+                    </ul>
                 </div>
-                <div class="sb-sidenav-footer">
-                    <div class="small">Logged in as:</div>
-                    @(User.Identity?.Name ?? "Guest")
-                    &nbsp;
-                    @if (User.Identity?.IsAuthenticated ?? false)
-                    {
-                        <span class="badge bg-secondary">
-                            @string.Join(", ", User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value))
-                        </span>
-                    }
-                    
-
+                <div class="sims-panel-right-header" style="border-top:1px solid #2d3140">
+                    <i class="fas fa-user sims-me-2"></i> @(User.Identity?.Name ?? "Guest")
                 </div>
-            </nav>
-        </div>
+            </aside>
 
-        <!-- Main content -->
-        <div id="layoutSidenav_content">
-            <main>
-                <div class="container-fluid px-4 py-4">
+            <!-- Overlay for mobile sidebar -->
+            <div class="sims-overlay" id="sidebarOverlay"></div>
+
+            <!-- Center Content -->
+            <main class="sims-panel-center" id="mainContent">
+                <div class="sims-content-body">
                     @RenderBody()
                 </div>
             </main>
-            <footer class="py-4 bg-light mt-auto">
-                <div class="container-fluid px-4">
-                    <div class="d-flex align-items-center justify-content-between small">
-                        <div class="text-muted">&copy; 2024 SIMS &middot; <a asp-page="/Privacy">Privacy</a></div>
-                    </div>
-                </div>
-            </footer>
-        </div>
 
-    </div>
+            <!-- Right Panel: context summary (optional, hidden by default) -->
+            <aside class="sims-panel-right" id="rightPanel">
+                <div class="sims-panel-right-header">
+                    <i class="fas fa-circle-info sims-me-2"></i> Summary
+                </div>
+                <div class="sims-panel-right-scroll" id="rightPanelContent">
+                    <p class="sims-text-sm sims-text-muted">Select an asset to view details.</p>
+                </div>
+            </aside>
+        </div>
+    }
+    else
+    {
+        @RenderBody()
+    }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/startbootstrap-sb-admin@7/dist/js/scripts.js"></script>
     <script>
-        window.addEventListener('DOMContentLoaded', function () {
-            const currentPath = window.location.pathname.toLowerCase();
-            document.querySelectorAll('.sb-sidenav-menu-nested .nav-link').forEach(function (link) {
-                const href = (link.getAttribute('href') || '').toLowerCase();
-                if (href && currentPath.startsWith(href)) {
-                    const collapse = link.closest('.collapse');
-                    if (collapse) {
-                        collapse.classList.add('show');
-                        const toggle = document.querySelector('[data-bs-target="#' + collapse.id + '"]');
-                        if (toggle) {
-                            toggle.classList.remove('collapsed');
-                            toggle.setAttribute('aria-expanded', 'true');
-                        }
+        $(function() {
+            const sidebar = $('#mainSidebar');
+            const overlay = $('#sidebarOverlay');
+            const rightPanel = $('#rightPanel');
+
+            $('#toggleSidebar').on('click', function() {
+                sidebar.toggleClass('mobile-show');
+                overlay.toggleClass('show');
+            });
+
+            overlay.on('click', function() {
+                sidebar.removeClass('mobile-show');
+                overlay.removeClass('show');
+                rightPanel.removeClass('mobile-show');
+            });
+
+            function highlightActiveLink() {
+                const path = window.location.pathname.toLowerCase();
+                $('#mainSidebar .sims-tree-link').each(function() {
+                    const $link = $(this);
+                    const href = ($link.attr('href') || '').toLowerCase();
+                    if (href && path.startsWith(href) && href !== '#') {
+                        $link.addClass('active');
+                        $link.closest('.sims-tree-children').addClass('show');
                     }
-                }
+                });
+            }
+            highlightActiveLink();
+
+            $(document).on('click', '.sims-tree-link[data-bs-toggle="collapse"]', function() {
+                const $icon = $(this).find('.fa-chevron-down');
+                $icon.toggleClass('rotated');
             });
         });
     </script>

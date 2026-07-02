@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Data;
 
 namespace AIMS.Core.Entities;
 
@@ -25,28 +24,71 @@ public class AssetItemRemarks : BaseEntity
     public string Description { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [MaxLength(200)]
-    public string CreatedBy {get;set; }
+    public string CreatedBy { get; set; }
 
     public AssetItem AssetItem { get; set; }
-
 }
+
 public class AssetItem : BaseEntity
 {
-    [MaxLength(150)] public string Title { get; set; }
+    [MaxLength(200)] public string? GisRefNo { get; set; }
+
     public string AssetId { get; set; } = string.Empty;
-    [MaxLength(250)]
-    public string Description { get; set; }
 
-    public AssetType Type { get; set; }
+    [MaxLength(200)] public string? Title { get; set; }
 
+    [MaxLength(200)] public string? PlantCode { get; set; }
+    [MaxLength(200)] public string? PlantDescription { get; set; }
+
+    [MaxLength(200)] public string? EquipmentCode { get; set; }
+    [MaxLength(200)] public string? EquipmentDescription { get; set; }
+    [MaxLength(200)] public string? EquipmentDesc { get; set; }
+    public int? EquipmentOrder { get; set; }
+
+    [MaxLength(200)] public string? CivilAssetCode { get; set; }
+    [MaxLength(200)] public string? CivilAssetDescription { get; set; }
+    [MaxLength(200)] public string? CivilAssetDesc { get; set; }
+    public int? CivilAssetOrder { get; set; }
+
+    [MaxLength(500)] public string? QrCode { get; set; }
+
+    [MaxLength(200)] public string? Function { get; set; }
+    [MaxLength(200)] public string? Material { get; set; }
+    public int? YearInstalled { get; set; }
+
+    [MaxLength(200)] public string? Owner { get; set; }
+    [MaxLength(200)] public string? Constrain { get; set; }
+    [MaxLength(200)] public string? Access { get; set; }
+
+    [MaxLength(200)] public string? CoordinateN { get; set; }
+    [MaxLength(200)] public string? CoordinateE { get; set; }
+
+    [MaxLength(200)] public string? Zone { get; set; }
+    [MaxLength(200)] public string? Area { get; set; }
+    [MaxLength(200)] public string? Train { get; set; }
+
+    public DateTime? DateOfInspection { get; set; }
+    [MaxLength(200)] public string? Inspector { get; set; }
+    [MaxLength(200)] public string? Condition { get; set; }
+    [MaxLength(1000)] public string? Comment { get; set; }
+
+    // legacy fields kept for compatibility
     [MaxLength(250)]
-    public string Location { get; set; }
-    public AssetPriority Priority { get; set; }
-    public IntegrityStatus IntegrityStatus { get; set; } 
-    public List<AssetItemRemarks> AssetItemRemarks { get; set; }
-    public List<AssetItemDocuments> AssetItemDocuments { get; set; }
+    public string? Description { get; set; }
+    public AssetType? Type { get; set; }
+    [MaxLength(250)]
+    public string? Location { get; set; }
+    public AssetPriority? Priority { get; set; }
+    public IntegrityStatus? IntegrityStatus { get; set; }
     [MaxLength(500)]
     public string? PicturePath { get; set; }
+
+    public List<AssetItemRemarks> AssetItemRemarks { get; set; }
+    public List<AssetItemDocuments> AssetItemDocuments { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    [MaxLength(200)]
+    public string? CreatedBy { get; set; }
 
     public void UpdateStatus(IntegrityStatus status)
     {
@@ -54,10 +96,12 @@ public class AssetItem : BaseEntity
         Events.Add(new AssetItemStatusUpdateEvent(this));
     }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    [MaxLength(200)]
-    public string CreatedBy { get; set; }
+    public static string GenerateAssetId(
+        string plantCode, string equipmentCode, int? equipmentOrder,
+        string civilAssetCode, int? civilAssetOrder) =>
+        $"{plantCode}{equipmentCode}-{equipmentOrder}/{civilAssetCode}-{civilAssetOrder}";
 }
+
 public enum IntegrityStatus
 {
     Good = 1,

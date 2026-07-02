@@ -51,8 +51,35 @@ CREATE TABLE AspNetUsers (
 IF OBJECT_ID('AssetItems', 'U') IS NULL
 CREATE TABLE AssetItems (
     Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    Title nvarchar(150) NULL,
+    GisRefNo nvarchar(200) NULL,
     AssetId nvarchar(max) NULL,
+    Title nvarchar(200) NULL,
+    PlantCode nvarchar(200) NULL,
+    PlantDescription nvarchar(200) NULL,
+    EquipmentCode nvarchar(200) NULL,
+    EquipmentDescription nvarchar(200) NULL,
+    EquipmentDesc nvarchar(200) NULL,
+    EquipmentOrder int NULL,
+    CivilAssetCode nvarchar(200) NULL,
+    CivilAssetDescription nvarchar(200) NULL,
+    CivilAssetDesc nvarchar(200) NULL,
+    CivilAssetOrder int NULL,
+    QrCode nvarchar(500) NULL,
+    [Function] nvarchar(200) NULL,
+    Material nvarchar(200) NULL,
+    YearInstalled int NULL,
+    [Owner] nvarchar(200) NULL,
+    Constrain nvarchar(200) NULL,
+    [Access] nvarchar(200) NULL,
+    CoordinateN nvarchar(200) NULL,
+    CoordinateE nvarchar(200) NULL,
+    Zone nvarchar(200) NULL,
+    Area nvarchar(200) NULL,
+    Train nvarchar(200) NULL,
+    DateOfInspection datetime2 NULL,
+    Inspector nvarchar(200) NULL,
+    Condition nvarchar(200) NULL,
+    Comment nvarchar(1000) NULL,
     Description nvarchar(250) NULL,
     Type int NOT NULL DEFAULT 0,
     Location nvarchar(250) NULL,
@@ -62,6 +89,62 @@ CREATE TABLE AssetItems (
     CreatedAt datetime2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedBy nvarchar(200) NULL
 );
+
+-- Add new columns for existing tables (idempotent)
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'GisRefNo') IS NULL
+ALTER TABLE AssetItems ADD GisRefNo nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'PlantCode') IS NULL
+ALTER TABLE AssetItems ADD PlantCode nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'PlantDescription') IS NULL
+ALTER TABLE AssetItems ADD PlantDescription nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentCode') IS NULL
+ALTER TABLE AssetItems ADD EquipmentCode nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentDescription') IS NULL
+ALTER TABLE AssetItems ADD EquipmentDescription nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentDesc') IS NULL
+ALTER TABLE AssetItems ADD EquipmentDesc nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentOrder') IS NULL
+ALTER TABLE AssetItems ADD EquipmentOrder int NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetCode') IS NULL
+ALTER TABLE AssetItems ADD CivilAssetCode nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetDescription') IS NULL
+ALTER TABLE AssetItems ADD CivilAssetDescription nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetDesc') IS NULL
+ALTER TABLE AssetItems ADD CivilAssetDesc nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetOrder') IS NULL
+ALTER TABLE AssetItems ADD CivilAssetOrder int NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'QrCode') IS NULL
+ALTER TABLE AssetItems ADD QrCode nvarchar(500) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Function') IS NULL
+ALTER TABLE AssetItems ADD [Function] nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Material') IS NULL
+ALTER TABLE AssetItems ADD Material nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'YearInstalled') IS NULL
+ALTER TABLE AssetItems ADD YearInstalled int NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Owner') IS NULL
+ALTER TABLE AssetItems ADD [Owner] nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Constrain') IS NULL
+ALTER TABLE AssetItems ADD Constrain nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Access') IS NULL
+ALTER TABLE AssetItems ADD [Access] nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CoordinateN') IS NULL
+ALTER TABLE AssetItems ADD CoordinateN nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CoordinateE') IS NULL
+ALTER TABLE AssetItems ADD CoordinateE nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Zone') IS NULL
+ALTER TABLE AssetItems ADD Zone nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Area') IS NULL
+ALTER TABLE AssetItems ADD Area nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Train') IS NULL
+ALTER TABLE AssetItems ADD Train nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'DateOfInspection') IS NULL
+ALTER TABLE AssetItems ADD DateOfInspection datetime2 NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Inspector') IS NULL
+ALTER TABLE AssetItems ADD Inspector nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Condition') IS NULL
+ALTER TABLE AssetItems ADD Condition nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Comment') IS NULL
+ALTER TABLE AssetItems ADD Comment nvarchar(1000) NULL;
 
 IF OBJECT_ID('AuditLogs', 'U') IS NULL
 CREATE TABLE AuditLogs (

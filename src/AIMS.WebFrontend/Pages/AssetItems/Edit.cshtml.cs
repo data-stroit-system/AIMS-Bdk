@@ -30,6 +30,10 @@ public class EditModel : PageModel
 
     public string? ExistingPicturePath { get; set; }
 
+    public List<PlantCode> PlantCodes => PlantCode.All.ToList();
+    public List<EquipmentCode> EquipmentCodes => EquipmentCode.All.ToList();
+    public List<CivilAssetCode> CivilAssetCodes => CivilAssetCode.All.ToList();
+
     public async Task<IActionResult> OnGetAsync(int id)
     {
         var assetItem = await _assetItemService.GetByIdAsync(id);
@@ -38,8 +42,32 @@ public class EditModel : PageModel
         ExistingPicturePath = assetItem.PicturePath;
         Input = new EditAssetItemInput
         {
-            Title = assetItem.Title,
+            GisRefNo = assetItem.GisRefNo,
             AssetId = assetItem.AssetId,
+            Title = assetItem.Title,
+            PlantCode = assetItem.PlantCode,
+            EquipmentCode = assetItem.EquipmentCode,
+            EquipmentDesc = assetItem.EquipmentDesc,
+            EquipmentOrder = assetItem.EquipmentOrder,
+            CivilAssetCode = assetItem.CivilAssetCode,
+            CivilAssetDesc = assetItem.CivilAssetDesc,
+            CivilAssetOrder = assetItem.CivilAssetOrder,
+            QrCode = assetItem.QrCode,
+            Function = assetItem.Function,
+            Material = assetItem.Material,
+            YearInstalled = assetItem.YearInstalled,
+            Owner = assetItem.Owner,
+            Constrain = assetItem.Constrain,
+            Access = assetItem.Access,
+            CoordinateN = assetItem.CoordinateN,
+            CoordinateE = assetItem.CoordinateE,
+            Zone = assetItem.Zone,
+            Area = assetItem.Area,
+            Train = assetItem.Train,
+            DateOfInspection = assetItem.DateOfInspection,
+            Inspector = assetItem.Inspector,
+            Condition = assetItem.Condition,
+            Comment = assetItem.Comment,
             Description = assetItem.Description,
             Type = assetItem.Type,
             Location = assetItem.Location,
@@ -74,10 +102,50 @@ public class EditModel : PageModel
             newPicturePath = await _fileUpload.SaveAssetPictureAsync(Input.Picture, _env.WebRootPath);
         }
 
+        var plantDesc = PlantCode.GetDescription(Input.PlantCode);
+        var equipDesc = EquipmentCode.GetDescription(Input.EquipmentCode);
+        var civilDesc = CivilAssetCode.GetDescription(Input.CivilAssetCode);
+
+        var assetId = Input.AssetId;
+        if (string.IsNullOrWhiteSpace(assetId))
+        {
+            assetId = AssetItem.GenerateAssetId(
+                Input.PlantCode, Input.EquipmentCode,
+                Input.EquipmentOrder,
+                Input.CivilAssetCode, Input.CivilAssetOrder);
+        }
+
         var updates = new AssetItem
         {
+            GisRefNo = Input.GisRefNo,
+            AssetId = assetId,
             Title = Input.Title,
-            AssetId = Input.AssetId,
+            PlantCode = Input.PlantCode,
+            PlantDescription = plantDesc,
+            EquipmentCode = Input.EquipmentCode,
+            EquipmentDescription = equipDesc,
+            EquipmentDesc = Input.EquipmentDesc,
+            EquipmentOrder = Input.EquipmentOrder,
+            CivilAssetCode = Input.CivilAssetCode,
+            CivilAssetDescription = civilDesc,
+            CivilAssetDesc = Input.CivilAssetDesc,
+            CivilAssetOrder = Input.CivilAssetOrder,
+            QrCode = Input.QrCode,
+            Function = Input.Function,
+            Material = Input.Material,
+            YearInstalled = Input.YearInstalled,
+            Owner = Input.Owner,
+            Constrain = Input.Constrain,
+            Access = Input.Access,
+            CoordinateN = Input.CoordinateN,
+            CoordinateE = Input.CoordinateE,
+            Zone = Input.Zone,
+            Area = Input.Area,
+            Train = Input.Train,
+            DateOfInspection = Input.DateOfInspection,
+            Inspector = Input.Inspector,
+            Condition = Input.Condition,
+            Comment = Input.Comment,
             Description = Input.Description,
             Type = Input.Type,
             Location = Input.Location,
@@ -99,28 +167,51 @@ public class EditModel : PageModel
 
     public class EditAssetItemInput
     {
-        [Required]
-        [StringLength(150)]
-        public string Title { get; set; } = string.Empty;
+        [StringLength(200)] public string? GisRefNo { get; set; }
 
-        [Required]
-        [StringLength(50)]
-        public string AssetId { get; set; } = string.Empty;
+        [StringLength(100)] public string AssetId { get; set; } = string.Empty;
 
-        [StringLength(250)]
-        public string? Description { get; set; }
+        [Required, StringLength(200)] public string Title { get; set; } = string.Empty;
 
-        [Required]
-        public AssetType Type { get; set; }
+        [Required, StringLength(200)] public string PlantCode { get; set; } = string.Empty;
 
-        [StringLength(250)]
-        public string? Location { get; set; }
+        [Required, StringLength(200)] public string EquipmentCode { get; set; } = string.Empty;
 
-        [Required]
-        public AssetPriority Priority { get; set; }
+        [StringLength(200)] public string? EquipmentDesc { get; set; }
+        public int? EquipmentOrder { get; set; }
 
-        [Required]
-        public IntegrityStatus IntegrityStatus { get; set; }
+        [Required, StringLength(200)] public string CivilAssetCode { get; set; } = string.Empty;
+
+        [StringLength(200)] public string? CivilAssetDesc { get; set; }
+        public int? CivilAssetOrder { get; set; }
+
+        [StringLength(500)] public string? QrCode { get; set; }
+
+        [StringLength(200)] public string? Function { get; set; }
+        [StringLength(200)] public string? Material { get; set; }
+        public int? YearInstalled { get; set; }
+
+        [StringLength(200)] public string? Owner { get; set; }
+        [StringLength(200)] public string? Constrain { get; set; }
+        [StringLength(200)] public string? Access { get; set; }
+
+        [StringLength(200)] public string? CoordinateN { get; set; }
+        [StringLength(200)] public string? CoordinateE { get; set; }
+
+        [StringLength(200)] public string? Zone { get; set; }
+        [StringLength(200)] public string? Area { get; set; }
+        [StringLength(200)] public string? Train { get; set; }
+
+        public DateTime? DateOfInspection { get; set; }
+        [StringLength(200)] public string? Inspector { get; set; }
+        [StringLength(200)] public string? Condition { get; set; }
+        [StringLength(1000)] public string? Comment { get; set; }
+
+        [StringLength(250)] public string? Description { get; set; }
+        public AssetType? Type { get; set; }
+        [StringLength(250)] public string? Location { get; set; }
+        public AssetPriority? Priority { get; set; }
+        public IntegrityStatus? IntegrityStatus { get; set; }
 
         public IFormFile? Picture { get; set; }
     }

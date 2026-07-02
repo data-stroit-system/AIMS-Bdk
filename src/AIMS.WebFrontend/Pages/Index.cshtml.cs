@@ -26,7 +26,7 @@ public class IndexModel : PageModel
     public int FairStatusCount { get; set; }
     public int PoorStatusCount { get; set; }
 
-    public Dictionary<AssetType, int> AssetsByType { get; set; } = new();
+    public Dictionary<AssetType?, int> AssetsByType { get; set; } = new();
 
     public List<AssetItem> RecentAssets { get; set; } = new();
 

@@ -2,105 +2,330 @@
 @model AIMS.WebFrontend.Pages.AssetItems.CreateModel
 @using AIMS.Core.Entities
 @{
-    ViewData["Title"] = "Create Asset Item";
+    ViewData["Title"] = "Create Asset";
 }
 
-<div class="row">
-    <div class="col-md-8 offset-md-2">
-        <h1>Create New Asset Item</h1>
-        <hr />
+<a asp-page="Index" class="sims-btn sims-btn-outline sims-mb-3">
+    <i class="fas fa-arrow-left"></i> Back to Assets
+</a>
 
-        <form method="post" enctype="multipart/form-data" class="needs-validation">
+<div class="sims-d-flex sims-align-center sims-justify-between sims-mb-3">
+    <h3 style="margin:0"><i class="fas fa-circle-plus sims-me-2"></i>Create New Asset Item</h3>
+    <span class="sims-badge sims-badge-blue"><i class="fas fa-code"></i> &lt;Plant&gt;&lt;Equip&gt;-&lt;EO&gt;/&lt;Civil&gt;-&lt;CO&gt;</span>
+</div>
+
+<div class="sims-card">
+    <div class="sims-card-body">
+        <form method="post" enctype="multipart/form-data">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
-            <div class="mb-3">
-                <label asp-for="Input.AssetId" class="form-label">Asset ID <span class="text-danger">*</span></label>
-                <input asp-for="Input.AssetId" class="form-control" placeholder="Enter unique asset identifier">
-                <span asp-validation-for="Input.AssetId" class="d-block mt-1 text-danger"></span>
-            </div>
+            <!-- Section: Asset Register -->
+            <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                <i class="fas fa-clipboard-list sims-me-2"></i>Asset Register
+            </h6>
 
-            <div class="mb-3">
-                <label asp-for="Input.Title" class="form-label">Title <span class="text-danger">*</span></label>
-                <input asp-for="Input.Title" class="form-control" placeholder="Enter asset item title">
-                <span asp-validation-for="Input.Title" class="d-block mt-1 text-danger"></span>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="Input.Description" class="form-label">Description</label>
-                <textarea asp-for="Input.Description" class="form-control" rows="3" placeholder="Enter asset item description"></textarea>
-                <span asp-validation-for="Input.Description" class="d-block mt-1 text-danger"></span>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label asp-for="Input.Type" class="form-label">Asset Type <span class="text-danger">*</span></label>
-                        <select asp-for="Input.Type" class="form-select">
-                            <option value="">-- Select Type --</option>
-                            @foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.GisRefNo" class="sims-form-label">GIS Ref. No.</label>
+                        <input asp-for="Input.GisRefNo" class="sims-form-control" placeholder="<number>" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.AssetId" class="sims-form-label">Asset Tag No. <span class="sims-form-hint">(auto if blank)</span></label>
+                        <input asp-for="Input.AssetId" class="sims-form-control" placeholder="<auto generate tag number>" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.PlantCode" class="sims-form-label">Plant Code <span class="required">*</span></label>
+                        <select asp-for="Input.PlantCode" class="sims-form-control sims-form-select">
+                            <option value="">&lt;Plant code selection&gt;</option>
+                            @foreach (var pc in PlantCode.All)
                             {
-                                <option value="@type">@type</option>
+                                <option value="@pc.Code">@pc.Code - @pc.Description</option>
                             }
                         </select>
-                        <span asp-validation-for="Input.Type" class="d-block mt-1 text-danger"></span>
+                        <span asp-validation-for="Input.PlantCode" class="d-block mt-1 text-danger"></span>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label asp-for="Input.Location" class="form-label">Location</label>
-                        <input asp-for="Input.Location" class="form-control" placeholder="Enter asset location">
-                        <span asp-validation-for="Input.Location" class="d-block mt-1 text-danger"></span>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Title" class="sims-form-label">Asset Description <span class="required">*</span></label>
+                        <input asp-for="Input.Title" class="sims-form-control" placeholder="<Text>" />
+                        <span asp-validation-for="Input.Title" class="d-block mt-1 text-danger"></span>
                     </div>
                 </div>
             </div>
 
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label asp-for="Input.Priority" class="form-label">Priority <span class="text-danger">*</span></label>
-                        <select asp-for="Input.Priority" class="form-select">
-                            <option value="">-- Select Priority --</option>
-                            @foreach (AssetPriority priority in Enum.GetValues(typeof(AssetPriority)))
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.EquipmentCode" class="sims-form-label">Equipment Code <span class="required">*</span></label>
+                        <select asp-for="Input.EquipmentCode" class="sims-form-control sims-form-select">
+                            <option value="">&lt;Equipment code selection&gt;</option>
+                            @foreach (var ec in EquipmentCode.All)
                             {
-                                <option value="@priority">@priority</option>
+                                <option value="@ec.Code">@ec.Code - @ec.Description</option>
                             }
                         </select>
-                        <span asp-validation-for="Input.Priority" class="d-block mt-1 text-danger"></span>
+                        <span asp-validation-for="Input.EquipmentCode" class="d-block mt-1 text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.EquipmentDesc" class="sims-form-label">Equipment Desc.</label>
+                        <input asp-for="Input.EquipmentDesc" class="sims-form-control" placeholder="<Text>" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.EquipmentOrder" class="sims-form-label">Equipment Order</label>
+                        <input asp-for="Input.EquipmentOrder" type="number" class="sims-form-control" placeholder="<number>" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.CivilAssetCode" class="sims-form-label">Civil Asset Code <span class="required">*</span></label>
+                        <select asp-for="Input.CivilAssetCode" class="sims-form-control sims-form-select">
+                            <option value="">&lt;Civil asset code selection&gt;</option>
+                            @foreach (var cc in CivilAssetCode.All)
+                            {
+                                <option value="@cc.Code">@cc.Code - @cc.Description</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Input.CivilAssetCode" class="d-block mt-1 text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.CivilAssetOrder" class="sims-form-label">Civil Order</label>
+                        <input asp-for="Input.CivilAssetOrder" type="number" class="sims-form-control" placeholder="<number>" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.CivilAssetDesc" class="sims-form-label">Civil Asset Desc.</label>
+                        <input asp-for="Input.CivilAssetDesc" class="sims-form-control" placeholder="<Text>" />
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="mb-3">
-                        <label asp-for="Input.IntegrityStatus" class="form-label">Integrity Status <span class="text-danger">*</span></label>
-                        <select asp-for="Input.IntegrityStatus" class="form-select">
-                            <option value="">-- Select Status --</option>
-                            @foreach (IntegrityStatus status in Enum.GetValues(typeof(IntegrityStatus)))
-                            {
-                                <option value="@status">@status</option>
-                            }
-                        </select>
-                        <span asp-validation-for="Input.IntegrityStatus" class="d-block mt-1 text-danger"></span>
+                    <div class="sims-form-group">
+                        <label asp-for="Input.QrCode" class="sims-form-label">QR Code</label>
+                        <input asp-for="Input.QrCode" class="sims-form-control" placeholder="<Text>" />
                     </div>
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="Input.Picture" class="form-label">Picture <span class="text-muted small">(optional — jpg, png, gif, webp, max 2 MB)</span></label>
-                <input asp-for="Input.Picture" type="file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
-                <span asp-validation-for="Input.Picture" class="text-danger small"></span>
+            <hr class="sims-mt-2">
+            <!-- Section: Asset Attribute -->
+            <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                <i class="fas fa-cubes sims-me-2"></i>Asset Attribute
+            </h6>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Function" class="sims-form-label">Function</label>
+                        <input asp-for="Input.Function" class="sims-form-control" placeholder="<Function selection>" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Material" class="sims-form-label">Material</label>
+                        <input asp-for="Input.Material" class="sims-form-control" placeholder="<Material selection>" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.YearInstalled" class="sims-form-label">Year Installed</label>
+                        <input asp-for="Input.YearInstalled" type="number" class="sims-form-control" placeholder="<Number>" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Owner" class="sims-form-label">Owner</label>
+                        <input asp-for="Input.Owner" class="sims-form-control" placeholder="<Text>" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Access" class="sims-form-label">Access</label>
+                        <input asp-for="Input.Access" class="sims-form-control" placeholder="<Access selection>" />
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group mt-4">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-circle-plus"></i> Create Asset Item
-                </button>
-                <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Constrain" class="sims-form-label">Constrain</label>
+                        <input asp-for="Input.Constrain" class="sims-form-control" placeholder="<Text>" />
+                    </div>
+                </div>
+            </div>
+
+            <hr class="sims-mt-2">
+            <!-- Section: Location -->
+            <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                <i class="fas fa-location-dot sims-me-2"></i>Location
+            </h6>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.CoordinateN" class="sims-form-label">Coordinate N</label>
+                        <input asp-for="Input.CoordinateN" class="sims-form-control" placeholder="<Number> N" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.CoordinateE" class="sims-form-label">Coordinate E</label>
+                        <input asp-for="Input.CoordinateE" class="sims-form-control" placeholder="<Number> E" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Zone" class="sims-form-label">Zone</label>
+                        <input asp-for="Input.Zone" class="sims-form-control" placeholder="<Number>" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Area" class="sims-form-label">Area</label>
+                        <input asp-for="Input.Area" class="sims-form-control" placeholder="<Text>" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Train" class="sims-form-label">Train</label>
+                        <input asp-for="Input.Train" class="sims-form-control" placeholder="<Text>" />
+                    </div>
+                </div>
+            </div>
+
+            <hr class="sims-mt-2">
+            <!-- Section: Condition (GVI) -->
+            <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                <i class="fas fa-clipboard-check sims-me-2"></i>Condition (GVI) &amp; Inspection
+            </h6>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.DateOfInspection" class="sims-form-label">Date of Inspection</label>
+                        <input asp-for="Input.DateOfInspection" type="date" class="sims-form-control" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Inspector" class="sims-form-label">Inspector</label>
+                        <input asp-for="Input.Inspector" class="sims-form-control" placeholder="<Text>" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Condition" class="sims-form-label">Condition</label>
+                        <select asp-for="Input.Condition" class="sims-form-control sims-form-select">
+                            <option value="">&lt;Condition Selection&gt;</option>
+                            <option value="Good">Good</option>
+                            <option value="Fair">Fair</option>
+                            <option value="Poor">Poor</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Comment" class="sims-form-label">Comment</label>
+                        <input asp-for="Input.Comment" class="sims-form-control" placeholder="<Text>" />
+                    </div>
+                </div>
+            </div>
+
+            <hr class="sims-mt-2">
+            <!-- Section: Additional -->
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Location" class="sims-form-label">Location (legacy)</label>
+                        <input asp-for="Input.Location" class="sims-form-control" placeholder="Location text" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Description" class="sims-form-label">Description (legacy)</label>
+                        <textarea asp-for="Input.Description" class="sims-form-control sims-form-textarea" rows="1" placeholder="Additional notes"></textarea>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Type" class="sims-form-label">Asset Type</label>
+                        <select asp-for="Input.Type" class="sims-form-control sims-form-select">
+                            <option value="">-- Select --</option>
+                            @foreach (AssetType t in Enum.GetValues(typeof(AssetType)))
+                            { <option value="@t">@t</option> }
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Priority" class="sims-form-label">Priority</label>
+                        <select asp-for="Input.Priority" class="sims-form-control sims-form-select">
+                            <option value="">-- Select --</option>
+                            @foreach (AssetPriority p in Enum.GetValues(typeof(AssetPriority)))
+                            { <option value="@p">@p</option> }
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.IntegrityStatus" class="sims-form-label">Integrity Status</label>
+                        <select asp-for="Input.IntegrityStatus" class="sims-form-control sims-form-select">
+                            <option value="">-- Select --</option>
+                            @foreach (IntegrityStatus s in Enum.GetValues(typeof(IntegrityStatus)))
+                            { <option value="@s">@s</option> }
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Picture" class="sims-form-label">Picture</label>
+                        <input asp-for="Input.Picture" type="file" class="sims-form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
+                        <span class="sims-form-hint">JPG, PNG, GIF, WebP &mdash; max 2 MB</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sims-d-flex sims-gap-2 sims-mt-3">
+                <button type="submit" class="sims-btn sims-btn-primary"><i class="fas fa-save"></i> Save</button>
+                <a asp-page="Index" class="sims-btn sims-btn-outline">Cancel</a>
             </div>
         </form>
     </div>
 </div>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+        $(function() {
+            function updateAssetId() {
+                var pc = $('#Input_PlantCode').val() || '';
+                var ec = $('#Input_EquipmentCode').val() || '';
+                var eo = $('#Input_EquipmentOrder').val() || '';
+                var cc = $('#Input_CivilAssetCode').val() || '';
+                var co = $('#Input_CivilAssetOrder').val() || '';
+                if (pc && ec && eo && cc && co) {
+                    $('#Input_AssetId').attr('placeholder', pc + ec + '-' + eo + '/' + cc + '-' + co);
+                }
+            }
+            $('#Input_PlantCode, #Input_EquipmentCode, #Input_EquipmentOrder, #Input_CivilAssetCode, #Input_CivilAssetOrder').on('change input', updateAssetId);
+        });
+    </script>
 }

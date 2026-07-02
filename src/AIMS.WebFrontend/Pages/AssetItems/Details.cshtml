@@ -2,239 +2,229 @@
 @model AIMS.WebFrontend.Pages.AssetItems.DetailsModel
 @using AIMS.Core.Entities
 @{
-    ViewData["Title"] = "Asset Item Details";
+    ViewData["Title"] = "Asset Details";
 }
 
-<style>
-    .detail-card {
-        border-left: 4px solid #0d6efd;
-        margin-bottom: 1.5rem;
-    }
+<a asp-page="Index" class="sims-btn sims-btn-outline sims-mb-3">
+    <i class="fas fa-arrow-left"></i> Back to Assets
+</a>
 
-    .detail-row {
-        display: flex;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #e9ecef;
-    }
-
-    .detail-row:last-child {
-        border-bottom: none;
-    }
-
-    .detail-label {
-        font-weight: 600;
-        color: #495057;
-        min-width: 150px;
-        width: 25%;
-    }
-
-    .detail-value {
-        color: #212529;
-        flex: 1;
-        word-break: break-word;
-    }
-
-    .remark-item {
-        border-left: 3px solid #6c757d;
-        padding: 0.75rem 1rem;
-        margin-bottom: 1rem;
-        background-color: #f8f9fa;
-        border-radius: 0.25rem;
-    }
-
-    .remark-time {
-        font-size: 0.875rem;
-        color: #6c757d;
-        margin-top: 0.5rem;
-    }
-
-    .remark-content {
-        color: #212529;
-        margin-top: 0.5rem;
-        line-height: 1.5;
-    }
-
-    .timeline-container {
-        position: relative;
-        padding-left: 2rem;
-    }
-
-    .timeline-container::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background-color: #dee2e6;
-    }
-
-    .doc-icon {
-        font-size: 1.25rem;
-        margin-right: 0.5rem;
-    }
-</style>
-
-<!-- Header -->
-<div class="mb-4">
-    <a asp-page="Index" class="btn btn-outline-secondary mb-3">
-        <i class="fas fa-arrow-left"></i> Back to Assets
-    </a>
-</div>
-
-<!-- Asset Details Card -->
-<div class="card detail-card shadow-sm mb-4">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <div>
-            <h3 class="mb-1">@Model.AssetItem.Title</h3>
-            <small class="text-muted">ID: @Model.AssetItem.AssetId</small>
-        </div>
-        <div>
-            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-            {
-                <a asp-page="Edit" asp-route-id="@Model.AssetItem.Id" class="btn btn-sm btn-primary" title="Edit">
-                    <i class="fas fa-pencil"></i> Edit
-                </a>
-                <button type="button" class="btn btn-sm btn-danger"
-                        data-bs-toggle="modal"
-                        data-bs-target="#deleteModal"
-                        title="Delete">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
-            }
-        </div>
+<div class="sims-d-flex sims-align-center sims-justify-between sims-mb-3">
+    <div>
+        <h3 style="margin:0">@Model.AssetItem.AssetId</h3>
+        <span class="sims-text-sm sims-text-muted">
+            @Model.AssetItem.Title
+            @if (!string.IsNullOrEmpty(Model.AssetItem.PlantDescription))
+            { <span>&middot; @Model.AssetItem.PlantDescription</span> }
+        </span>
     </div>
-    <div class="card-body">
-        <div class="detail-row">
-            <div class="detail-label">Asset ID</div>
-            <div class="detail-value"><code>@Model.AssetItem.AssetId</code></div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">Type</div>
-            <div class="detail-value">
-                <span class="badge bg-info">@Model.AssetItem.Type</span>
-            </div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">Priority</div>
-            <div class="detail-value">
-                @if (Model.AssetItem.Priority == AssetPriority.High)
-                {
-                    <span class="badge bg-danger">@Model.AssetItem.Priority</span>
-                }
-                else if (Model.AssetItem.Priority == AssetPriority.Medium)
-                {
-                    <span class="badge bg-warning text-dark">@Model.AssetItem.Priority</span>
-                }
-                else
-                {
-                    <span class="badge bg-success">@Model.AssetItem.Priority</span>
-                }
-            </div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">Integrity Status</div>
-            <div class="detail-value">
-                @if (Model.AssetItem.IntegrityStatus == IntegrityStatus.Good)
-                {
-                    <span class="badge bg-success">@Model.AssetItem.IntegrityStatus</span>
-                }
-                else if (Model.AssetItem.IntegrityStatus == IntegrityStatus.Fair)
-                {
-                    <span class="badge bg-warning text-dark">@Model.AssetItem.IntegrityStatus</span>
-                }
-                else
-                {
-                    <span class="badge bg-danger">@Model.AssetItem.IntegrityStatus</span>
-                }
-            </div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">Location</div>
-            <div class="detail-value">@(string.IsNullOrEmpty(Model.AssetItem.Location) ? "-" : Model.AssetItem.Location)</div>
-        </div>
-        <div class="detail-row">
-            <div class="detail-label">Description</div>
-            <div class="detail-value">@(string.IsNullOrEmpty(Model.AssetItem.Description) ? "-" : Model.AssetItem.Description)</div>
-        </div>
-        @if (!string.IsNullOrEmpty(Model.AssetItem.PicturePath))
+    <div class="sims-d-flex sims-gap-2">
+        @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
         {
-            <div class="detail-row">
-                <div class="detail-label">Picture</div>
-                <div class="detail-value">
-                    <img src="@Model.AssetItem.PicturePath" alt="Asset picture" class="img-fluid rounded" style="max-height: 300px;" />
-                </div>
-            </div>
+            <a asp-page="Edit" asp-route-id="@Model.AssetItem.Id" class="sims-btn sims-btn-primary sims-btn-sm">
+                <i class="fas fa-pencil"></i> Edit
+            </a>
+            <button type="button" class="sims-btn sims-btn-danger sims-btn-sm"
+                    data-bs-toggle="modal" data-bs-target="#deleteModal">
+                <i class="fas fa-trash"></i> Delete
+            </button>
         }
     </div>
 </div>
 
-<!-- Tabs: Remarks & Documents -->
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-light p-0">
-        <ul class="nav nav-tabs border-bottom-0 px-3 pt-2" id="assetTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link @(Model.ActiveTab == "remarks" ? "active" : "")"
-                        id="remarks-tab"
-                        data-bs-toggle="tab"
-                        data-bs-target="#remarks-pane"
-                        type="button"
-                        role="tab"
-                        aria-controls="remarks-pane"
-                        aria-selected="@(Model.ActiveTab == "remarks" ? "true" : "false")">
-                    <i class="fas fa-comments"></i> Remarks
-                    @if (Model.Remarks.Any())
-                    {
-                        <span class="badge bg-secondary ms-1">@Model.Remarks.Count</span>
-                    }
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link @(Model.ActiveTab == "documents" ? "active" : "")"
-                        id="documents-tab"
-                        data-bs-toggle="tab"
-                        data-bs-target="#documents-pane"
-                        type="button"
-                        role="tab"
-                        aria-controls="documents-pane"
-                        aria-selected="@(Model.ActiveTab == "documents" ? "true" : "false")">
-                    <i class="fas fa-file-alt"></i> Documents
-                    @if (Model.Documents.Any())
-                    {
-                        <span class="badge bg-secondary ms-1">@Model.Documents.Count</span>
-                    }
-                </button>
-            </li>
-        </ul>
-    </div>
+<div class="sims-tabs" role="tablist">
+    <button class="sims-tab active" data-bs-toggle="tab" data-bs-target="#tab-register">Asset Register</button>
+    <button class="sims-tab @(Model.ActiveTab == "remarks" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-condition">Condition (GVI)</button>
+    <button class="sims-tab" data-bs-toggle="tab" data-bs-target="#tab-inspection">Inspection</button>
+    <button class="sims-tab" data-bs-toggle="tab" data-bs-target="#tab-rbi">Risk Based Inspection</button>
+    <button class="sims-tab" data-bs-toggle="tab" data-bs-target="#tab-techdoc">Technical Document</button>
+    <button class="sims-tab @(Model.ActiveTab == "documents" ? "active" : "")" data-bs-toggle="tab" data-bs-target="#tab-documents">Documentation</button>
+    <button class="sims-tab" data-bs-toggle="tab" data-bs-target="#tab-nameplate">Name Plate</button>
+</div>
 
-    <div class="tab-content" id="assetTabContent">
+<div class="sims-card" style="border-radius: 0 0 8px 8px; border-top: none;">
+    <div class="sims-card-body">
+        <div class="tab-content">
 
-        <!-- Tab 1: Remarks -->
-        <div class="tab-pane fade @(Model.ActiveTab == "remarks" ? "show active" : "")"
-             id="remarks-pane"
-             role="tabpanel"
-             aria-labelledby="remarks-tab">
-            <div class="card-body">
+            @{
+                var item = Model.AssetItem;
+            }
+
+            <!-- Asset Register Tab (Slide 7 layout) -->
+            <div class="tab-pane fade show active" id="tab-register">
+
+                <!-- Section: Asset Register -->
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                    <i class="fas fa-clipboard-list sims-me-2"></i>Asset Register
+                </h6>
+                <table class="sims-table sims-mb-4" style="border:1px solid var(--sims-border);border-radius:8px;">
+                    <tbody>
+                        <tr>
+                            <td style="width:140px;font-weight:600;background:#f9fafb;">Asset register No.</td>
+                            <td style="width:auto">@item.Id</td>
+                            <td style="width:140px;font-weight:600;background:#f9fafb;">GIS Ref. No.</td>
+                            <td>@(item.GisRefNo ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Asset Tag No.</td>
+                            <td><code>@item.AssetId</code></td>
+                            <td style="font-weight:600;background:#f9fafb;">Asset Description</td>
+                            <td>@(item.Title ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Plant Code</td>
+                            <td>
+                                <span class="sims-badge sims-badge-sky">@item.PlantCode</span>
+                                @item.PlantDescription
+                            </td>
+                            <td style="font-weight:600;background:#f9fafb;">Equipment Code</td>
+                            <td>
+                                <span class="sims-badge sims-badge-gray">@item.EquipmentCode</span>
+                                @item.EquipmentDescription
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Equipment Desc.</td>
+                            <td>@(item.EquipmentDesc ?? "-")</td>
+                            <td style="font-weight:600;background:#f9fafb;">Equipment Order</td>
+                            <td>@(item.EquipmentOrder?.ToString() ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Civil Asset Code</td>
+                            <td>
+                                <span class="sims-badge sims-badge-sky">@item.CivilAssetCode</span>
+                                @item.CivilAssetDescription
+                            </td>
+                            <td style="font-weight:600;background:#f9fafb;">Civil Asset Order</td>
+                            <td>@(item.CivilAssetOrder?.ToString() ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Civil Asset Desc.</td>
+                            <td>@(item.CivilAssetDesc ?? "-")</td>
+                            <td style="font-weight:600;background:#f9fafb;">QR Code</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(item.QrCode))
+                                { <a href="@item.QrCode" target="_blank">@item.QrCode</a> }
+                                else { <span>-</span> }
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Section: Asset Attribute -->
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                    <i class="fas fa-cubes sims-me-2"></i>Asset Attribute
+                </h6>
+                <table class="sims-table sims-mb-4" style="border:1px solid var(--sims-border);border-radius:8px;">
+                    <tbody>
+                        <tr>
+                            <td style="width:140px;font-weight:600;background:#f9fafb;">Function</td>
+                            <td style="width:auto">@(item.Function ?? "-")</td>
+                            <td style="width:140px;font-weight:600;background:#f9fafb;">Material</td>
+                            <td>@(item.Material ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Year Installed</td>
+                            <td>
+                                @(item.YearInstalled?.ToString() ?? "-")
+                                @if (item.YearInstalled.HasValue)
+                                { <span class="sims-text-xs sims-text-muted">(age: @(DateTime.UtcNow.Year - item.YearInstalled.Value) years)</span> }
+                            </td>
+                            <td style="font-weight:600;background:#f9fafb;">Owner</td>
+                            <td>@(item.Owner ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Constrain</td>
+                            <td>@(item.Constrain ?? "-")</td>
+                            <td style="font-weight:600;background:#f9fafb;">Access</td>
+                            <td>@(item.Access ?? "-")</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Section: Location -->
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                    <i class="fas fa-location-dot sims-me-2"></i>Location
+                </h6>
+                <table class="sims-table sims-mb-4" style="border:1px solid var(--sims-border);border-radius:8px;">
+                    <tbody>
+                        <tr>
+                            <td style="width:140px;font-weight:600;background:#f9fafb;">Coordinate</td>
+                            <td style="width:auto">@(item.CoordinateN ?? "-") N, @(item.CoordinateE ?? "-") E</td>
+                            <td style="width:140px;font-weight:600;background:#f9fafb;">Zone</td>
+                            <td>@(item.Zone ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Area</td>
+                            <td>@(item.Area ?? "-")</td>
+                            <td style="font-weight:600;background:#f9fafb;">Train</td>
+                            <td>@(item.Train ?? "-")</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Picture preview (if any) -->
+                @if (!string.IsNullOrEmpty(item.PicturePath))
+                {
+                    <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                        <i class="fas fa-image sims-me-2"></i>Preview
+                    </h6>
+                    <img src="@item.PicturePath" alt="Asset picture" style="max-width:400px;border-radius:8px;border:1px solid var(--sims-border);" />
+                }
+            </div>
+
+            <!-- Condition (GVI) Tab -->
+            <div class="tab-pane fade @(Model.ActiveTab == "remarks" ? "show active" : "")" id="tab-condition">
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                    <i class="fas fa-clipboard-check sims-me-2"></i>Condition (GVI)
+                </h6>
+                <table class="sims-table sims-mb-4" style="border:1px solid var(--sims-border);border-radius:8px;">
+                    <tbody>
+                        <tr>
+                            <td style="width:160px;font-weight:600;background:#f9fafb;">Date of Inspection</td>
+                            <td>@(item.DateOfInspection?.ToString("dd/MMM/yyyy") ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Inspector</td>
+                            <td>@(item.Inspector ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Condition</td>
+                            <td>
+                                @{
+                                    var cond = item.Condition;
+                                    if (!string.IsNullOrEmpty(cond))
+                                    {
+                                        <span class="condition-dot @(cond.Equals("good",StringComparison.OrdinalIgnoreCase)?"good":cond.Equals("fair",StringComparison.OrdinalIgnoreCase)?"fair":"poor")"></span>
+                                        <strong>@cond</strong>
+                                    }
+                                    else { <span>-</span> }
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Comment</td>
+                            <td>@(item.Comment ?? "-")</td>
+                        </tr>
+                    </tbody>
+                </table>
+
                 @if (!Model.Remarks.Any())
                 {
-                    <div class="alert alert-info" role="alert">
-                        <i class="fas fa-circle-info"></i> No remarks yet. Be the first to add one!
-                    </div>
+                    <p class="sims-text-muted">No inspection remarks yet.</p>
                 }
                 else
                 {
-                    <div class="timeline-container mb-4">
+                    <div style="position:relative;padding-left:24px;margin-bottom:20px;">
+                        <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:#e5e7eb;"></div>
                         @foreach (var remark in Model.Remarks)
                         {
-                            <div class="remark-item">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="fw-bold"><i class="fas fa-user"></i> @(string.IsNullOrEmpty(remark.CreatedBy) ? "System" : remark.CreatedBy)</span>
-                                    <span class="remark-time"><i class="fas fa-clock"></i> @remark.CreatedAt.ToString("MMM dd, yyyy HH:mm")</span>
+                            <div style="background:#f9fafb;border-left:3px solid #6b7280;padding:12px 16px;margin-bottom:12px;border-radius:4px;">
+                                <div class="sims-d-flex sims-justify-between sims-mb-1">
+                                    <span class="sims-fw-bold"><i class="fas fa-user sims-me-2"></i>@(string.IsNullOrEmpty(remark.CreatedBy) ? "System" : remark.CreatedBy)</span>
+                                    <span class="sims-text-xs sims-text-muted"><i class="fas fa-clock"></i> @remark.CreatedAt.ToString("MMM dd, yyyy HH:mm")</span>
                                 </div>
-                                <div class="remark-content mt-0">
-                                    @remark.Description
-                                </div>
+                                <div>@remark.Description</div>
                             </div>
                         }
                     </div>
@@ -243,77 +233,120 @@
                 @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("User"))
                 {
                     <hr />
-                    <h6 class="text-muted mb-3"><i class="fas fa-pen-to-square"></i> Add a Remark</h6>
+                    <h6 class="sims-text-sm sims-text-muted sims-mb-3"><i class="fas fa-pen-to-square"></i> Add Remark</h6>
                     <form method="post" asp-route-id="@Model.AssetItem.Id">
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
-                        <div class="mb-3">
-                            <textarea asp-for="Input.Description"
-                                      class="form-control"
-                                      rows="3"
-                                      placeholder="Enter your remark (max 250 characters)..."
-                                      style="resize: vertical;"></textarea>
+                        <div class="sims-form-group">
+                            <textarea asp-for="Input.Description" class="sims-form-control sims-form-textarea"
+                                      rows="3" placeholder="Enter your remark (max 250 characters)..."></textarea>
                             <span asp-validation-for="Input.Description" class="d-block mt-1 text-danger"></span>
-                            <small class="form-text text-muted">Maximum 250 characters</small>
+                            <span class="sims-form-hint">Maximum 250 characters</span>
                         </div>
-                        <button type="submit" class="btn btn-primary btn-sm">
+                        <button type="submit" class="sims-btn sims-btn-primary sims-btn-sm">
                             <i class="fas fa-paper-plane"></i> Add Remark
                         </button>
                     </form>
                 }
             </div>
-        </div>
 
-        <!-- Tab 2: Documents -->
-        <div class="tab-pane fade @(Model.ActiveTab == "documents" ? "show active" : "")"
-             id="documents-pane"
-             role="tabpanel"
-             aria-labelledby="documents-tab">
-            <div class="card-body">
+            <!-- Inspection Tab -->
+            <div class="tab-pane fade" id="tab-inspection">
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                    <i class="fas fa-magnifying-glass sims-me-2"></i>Inspection Data
+                </h6>
+                <table class="sims-table sims-mb-4" style="border:1px solid var(--sims-border);border-radius:8px;">
+                    <tbody>
+                        <tr>
+                            <td style="width:160px;font-weight:600;background:#f9fafb;">Date of Inspection</td>
+                            <td>@(item.DateOfInspection?.ToString("dd/MMM/yyyy") ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Inspector</td>
+                            <td>@(item.Inspector ?? "-")</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Condition</td>
+                            <td>
+                                @{
+                                    var insCond = item.Condition;
+                                    if (!string.IsNullOrEmpty(insCond))
+                                    {
+                                        <span class="condition-dot @(insCond.Equals("good",StringComparison.OrdinalIgnoreCase)?"good":insCond.Equals("fair",StringComparison.OrdinalIgnoreCase)?"fair":"poor")"></span>
+                                        <strong>@insCond</strong>
+                                    }
+                                    else { <span>-</span> }
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:600;background:#f9fafb;">Comment</td>
+                            <td>@(item.Comment ?? "-")</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- RBI Tab -->
+            <div class="tab-pane fade" id="tab-rbi">
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                    <i class="fas fa-chart-line sims-me-2"></i>Risk Based Inspection Planning
+                </h6>
+                <p class="sims-text-muted">RBI planning data will be available here.</p>
+            </div>
+
+            <!-- Technical Document Tab -->
+            <div class="tab-pane fade" id="tab-techdoc">
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                    <i class="fas fa-file-lines sims-me-2"></i>Technical Document
+                </h6>
+                <p class="sims-text-muted">Technical document data will be available here.</p>
+            </div>
+
+            <!-- Documentation Tab -->
+            <div class="tab-pane fade @(Model.ActiveTab == "documents" ? "show active" : "")" id="tab-documents">
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                    <i class="fas fa-folder-open sims-me-2"></i>Documentation
+                </h6>
                 @if (!Model.Documents.Any())
                 {
-                    <div class="alert alert-info" role="alert">
-                        <i class="fas fa-circle-info"></i> No documents uploaded yet.
-                    </div>
+                    <p class="sims-text-muted">No documents uploaded yet.</p>
                 }
                 else
                 {
-                    <div class="table-responsive mb-4">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light">
+                    <div class="table-responsive sims-mb-4">
+                        <table class="sims-table">
+                            <thead>
                                 <tr>
                                     <th>Title</th>
                                     <th>Uploaded By</th>
                                     <th>Date</th>
-                                    <th class="text-end">Actions</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var doc in Model.Documents)
                                 {
                                     <tr>
-                                        <td>
-                                            <i class="fas fa-file doc-icon text-secondary"></i>
-                                            @doc.DocumentTitle
-                                        </td>
+                                        <td><i class="fas fa-file sims-me-2 sims-text-muted"></i>@doc.DocumentTitle</td>
                                         <td>@(string.IsNullOrEmpty(doc.CreatedBy) ? "Unknown" : doc.CreatedBy)</td>
-                                        <td>@doc.CreatedAt.ToString("MMM dd, yyyy HH:mm")</td>
-                                        <td class="text-end">
-                                            <a href="@doc.FilePath" target="_blank" class="btn btn-sm btn-outline-primary me-1" download>
-                                                <i class="fas fa-download"></i> Download
-                                            </a>
-                                            @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
-                                            {
-                                                <form method="post"
-                                                      asp-page-handler="DeleteDocument"
-                                                      asp-route-id="@Model.AssetItem.Id"
-                                                      asp-route-documentId="@doc.Id"
-                                                      style="display:inline;"
-                                                      onsubmit="return confirm('Delete document \'@doc.DocumentTitle\'?');">
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </form>
-                                            }
+                                        <td class="sims-text-sm">@doc.CreatedAt.ToString("MMM dd, yyyy HH:mm")</td>
+                                        <td>
+                                            <div class="sims-d-flex sims-gap-2">
+                                                <a href="@doc.FilePath" target="_blank" class="sims-btn sims-btn-outline sims-btn-sm" download>
+                                                    <i class="fas fa-download"></i>
+                                                </a>
+                                                @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
+                                                {
+                                                    <form method="post" asp-page-handler="DeleteDocument"
+                                                          asp-route-id="@Model.AssetItem.Id" asp-route-documentId="@doc.Id"
+                                                          style="display:inline"
+                                                          onsubmit="return confirm('Delete document \'@doc.DocumentTitle\'?');">
+                                                        <button type="submit" class="sims-btn sims-btn-danger sims-btn-sm">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                }
+                                            </div>
                                         </td>
                                     </tr>
                                 }
@@ -325,58 +358,64 @@
                 @if (User.IsInRole("Admin") || User.IsInRole("Manager") || User.IsInRole("User"))
                 {
                     <hr />
-                    <h6 class="text-muted mb-3"><i class="fas fa-upload"></i> Upload Document</h6>
-                    <form method="post"
-                          enctype="multipart/form-data"
-                          asp-page-handler="UploadDocument"
-                          asp-route-id="@Model.AssetItem.Id">
+                    <h6 class="sims-text-sm sims-text-muted sims-mb-3"><i class="fas fa-upload"></i> Upload Document</h6>
+                    <form method="post" enctype="multipart/form-data"
+                          asp-page-handler="UploadDocument" asp-route-id="@Model.AssetItem.Id">
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
-                        <div class="mb-3">
-                            <label asp-for="DocumentInput.DocumentTitle" class="form-label fw-semibold">Document Title</label>
-                            <input asp-for="DocumentInput.DocumentTitle"
-                                   class="form-control"
-                                   placeholder="e.g. Inspection Report 2026" />
-                            <span asp-validation-for="DocumentInput.DocumentTitle" class="d-block mt-1 text-danger"></span>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="sims-form-group">
+                                    <label asp-for="DocumentInput.DocumentTitle" class="sims-form-label">Document Title</label>
+                                    <input asp-for="DocumentInput.DocumentTitle" class="sims-form-control" placeholder="e.g. Inspection Report 2026" />
+                                    <span asp-validation-for="DocumentInput.DocumentTitle" class="d-block mt-1 text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="sims-form-group">
+                                    <label asp-for="DocumentInput.DocumentFile" class="sims-form-label">File</label>
+                                    <input asp-for="DocumentInput.DocumentFile" type="file" class="sims-form-control"
+                                           accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png" />
+                                    <span asp-validation-for="DocumentInput.DocumentFile" class="d-block mt-1 text-danger"></span>
+                                    <span class="sims-form-hint">PDF, DOC, XLS, TXT, CSV, JPG, PNG - max 10 MB</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label asp-for="DocumentInput.DocumentFile" class="form-label fw-semibold">File</label>
-                            <input asp-for="DocumentInput.DocumentFile"
-                                   type="file"
-                                   class="form-control"
-                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png" />
-                            <span asp-validation-for="DocumentInput.DocumentFile" class="d-block mt-1 text-danger"></span>
-                            <small class="form-text text-muted">Allowed: PDF, DOC, DOCX, XLS, XLSX, TXT, CSV, JPG, PNG — max 10 MB</small>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-sm">
+                        <button type="submit" class="sims-btn sims-btn-primary sims-btn-sm">
                             <i class="fas fa-upload"></i> Upload
                         </button>
                     </form>
                 }
             </div>
-        </div>
 
+            <!-- Name Plate Tab -->
+            <div class="tab-pane fade" id="tab-nameplate">
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
+                    <i class="fas fa-tag sims-me-2"></i>Name Plate
+                </h6>
+                <p class="sims-text-muted">Equipment name plate data will be available here.</p>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Delete Asset Modal -->
+<!-- Delete Modal -->
 @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
 {
-    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal fade" id="deleteModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    Are you sure you want to delete the asset item "<strong>@Model.AssetItem.Title</strong>" (ID: @Model.AssetItem.AssetId)?
-                    <br />
-                    <span class="text-danger"><strong>This action cannot be undone.</strong></span>
+                    Delete <strong>@Model.AssetItem.Title</strong> (ID: @Model.AssetItem.AssetId)?
+                    <br><span class="sims-badge sims-badge-red sims-mt-2">This cannot be undone.</span>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <form method="post" asp-page-handler="Delete" asp-route-id="@Model.AssetItem.Id" style="display:inline;">
-                        <button type="submit" class="btn btn-danger">Delete</button>
+                    <button type="button" class="sims-btn sims-btn-outline" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" asp-page-handler="Delete" asp-route-id="@Model.AssetItem.Id" style="display:inline">
+                        <button type="submit" class="sims-btn sims-btn-danger">Delete</button>
                     </form>
                 </div>
             </div>
@@ -385,7 +424,14 @@
 }
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+        $(function() {
+            var hash = window.location.hash;
+            if (hash) $('.sims-tab[data-bs-target="' + hash + '"]').tab('show');
+            $('.sims-tab').on('shown.bs.tab', function(e) {
+                window.location.hash = $(e.target).data('bs-target');
+            });
+        });
+    </script>
 }

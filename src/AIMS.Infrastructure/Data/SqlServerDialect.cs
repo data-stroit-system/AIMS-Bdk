@@ -17,4 +17,9 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     public string Paginate(string selectSql, string orderBy) =>
         $"{selectSql} ORDER BY {orderBy} OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+
+    public Task<int> ExecuteUpdateAsync(IDbConnection conn, string sql, Dictionary<string, object?> parameters)
+    {
+        return conn.ExecuteAsync(sql, parameters);
+    }
 }
