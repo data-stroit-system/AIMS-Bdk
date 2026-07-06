@@ -75,14 +75,6 @@ public class AssetItem : BaseEntity
     [MaxLength(200)] public string? Condition { get; set; }
     [MaxLength(1000)] public string? Comment { get; set; }
 
-    // legacy fields kept for compatibility
-    [MaxLength(250)]
-    public string? Description { get; set; }
-    public AssetType? Type { get; set; }
-    [MaxLength(250)]
-    public string? Location { get; set; }
-    public AssetPriority? Priority { get; set; }
-    public IntegrityStatus? IntegrityStatus { get; set; }
     [MaxLength(500)]
     public string? PicturePath { get; set; }
 
@@ -96,30 +88,8 @@ public class AssetItem : BaseEntity
     public int? PlantId { get; set; }
     public Plant Plant { get; set; }
 
-    public void UpdateStatus(IntegrityStatus status)
-    {
-        IntegrityStatus = status;
-        Events.Add(new AssetItemStatusUpdateEvent(this));
-    }
-
     public static string GenerateAssetId(
         string plantCode, string equipmentCode, int? equipmentOrder,
         string civilAssetCode, int? civilAssetOrder) =>
         $"{plantCode}{equipmentCode}-{equipmentOrder}/{civilAssetCode}-{civilAssetOrder}";
-}
-
-public enum IntegrityStatus
-{
-    Good = 1,
-    Fair = 2,
-    Poor = 3,
-}
-
-public class AssetItemStatusUpdateEvent : BaseDomainEvent
-{
-    public AssetItem AssetItem { get; }
-    public AssetItemStatusUpdateEvent(AssetItem assetItem)
-    {
-        AssetItem = assetItem;
-    }
 }

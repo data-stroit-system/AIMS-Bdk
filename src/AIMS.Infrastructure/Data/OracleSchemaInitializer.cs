@@ -22,7 +22,43 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
             conn.Execute(stmt);
 
         MigrateLegacyPlantData(conn);
+        MigrateLegacyIntegrityStatus(conn);
+        DropLegacyAssetItemColumns(conn);
         RegenerateAssetIds(conn);
+    }
+
+    /// <summary>
+    /// Drops the unused legacy Description/Type/Location/Priority columns from AssetItems.
+    /// Safe to run on every startup.
+    /// </summary>
+    private static void DropLegacyAssetItemColumns(IDbConnection conn)
+    {
+        foreach (var column in new[] { "DESCRIPTION", "TYPE", "LOCATION", "PRIORITY" })
+        {
+            var exists = conn.ExecuteScalar<int>(
+                $"SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = '{column}'") > 0;
+            if (exists)
+                conn.Execute($"ALTER TABLE AssetItems DROP COLUMN {column}");
+        }
+    }
+
+    /// <summary>
+    /// Backfills Condition from the old IntegrityStatus enum column (1=Good, 2=Fair, 3=Poor)
+    /// for rows that never had Condition set, then drops the now-redundant column. Safe to
+    /// run on every startup.
+    /// </summary>
+    private static void MigrateLegacyIntegrityStatus(IDbConnection conn)
+    {
+        var hasIntegrityStatus = conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'INTEGRITYSTATUS'") > 0;
+        if (!hasIntegrityStatus) return;
+
+        conn.Execute(@"
+            UPDATE AssetItems
+            SET ""Condition"" = CASE IntegrityStatus WHEN 1 THEN 'Good' WHEN 2 THEN 'Fair' WHEN 3 THEN 'Poor' END
+            WHERE ""Condition"" IS NULL AND IntegrityStatus IN (1, 2, 3)");
+
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN IntegrityStatus");
     }
 
     /// <summary>
@@ -177,11 +213,6 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 Inspector           NVARCHAR2(200),
                 ""Condition""       NVARCHAR2(200),
                 ""Comment""         NVARCHAR2(1000),
-                Description         NVARCHAR2(250),
-                Type                NUMBER(10,0) DEFAULT 0 NOT NULL,
-                Location            NVARCHAR2(250),
-                Priority            NUMBER(10,0) DEFAULT 0 NOT NULL,
-                IntegrityStatus     NUMBER(10,0) DEFAULT 0 NOT NULL,
                 PicturePath         NVARCHAR2(500),
                 CreatedAt           TIMESTAMP DEFAULT SYS_EXTRACT_UTC(SYSTIMESTAMP) NOT NULL,
                 CreatedBy           NVARCHAR2(200),

@@ -73,12 +73,7 @@ public class EditModel : PageModel
             DateOfInspection = assetItem.DateOfInspection,
             Inspector = assetItem.Inspector,
             Condition = assetItem.Condition,
-            Comment = assetItem.Comment,
-            Description = assetItem.Description,
-            Type = assetItem.Type,
-            Location = assetItem.Location,
-            Priority = assetItem.Priority,
-            IntegrityStatus = assetItem.IntegrityStatus
+            Comment = assetItem.Comment
         };
 
         return Page();
@@ -143,11 +138,6 @@ public class EditModel : PageModel
             Inspector = Input.Inspector,
             Condition = Input.Condition,
             Comment = Input.Comment,
-            Description = Input.Description,
-            Type = Input.Type,
-            Location = Input.Location,
-            Priority = Input.Priority,
-            IntegrityStatus = Input.IntegrityStatus,
             PicturePath = newPicturePath,
             PlantId = Input.PlantId
         };
@@ -203,12 +193,6 @@ public class EditModel : PageModel
         [StringLength(200)] public string? Inspector { get; set; }
         [StringLength(200)] public string? Condition { get; set; }
         [StringLength(1000)] public string? Comment { get; set; }
-
-        [StringLength(250)] public string? Description { get; set; }
-        public AssetType? Type { get; set; }
-        [StringLength(250)] public string? Location { get; set; }
-        public AssetPriority? Priority { get; set; }
-        public IntegrityStatus? IntegrityStatus { get; set; }
 
         public IFormFile? Picture { get; set; }
     }

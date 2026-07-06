@@ -19,7 +19,41 @@ public class DatabaseInitializer : ISchemaInitializer
         using var conn = _context.CreateConnection();
         conn.Execute(Schema);
         MigrateLegacyPlantData(conn);
+        MigrateLegacyIntegrityStatus(conn);
+        DropLegacyAssetItemColumns(conn);
         RegenerateAssetIds(conn);
+    }
+
+    /// <summary>
+    /// Drops the unused legacy Description/Type/Location/Priority columns from AssetItems.
+    /// Safe to run on every startup.
+    /// </summary>
+    private static void DropLegacyAssetItemColumns(IDbConnection conn)
+    {
+        foreach (var column in new[] { "Description", "Type", "Location", "Priority" })
+        {
+            var exists = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', '{column}')") != null;
+            if (exists)
+                conn.Execute($"ALTER TABLE AssetItems DROP COLUMN {column}");
+        }
+    }
+
+    /// <summary>
+    /// Backfills Condition from the old IntegrityStatus enum column (1=Good, 2=Fair, 3=Poor)
+    /// for rows that never had Condition set, then drops the now-redundant column. Safe to
+    /// run on every startup.
+    /// </summary>
+    private static void MigrateLegacyIntegrityStatus(IDbConnection conn)
+    {
+        var hasIntegrityStatus = conn.ExecuteScalar<int?>("SELECT COL_LENGTH('AssetItems', 'IntegrityStatus')") != null;
+        if (!hasIntegrityStatus) return;
+
+        conn.Execute(@"
+            UPDATE AssetItems
+            SET Condition = CASE IntegrityStatus WHEN 1 THEN 'Good' WHEN 2 THEN 'Fair' WHEN 3 THEN 'Poor' END
+            WHERE Condition IS NULL AND IntegrityStatus IN (1, 2, 3)");
+
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN IntegrityStatus");
     }
 
     /// <summary>
@@ -153,11 +187,6 @@ CREATE TABLE AssetItems (
     Inspector nvarchar(200) NULL,
     Condition nvarchar(200) NULL,
     Comment nvarchar(1000) NULL,
-    Description nvarchar(250) NULL,
-    Type int NOT NULL DEFAULT 0,
-    Location nvarchar(250) NULL,
-    Priority int NOT NULL DEFAULT 0,
-    IntegrityStatus int NOT NULL DEFAULT 0,
     PicturePath nvarchar(500) NULL,
     CreatedAt datetime2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedBy nvarchar(200) NULL,

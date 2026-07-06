@@ -96,11 +96,6 @@ public class CreateModel : PageModel
             Inspector = Input.Inspector,
             Condition = Input.Condition,
             Comment = Input.Comment,
-            Description = Input.Description,
-            Type = Input.Type,
-            Location = Input.Location,
-            Priority = Input.Priority,
-            IntegrityStatus = Input.IntegrityStatus,
             PicturePath = picturePath,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = User.Identity?.Name ?? "Unknown",
@@ -158,12 +153,6 @@ public class CreateModel : PageModel
         [StringLength(200)] public string? Inspector { get; set; }
         [StringLength(200)] public string? Condition { get; set; }
         [StringLength(1000)] public string? Comment { get; set; }
-
-        [StringLength(250)] public string? Description { get; set; }
-        public AssetType? Type { get; set; }
-        [StringLength(250)] public string? Location { get; set; }
-        public AssetPriority? Priority { get; set; }
-        public IntegrityStatus? IntegrityStatus { get; set; }
 
         public IFormFile? Picture { get; set; }
     }

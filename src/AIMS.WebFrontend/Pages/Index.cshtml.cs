@@ -34,9 +34,9 @@ public class IndexModel : PageModel
 
         TotalAssets = assets.Count;
 
-        GoodStatusCount = assets.Count(a => a.IntegrityStatus == IntegrityStatus.Good);
-        FairStatusCount = assets.Count(a => a.IntegrityStatus == IntegrityStatus.Fair);
-        PoorStatusCount = assets.Count(a => a.IntegrityStatus == IntegrityStatus.Poor);
+        GoodStatusCount = assets.Count(a => IsCondition(a, "Good"));
+        FairStatusCount = assets.Count(a => IsCondition(a, "Fair"));
+        PoorStatusCount = assets.Count(a => IsCondition(a, "Poor"));
 
         var plants = await _plantService.ListAsync();
 
@@ -46,7 +46,7 @@ public class IndexModel : PageModel
             Good = GoodStatusCount,
             Fair = FairStatusCount,
             Poor = PoorStatusCount,
-            Unknown = assets.Count(a => a.IntegrityStatus == null)
+            Unknown = assets.Count(a => string.IsNullOrEmpty(a.Condition))
         });
 
         foreach (var plant in plants)
@@ -55,13 +55,16 @@ public class IndexModel : PageModel
             PlantConditionSummaries.Add(new PlantConditionSummary
             {
                 PlantName = plant.Name,
-                Good = plantAssets.Count(a => a.IntegrityStatus == IntegrityStatus.Good),
-                Fair = plantAssets.Count(a => a.IntegrityStatus == IntegrityStatus.Fair),
-                Poor = plantAssets.Count(a => a.IntegrityStatus == IntegrityStatus.Poor),
-                Unknown = plantAssets.Count(a => a.IntegrityStatus == null)
+                Good = plantAssets.Count(a => IsCondition(a, "Good")),
+                Fair = plantAssets.Count(a => IsCondition(a, "Fair")),
+                Poor = plantAssets.Count(a => IsCondition(a, "Poor")),
+                Unknown = plantAssets.Count(a => string.IsNullOrEmpty(a.Condition))
             });
         }
     }
+
+    private static bool IsCondition(AssetItem asset, string condition) =>
+        string.Equals(asset.Condition, condition, StringComparison.OrdinalIgnoreCase);
 }
 
 public class PlantConditionSummary

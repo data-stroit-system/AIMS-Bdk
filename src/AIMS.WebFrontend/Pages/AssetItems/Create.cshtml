@@ -247,52 +247,6 @@
             </div>
 
             <hr class="sims-mt-2">
-            <!-- Section: Additional -->
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.Location" class="sims-form-label">Location (legacy)</label>
-                        <input asp-for="Input.Location" class="sims-form-control" placeholder="Location text" />
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.Description" class="sims-form-label">Description (legacy)</label>
-                        <textarea asp-for="Input.Description" class="sims-form-control sims-form-textarea" rows="1" placeholder="Additional notes"></textarea>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.Type" class="sims-form-label">Asset Type</label>
-                        <select asp-for="Input.Type" class="sims-form-control sims-form-select">
-                            <option value="">-- Select --</option>
-                            @foreach (AssetType t in Enum.GetValues(typeof(AssetType)))
-                            { <option value="@t">@t</option> }
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.Priority" class="sims-form-label">Priority</label>
-                        <select asp-for="Input.Priority" class="sims-form-control sims-form-select">
-                            <option value="">-- Select --</option>
-                            @foreach (AssetPriority p in Enum.GetValues(typeof(AssetPriority)))
-                            { <option value="@p">@p</option> }
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.IntegrityStatus" class="sims-form-label">Integrity Status</label>
-                        <select asp-for="Input.IntegrityStatus" class="sims-form-control sims-form-select">
-                            <option value="">-- Select --</option>
-                            @foreach (IntegrityStatus s in Enum.GetValues(typeof(IntegrityStatus)))
-                            { <option value="@s">@s</option> }
-                        </select>
-                    </div>
-                </div>
-            </div>
-
             <div class="row g-3">
                 <div class="col-md-4">
                     <div class="sims-form-group">

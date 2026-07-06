@@ -33,35 +33,24 @@ public sealed class AssetItemService
         QrCode, {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)},
         CoordinateN, CoordinateE, Zone, Area, Train,
         DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)},
-        Description, Type, Location, Priority, IntegrityStatus, PicturePath,
+        PicturePath,
         CreatedAt, CreatedBy, PlantId";
 
     public async Task<(List<AssetItem> Items, int TotalCount)> GetPagedAsync(
-        string? searchTerm, AssetType? typeFilter, AssetPriority? priorityFilter,
-        IntegrityStatus? statusFilter, int page, int pageSize, int? plantIdFilter = null)
+        string? searchTerm, string? conditionFilter, int page, int pageSize, int? plantIdFilter = null)
     {
         var where = new StringBuilder("WHERE 1=1");
         var p = new DynamicParameters();
 
         if (!string.IsNullOrEmpty(searchTerm))
         {
-            where.Append(" AND (Title LIKE @Search OR AssetId LIKE @Search OR Description LIKE @Search OR Location LIKE @Search OR EquipmentDesc LIKE @Search OR CivilAssetDesc LIKE @Search)");
+            where.Append(" AND (Title LIKE @Search OR AssetId LIKE @Search OR EquipmentDesc LIKE @Search OR CivilAssetDesc LIKE @Search)");
             p.Add("Search", $"%{searchTerm}%");
         }
-        if (typeFilter.HasValue)
+        if (!string.IsNullOrEmpty(conditionFilter))
         {
-            where.Append(" AND Type = @Type");
-            p.Add("Type", (int)typeFilter.Value);
-        }
-        if (priorityFilter.HasValue)
-        {
-            where.Append(" AND Priority = @Priority");
-            p.Add("Priority", (int)priorityFilter.Value);
-        }
-        if (statusFilter.HasValue)
-        {
-            where.Append(" AND IntegrityStatus = @IntegrityStatus");
-            p.Add("IntegrityStatus", (int)statusFilter.Value);
+            where.Append($" AND {_dialect.Quote(Cn)} = @Condition");
+            p.Add("Condition", conditionFilter);
         }
         if (plantIdFilter.HasValue)
         {
@@ -124,14 +113,14 @@ public sealed class AssetItemService
             $"QrCode, {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)}, " +
             "CoordinateN, CoordinateE, Zone, Area, Train, " +
             $"DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)}, " +
-            "Description, Type, Location, Priority, IntegrityStatus, PicturePath, CreatedAt, CreatedBy, PlantId",
+            "PicturePath, CreatedAt, CreatedBy, PlantId",
             "@GisRefNo, @AssetId, @Title, " +
             "@EquipmentCode, @EquipmentDescription, @EquipmentDesc, @EquipmentOrder, " +
             "@CivilAssetCode, @CivilAssetDescription, @CivilAssetDesc, @CivilAssetOrder, " +
             "@QrCode, @Function, @Material, @YearInstalled, @Owner, @Constrain, @Access, " +
             "@CoordinateN, @CoordinateE, @Zone, @Area, @Train, " +
             "@DateOfInspection, @Inspector, @Condition, @Comment, " +
-            "@Description, @Type, @Location, @Priority, @IntegrityStatus, @PicturePath, @CreatedAt, @CreatedBy, @PlantId",
+            "@PicturePath, @CreatedAt, @CreatedBy, @PlantId",
             new
             {
                 item.GisRefNo, item.AssetId, item.Title,
@@ -140,11 +129,6 @@ public sealed class AssetItemService
                 item.QrCode, item.Function, item.Material, item.YearInstalled, item.Owner, item.Constrain, item.Access,
                 item.CoordinateN, item.CoordinateE, item.Zone, item.Area, item.Train,
                 item.DateOfInspection, item.Inspector, item.Condition, item.Comment,
-                // Type/Priority/IntegrityStatus columns are NOT NULL DEFAULT 0;
-                // binding NULL explicitly bypasses the default and fails the insert.
-                item.Description, Type = (int?)item.Type ?? 0,
-                item.Location, Priority = (int?)item.Priority ?? 0,
-                IntegrityStatus = (int?)item.IntegrityStatus ?? 0,
                 item.PicturePath, item.CreatedAt, item.CreatedBy, item.PlantId
             });
         return id;
@@ -169,8 +153,6 @@ public sealed class AssetItemService
                 Zone = @Zone, Area = @Area, Train = @Train,
                 DateOfInspection = @DateOfInspection, Inspector = @Inspector,
                 {_dialect.Quote(Cn)} = @Condition, {_dialect.Quote(Cm)} = @Comment,
-                Description = @Description, Type = @Type, Location = @Location,
-                Priority = @Priority, IntegrityStatus = @IntegrityStatus,
                 PicturePath = @PicturePath, PlantId = @PlantId
             WHERE Id = @Id";
 
@@ -203,11 +185,6 @@ public sealed class AssetItemService
             { "Inspector", updates.Inspector },
             { "Condition", updates.Condition },
             { "Comment", updates.Comment },
-            { "Description", updates.Description },
-            { "Type", (int?)updates.Type ?? 0 },
-            { "Location", updates.Location },
-            { "Priority", (int?)updates.Priority ?? 0 },
-            { "IntegrityStatus", (int?)updates.IntegrityStatus ?? 0 },
             { "PicturePath", updates.PicturePath },
             { "PlantId", updates.PlantId },
             { "Id", id }

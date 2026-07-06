@@ -24,6 +24,7 @@
     </div>
 </div>
 @section RightPanel {
+    <div class="sims-panel-resizer" id="rightPanelResizer" title="Drag to resize"></div>
     <aside class="sims-panel-right" id="rightPanel">
         <div class="sims-panel-right-header">
             <i class="fas fa-circle-info sims-me-2"></i> Summary
@@ -93,77 +94,7 @@
 }
 
 @section Scripts {
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        (function () {
-            const QGIS_SERVER = 'http://159.223.33.82/qgisserver';
-            const MAP_PROJECT = '/home/qgis/projects/world.qgs';
-
-            const map = L.map('map').setView([0.131, 117.472], 14);
-            const statusEl = document.getElementById('map-status');
-
-            const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-
-            const baseLayers = { 'OpenStreetMap': osm };
-
-            function addWmsLayer(layers) {
-                const wms = L.tileLayer.wms(QGIS_SERVER, {
-                    MAP: MAP_PROJECT,
-                    layers: layers,
-                    format: 'image/png',
-                    transparent: true,
-                    version: '1.3.0',
-                    attribution: 'QGIS Server'
-                });
-
-                L.control.layers(baseLayers, { 'QGIS WMS': wms }, { collapsed: false }).addTo(map);
-
-                statusEl.textContent = 'Layers: ' + layers;
-                statusEl.classList.replace('sims-text-muted', 'text-success');
-            }
-
-            const capsUrl = QGIS_SERVER
-                + '?MAP=' + encodeURIComponent(MAP_PROJECT)
-                + '&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities';
-
-            fetch(capsUrl)
-                .then(r => {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
-                    return r.text();
-                })
-                .then(xml => {
-                    const doc = new DOMParser().parseFromString(xml, 'text/xml');
-                    if (doc.querySelector('parsererror')) throw new Error('Bad XML');
-
-                    const layerEls = Array.from(doc.getElementsByTagNameNS('*', 'Layer'));
-                    const seen = new Set();
-                    const names = [];
-                    for (const layer of layerEls) {
-                        for (const child of layer.children) {
-                            if (child.localName === 'Name') {
-                                const name = child.textContent.trim();
-                                if (name && !seen.has(name)) {
-                                    seen.add(name);
-                                    names.push(name);
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    addWmsLayer(names.length ? names.join(',') : 'world');
-                })
-                .catch(() => {
-                    addWmsLayer('world');
-                    statusEl.textContent = 'Auto-discovery unavailable, using default layer';
-                    statusEl.classList.replace('sims-text-muted', 'text-warning');
-                });
-        })();
-    </script>
+    @{ await Html.RenderPartialAsync("_SiteMapScripts"); }
 
     @if (Model.TotalAssets > 0)
     {

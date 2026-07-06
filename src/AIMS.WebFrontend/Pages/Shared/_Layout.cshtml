@@ -83,7 +83,7 @@
                             var plantTreeNodes = await PlantService.GetTreeAsync();
                             var canManagePlants = User.IsInRole("Admin") || User.IsInRole("Manager");
                             int? selectedPlantId = int.TryParse(Context.Request.Query["plantId"], out var qPlantId) ? qPlantId : null;
-                            int? currentAssetId = null;
+                            int? currentAssetId = int.TryParse(Context.Request.Query["assetId"], out var qAssetId) ? qAssetId : null;
                             var detailsMatch = System.Text.RegularExpressions.Regex.Match(
                                 Context.Request.Path.Value ?? string.Empty,
                                 "/AssetItems/Details/(\\d+)",
@@ -91,6 +91,9 @@
                             if (detailsMatch.Success)
                             {
                                 currentAssetId = int.Parse(detailsMatch.Groups[1].Value);
+                            }
+                            if (currentAssetId.HasValue)
+                            {
                                 selectedPlantId ??= plantTreeNodes
                                     .SelectMany(n => n.Assets)
                                     .FirstOrDefault(a => a.Id == currentAssetId)?.PlantId;
@@ -112,7 +115,7 @@
                                             {
                                                 <li>
                                                     <a class="sims-tree-link @(asset.Id == currentAssetId ? "plant-selected" : "")"
-                                                       asp-page="/AssetItems/Details" asp-route-id="@asset.Id" title="@asset.Title">
+                                                       asp-page="/AssetItems/Index" asp-route-plantId="@node.Plant.Id" asp-route-assetId="@asset.Id" title="@asset.Title">
                                                         <span class="sims-tree-label">@asset.AssetId</span>
                                                     </a>
                                                 </li>
@@ -245,6 +248,39 @@
                 const $icon = $(this).find('.fa-chevron-down');
                 $icon.toggleClass('rotated');
             });
+
+            // Drag-to-resize for the right panel, when present on the page.
+            const resizer = document.getElementById('rightPanelResizer');
+            const panel = document.querySelector('.sims-panel-right');
+            if (resizer && panel) {
+                const MIN_WIDTH = 240;
+                const MAX_WIDTH = 560;
+                let startX = 0;
+                let startWidth = 0;
+
+                function onMouseMove(e) {
+                    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (startX - e.clientX)));
+                    panel.style.width = newWidth + 'px';
+                    panel.style.minWidth = newWidth + 'px';
+                }
+                function stopResize() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', stopResize);
+                    resizer.classList.remove('is-resizing');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+                resizer.addEventListener('mousedown', function (e) {
+                    startX = e.clientX;
+                    startWidth = panel.getBoundingClientRect().width;
+                    resizer.classList.add('is-resizing');
+                    document.body.style.cursor = 'col-resize';
+                    document.body.style.userSelect = 'none';
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', stopResize);
+                    e.preventDefault();
+                });
+            }
         });
     </script>
 

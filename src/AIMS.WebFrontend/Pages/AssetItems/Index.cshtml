@@ -28,6 +28,131 @@
     }
 </div>
 
+@if (Model.FilterPlant != null)
+{
+    <!-- Plant Map -->
+    <div class="sims-card sims-mb-4">
+        <div class="sims-card-header">
+            <i class="fas fa-map-location-dot"></i> Site Map
+            <small id="map-status" class="sims-text-sm sims-text-muted ms-auto">Loading layers&hellip;</small>
+        </div>
+        <div class="sims-card-body" style="padding:0">
+            <div id="map" style="height: 400px; width: 100%;"></div>
+        </div>
+    </div>
+}
+
+@section RightPanel {
+    @if (Model.SelectedAsset != null)
+    {
+        var asset = Model.SelectedAsset;
+        var condBadge = "sims-badge-gray";
+        if (!string.IsNullOrEmpty(asset.Condition))
+        {
+            condBadge = asset.Condition.Equals("Good", StringComparison.OrdinalIgnoreCase) ? "sims-badge-green"
+                : asset.Condition.Equals("Fair", StringComparison.OrdinalIgnoreCase) ? "sims-badge-amber"
+                : asset.Condition.Equals("Poor", StringComparison.OrdinalIgnoreCase) ? "sims-badge-red" : "sims-badge-gray";
+        }
+        <div class="sims-panel-resizer" id="rightPanelResizer" title="Drag to resize"></div>
+        <aside class="sims-panel-right" id="rightPanel">
+            <div class="sims-panel-right-header">
+                <i class="fas fa-box-archive sims-me-2"></i> Asset Details
+            </div>
+            <div class="sims-panel-right-scroll">
+                @if (!string.IsNullOrEmpty(asset.PicturePath))
+                {
+                    <img src="@asset.PicturePath" alt="@asset.Title" class="sims-mb-3" style="width:100%;max-height:160px;object-fit:cover;border-radius:6px;border:1px solid var(--sims-border);" />
+                }
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Asset Register No.</div>
+                    <div class="sims-fw-bold">@asset.Id</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">GIS Ref. No.</div>
+                    <div class="sims-fw-bold">@(asset.GisRefNo ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Asset Tag No.</div>
+                    <div class="sims-fw-bold"><code>@asset.AssetId</code></div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Asset Description</div>
+                    <div class="sims-fw-bold">@(asset.Title ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Plant</div>
+                    <div class="sims-fw-bold">@(Model.FilterPlant?.Code) @(Model.FilterPlant?.Description)</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Zone</div>
+                    <div class="sims-fw-bold">@(asset.Zone ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Area</div>
+                    <div class="sims-fw-bold">@(asset.Area ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Train</div>
+                    <div class="sims-fw-bold">@(asset.Train ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Coordinate</div>
+                    <div class="sims-fw-bold">@(asset.CoordinateN ?? "-") N, @(asset.CoordinateE ?? "-") E</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Installed</div>
+                    <div class="sims-fw-bold">
+                        @(asset.YearInstalled?.ToString() ?? "-")
+                        @if (asset.YearInstalled.HasValue)
+                        {
+                            <span class="sims-text-xs sims-text-muted">(age: @(DateTime.Now.Year - asset.YearInstalled) years)</span>
+                        }
+                    </div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Condition</div>
+                    @if (!string.IsNullOrEmpty(asset.Condition))
+                    {
+                        <span class="sims-badge @condBadge">@asset.Condition</span>
+                    }
+                    else
+                    {
+                        <span class="sims-fw-bold">-</span>
+                    }
+                </div>
+                <div>
+                    <div class="sims-text-xs sims-text-muted">QR Code</div>
+                    <div class="sims-fw-bold text-truncate">@(asset.QrCode ?? "-")</div>
+                </div>
+            </div>
+            <div class="sims-panel-right-footer">
+                <a asp-page="Details" asp-route-id="@asset.Id" class="sims-btn sims-btn-primary" style="width:100%;justify-content:center">
+                    <i class="fas fa-circle-info"></i> Open Asset Details
+                </a>
+            </div>
+        </aside>
+    }
+    else if (Model.FilterPlant != null)
+    {
+        <div class="sims-panel-resizer" id="rightPanelResizer" title="Drag to resize"></div>
+        <aside class="sims-panel-right" id="rightPanel">
+            <div class="sims-panel-right-header">
+                <i class="fas fa-circle-info sims-me-2"></i> Plant Info
+            </div>
+            <div class="sims-panel-right-scroll">
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Plant Code</div>
+                    <div class="sims-fw-bold">@Model.FilterPlant.Code</div>
+                </div>
+                <div>
+                    <div class="sims-text-xs sims-text-muted">Plant Desc.</div>
+                    <div class="sims-fw-bold">@Model.FilterPlant.Description</div>
+                </div>
+            </div>
+        </aside>
+    }
+}
+
 <!-- Search & Filter -->
 <div class="sims-card">
     <div class="sims-card-header">
@@ -44,37 +169,17 @@
                     <label for="searchTerm" class="sims-form-label">Search</label>
                     <div class="sims-d-flex sims-gap-2">
                         <input type="text" id="searchTerm" name="searchTerm" class="sims-form-control"
-                               placeholder="Search by Asset ID, Title, Description, or Location..."
+                               placeholder="Search by Asset ID or Title..."
                                value="@Model.SearchTerm" autocomplete="off">
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <label for="typeFilter" class="sims-form-label">Asset Type</label>
-                    <select id="typeFilter" name="typeFilter" class="sims-form-control sims-form-select">
-                        <option value="">All Types</option>
-                        @foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
-                        {
-                            <option value="@type" selected="@(Model.TypeFilter == type.ToString())">@type</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="priorityFilter" class="sims-form-label">Priority</label>
-                    <select id="priorityFilter" name="priorityFilter" class="sims-form-control sims-form-select">
-                        <option value="">All Priorities</option>
-                        @foreach (AssetPriority priority in Enum.GetValues(typeof(AssetPriority)))
-                        {
-                            <option value="@priority" selected="@(Model.PriorityFilter == priority.ToString())">@priority</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="statusFilter" class="sims-form-label">Integrity Status</label>
+                    <label for="statusFilter" class="sims-form-label">Condition</label>
                     <select id="statusFilter" name="statusFilter" class="sims-form-control sims-form-select">
-                        <option value="">All Status</option>
-                        @foreach (IntegrityStatus status in Enum.GetValues(typeof(IntegrityStatus)))
+                        <option value="">All Conditions</option>
+                        @foreach (var status in new[] { "Good", "Fair", "Poor" })
                         {
-                            <option value="@status" selected="@(Model.StatusFilter == status.ToString())">@status</option>
+                            <option value="@status" selected="@(Model.StatusFilter == status)">@status</option>
                         }
                     </select>
                 </div>
@@ -91,8 +196,6 @@
 
         @{
             var hasActiveFilters = !string.IsNullOrEmpty(Model.SearchTerm) ||
-                                 !string.IsNullOrEmpty(Model.TypeFilter) ||
-                                 !string.IsNullOrEmpty(Model.PriorityFilter) ||
                                  !string.IsNullOrEmpty(Model.StatusFilter);
         }
         @if (hasActiveFilters)
@@ -104,28 +207,14 @@
                     {
                         <span class="sims-badge sims-badge-blue">
                             Search: @Model.SearchTerm
-                            <a href="@Url.Page("Index", new { typeFilter = Model.TypeFilter, priorityFilter = Model.PriorityFilter, statusFilter = Model.StatusFilter })" class="ms-1">&times;</a>
-                        </span>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.TypeFilter))
-                    {
-                        <span class="sims-badge sims-badge-blue">
-                            Type: @Model.TypeFilter
-                            <a href="@Url.Page("Index", new { searchTerm = Model.SearchTerm, priorityFilter = Model.PriorityFilter, statusFilter = Model.StatusFilter })" class="ms-1">&times;</a>
-                        </span>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.PriorityFilter))
-                    {
-                        <span class="sims-badge sims-badge-blue">
-                            Priority: @Model.PriorityFilter
-                            <a href="@Url.Page("Index", new { searchTerm = Model.SearchTerm, typeFilter = Model.TypeFilter, statusFilter = Model.StatusFilter })" class="ms-1">&times;</a>
+                            <a href="@Url.Page("Index", new { statusFilter = Model.StatusFilter })" class="ms-1">&times;</a>
                         </span>
                     }
                     @if (!string.IsNullOrEmpty(Model.StatusFilter))
                     {
                         <span class="sims-badge sims-badge-blue">
                             Status: @Model.StatusFilter
-                            <a href="@Url.Page("Index", new { searchTerm = Model.SearchTerm, typeFilter = Model.TypeFilter, priorityFilter = Model.PriorityFilter })" class="ms-1">&times;</a>
+                            <a href="@Url.Page("Index", new { searchTerm = Model.SearchTerm })" class="ms-1">&times;</a>
                         </span>
                     }
                 </div>
@@ -242,13 +331,11 @@
                         @if (Model.CurrentPage > 1)
                         {
                             <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="1"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
+                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
                                 <i class="fas fa-angles-left"></i>
                             </a>
                             <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="@(Model.CurrentPage - 1)"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
+                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
                                 <i class="fas fa-angle-left"></i>
                             </a>
                         }
@@ -256,19 +343,16 @@
                         {
                             <a class="sims-btn @(i == Model.CurrentPage ? "sims-btn-primary" : "sims-btn-outline") sims-btn-sm"
                                asp-page="Index" asp-route-page="@i"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">@i</a>
+                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">@i</a>
                         }
                         @if (Model.CurrentPage < Model.TotalPages)
                         {
                             <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="@(Model.CurrentPage + 1)"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
+                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
                                 <i class="fas fa-angle-right"></i>
                             </a>
                             <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="@Model.TotalPages"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter"
-                               asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
+                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
                                 <i class="fas fa-angles-right"></i>
                             </a>
                         }
@@ -306,4 +390,9 @@
 
 @section Scripts {
     @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+
+    @if (Model.FilterPlant != null)
+    {
+        await Html.RenderPartialAsync("_SiteMapScripts");
+    }
 }
