@@ -30,7 +30,7 @@ public sealed class AssetItemService
         Id, GisRefNo, AssetId, Title,
         EquipmentCode, EquipmentDescription, EquipmentDesc, EquipmentOrder,
         CivilAssetCode, CivilAssetDescription, CivilAssetDesc, CivilAssetOrder,
-        QrCode, {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)},
+        {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)},
         CoordinateN, CoordinateE, Zone, Area, Train,
         DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)},
         PicturePath,
@@ -86,15 +86,15 @@ public sealed class AssetItemService
     /// </summary>
     private async Task<string> GenerateAssetIdAsync(IDbConnection conn, AssetItem item)
     {
-        string? plantCode = null;
+        int? plantCode = null;
         if (item.PlantId.HasValue)
         {
-            plantCode = await conn.QuerySingleOrDefaultAsync<string?>(
+            plantCode = await conn.QuerySingleOrDefaultAsync<int?>(
                 "SELECT Code FROM Plants WHERE Id = @PlantId", new { PlantId = item.PlantId.Value });
         }
 
         return AssetItem.GenerateAssetId(
-            plantCode ?? string.Empty, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
+            plantCode, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
             item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder);
     }
 
@@ -110,14 +110,14 @@ public sealed class AssetItemService
             $"GisRefNo, AssetId, Title, " +
             "EquipmentCode, EquipmentDescription, EquipmentDesc, EquipmentOrder, " +
             "CivilAssetCode, CivilAssetDescription, CivilAssetDesc, CivilAssetOrder, " +
-            $"QrCode, {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)}, " +
+            $"{_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)}, " +
             "CoordinateN, CoordinateE, Zone, Area, Train, " +
             $"DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)}, " +
             "PicturePath, CreatedAt, CreatedBy, PlantId",
             "@GisRefNo, @AssetId, @Title, " +
             "@EquipmentCode, @EquipmentDescription, @EquipmentDesc, @EquipmentOrder, " +
             "@CivilAssetCode, @CivilAssetDescription, @CivilAssetDesc, @CivilAssetOrder, " +
-            "@QrCode, @Function, @Material, @YearInstalled, @Owner, @Constrain, @Access, " +
+            "@Function, @Material, @YearInstalled, @Owner, @Constrain, @Access, " +
             "@CoordinateN, @CoordinateE, @Zone, @Area, @Train, " +
             "@DateOfInspection, @Inspector, @Condition, @Comment, " +
             "@PicturePath, @CreatedAt, @CreatedBy, @PlantId",
@@ -126,7 +126,7 @@ public sealed class AssetItemService
                 item.GisRefNo, item.AssetId, item.Title,
                 item.EquipmentCode, item.EquipmentDescription, item.EquipmentDesc, item.EquipmentOrder,
                 item.CivilAssetCode, item.CivilAssetDescription, item.CivilAssetDesc, item.CivilAssetOrder,
-                item.QrCode, item.Function, item.Material, item.YearInstalled, item.Owner, item.Constrain, item.Access,
+                item.Function, item.Material, item.YearInstalled, item.Owner, item.Constrain, item.Access,
                 item.CoordinateN, item.CoordinateE, item.Zone, item.Area, item.Train,
                 item.DateOfInspection, item.Inspector, item.Condition, item.Comment,
                 item.PicturePath, item.CreatedAt, item.CreatedBy, item.PlantId
@@ -146,7 +146,6 @@ public sealed class AssetItemService
                 EquipmentDesc = @EquipmentDesc, EquipmentOrder = @EquipmentOrder,
                 CivilAssetCode = @CivilAssetCode, CivilAssetDescription = @CivilAssetDescription,
                 CivilAssetDesc = @CivilAssetDesc, CivilAssetOrder = @CivilAssetOrder,
-                QrCode = @QrCode,
                 {_dialect.Quote(Fn)} = @Function, Material = @Material, YearInstalled = @YearInstalled,
                 {_dialect.Quote(Ow)} = @Owner, Constrain = @Constrain, {_dialect.Quote(Ac)} = @Access,
                 CoordinateN = @CoordinateN, CoordinateE = @CoordinateE,
@@ -169,7 +168,6 @@ public sealed class AssetItemService
             { "CivilAssetDescription", updates.CivilAssetDescription },
             { "CivilAssetDesc", updates.CivilAssetDesc },
             { "CivilAssetOrder", updates.CivilAssetOrder },
-            { "QrCode", updates.QrCode },
             { "Function", updates.Function },
             { "Material", updates.Material },
             { "YearInstalled", updates.YearInstalled },
@@ -235,15 +233,15 @@ public sealed class AssetItemService
             new { Id = id })).ToList();
     }
 
-    public async Task AddDocumentAsync(int assetItemId, string documentTitle, string filePath, string createdBy)
+    public async Task AddDocumentAsync(int assetItemId, string documentTitle, string filePath, string createdBy, string documentType = DocumentTypeCode.Document)
     {
         using var conn = _context.CreateConnection();
         await conn.ExecuteAsync(@"
-            INSERT INTO AssetItemDocuments (DocumentTitle, FilePath, CreatedAt, CreatedBy, AssetItemId)
-            VALUES (@DocumentTitle, @FilePath, @CreatedAt, @CreatedBy, @AssetItemId)",
+            INSERT INTO AssetItemDocuments (DocumentTitle, FilePath, DocumentType, CreatedAt, CreatedBy, AssetItemId)
+            VALUES (@DocumentTitle, @FilePath, @DocumentType, @CreatedAt, @CreatedBy, @AssetItemId)",
             new
             {
-                DocumentTitle = documentTitle, FilePath = filePath,
+                DocumentTitle = documentTitle, FilePath = filePath, DocumentType = documentType,
                 CreatedAt = DateTime.UtcNow, CreatedBy = createdBy, AssetItemId = assetItemId
             });
     }

@@ -122,7 +122,11 @@
                 </div>
                 <div>
                     <div class="sims-text-xs sims-text-muted">QR Code</div>
-                    <div class="sims-fw-bold text-truncate">@(asset.QrCode ?? "-")</div>
+                    <a href="@Url.Page("PrintTag", new { id = asset.Id })" target="printTagPopup"
+                       onclick="openCenteredPopup(this.href, 'printTagPopup', 420, 640); return false;"
+                       class="sims-btn sims-btn-outline sims-btn-sm">
+                        <i class="fas fa-qrcode"></i> View QR Code
+                    </a>
                 </div>
             </div>
             <div class="sims-panel-right-footer">
@@ -153,8 +157,11 @@
     }
 }
 
-<!-- Search & Filter -->
-<div class="sims-card">
+
+@if (!Model.PlantId.HasValue && !Model.AssetId.HasValue)
+{
+    <!-- Search & Filter -->
+    <div class="sims-card">
     <div class="sims-card-header">
         <i class="fas fa-filter"></i> Search & Filter
     </div>
@@ -223,8 +230,8 @@
     </div>
 </div>
 
-<!-- Asset List -->
-<div class="sims-card">
+    <!-- Asset List -->
+    <div class="sims-card">
     <div class="sims-card-header">
         <i class="fas fa-list"></i> Asset Items List
         @if (Model.AssetItems.Any())
@@ -293,7 +300,9 @@
                                             <span class="sims-badge @condBadge">@item.Condition</span>
                                         }
                                         else
-                                        { <span class="sims-text-xs sims-text-muted">-</span> }
+                                        {
+                                            <span class="sims-text-xs sims-text-muted">-</span>
+                                        }
                                     }
                                 </td>
                                 <td class="sims-text-sm">@item.Area</td>
@@ -361,31 +370,32 @@
             }
         }
     </div>
-</div>
+    </div>
 
-<!-- Delete Modals -->
-@foreach (var item in Model.AssetItems)
-{
-    <div class="modal fade" id="deleteModal-@item.Id.ToString().Replace("-","")" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Confirm Delete</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    Delete asset <strong>@item.Title</strong> (ID: @item.AssetId)?
-                    <br><span class="sims-text-sm sims-badge sims-badge-red sims-mt-2">This cannot be undone.</span>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="sims-btn sims-btn-outline" data-bs-dismiss="modal">Cancel</button>
-                    <form method="post" asp-page="Delete" asp-route-id="@item.Id" style="display:inline">
-                        <button type="submit" class="sims-btn sims-btn-danger">Delete</button>
-                    </form>
+    <!-- Delete Modals -->
+    @foreach (var item in Model.AssetItems)
+    {
+        <div class="modal fade" id="deleteModal-@item.Id.ToString().Replace("-","")" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        Delete asset <strong>@item.Title</strong> (ID: @item.AssetId)?
+                        <br /><span class="sims-text-sm sims-badge sims-badge-red sims-mt-2">This cannot be undone.</span>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="sims-btn sims-btn-outline" data-bs-dismiss="modal">Cancel</button>
+                        <form method="post" asp-page="Delete" asp-route-id="@item.Id" style="display:inline">
+                            <button type="submit" class="sims-btn sims-btn-danger">Delete</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    }
 }
 
 @section Scripts {

@@ -18,19 +18,37 @@ public class DatabaseInitializer : ISchemaInitializer
     {
         using var conn = _context.CreateConnection();
         conn.Execute(Schema);
+        MigratePlantCodeToInt(conn);
         MigrateLegacyPlantData(conn);
         MigrateLegacyIntegrityStatus(conn);
         DropLegacyAssetItemColumns(conn);
         RegenerateAssetIds(conn);
+        BackfillDocumentType(conn);
     }
 
     /// <summary>
-    /// Drops the unused legacy Description/Type/Location/Priority columns from AssetItems.
+    /// Backfills DocumentType for rows uploaded before the column existed, inferring it from
+    /// the file extension (jpg/jpeg/png = Picture, everything else = Document). Safe to run
+    /// on every startup.
+    /// </summary>
+    private static void BackfillDocumentType(IDbConnection conn)
+    {
+        conn.Execute($@"
+            UPDATE AssetItemDocuments
+            SET DocumentType = CASE
+                WHEN LOWER(FilePath) LIKE '%.jpg' OR LOWER(FilePath) LIKE '%.jpeg' OR LOWER(FilePath) LIKE '%.png' THEN '{DocumentTypeCode.Picture}'
+                ELSE '{DocumentTypeCode.Document}'
+            END
+            WHERE DocumentType IS NULL");
+    }
+
+    /// <summary>
+    /// Drops the unused legacy Description/Type/Location/Priority/QrCode columns from AssetItems.
     /// Safe to run on every startup.
     /// </summary>
     private static void DropLegacyAssetItemColumns(IDbConnection conn)
     {
-        foreach (var column in new[] { "Description", "Type", "Location", "Priority" })
+        foreach (var column in new[] { "Description", "Type", "Location", "Priority", "QrCode" })
         {
             var exists = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', '{column}')") != null;
             if (exists)
@@ -63,7 +81,7 @@ public class DatabaseInitializer : ISchemaInitializer
     /// </summary>
     private static void RegenerateAssetIds(IDbConnection conn)
     {
-        var plantCodes = conn.Query<(int Id, string? Code)>("SELECT Id, Code FROM Plants")
+        var plantCodes = conn.Query<(int Id, int? Code)>("SELECT Id, Code FROM Plants")
             .ToDictionary(p => p.Id, p => p.Code);
 
         var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, int? EquipmentOrder, string? CivilAssetCode, int? CivilAssetOrder, string? AssetId)>(
@@ -74,7 +92,7 @@ public class DatabaseInitializer : ISchemaInitializer
         {
             var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
             var generated = AssetItem.GenerateAssetId(
-                plantCode ?? string.Empty, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
+                plantCode, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
                 item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder);
 
             if (generated != item.AssetId)
@@ -82,6 +100,21 @@ public class DatabaseInitializer : ISchemaInitializer
                 conn.Execute("UPDATE AssetItems SET AssetId = @AssetId WHERE Id = @Id", new { AssetId = generated, Id = item.Id });
             }
         }
+    }
+
+    /// <summary>
+    /// Converts Plants.Code from its original nvarchar(20) to int, nulling out any non-numeric
+    /// legacy values first so the ALTER can't fail on bad data. No-op once already int. Safe to
+    /// run on every startup.
+    /// </summary>
+    private static void MigratePlantCodeToInt(IDbConnection conn)
+    {
+        var currentType = conn.ExecuteScalar<string?>(
+            "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Plants' AND COLUMN_NAME = 'Code'");
+        if (currentType == null || currentType == "int") return;
+
+        conn.Execute("UPDATE Plants SET Code = NULL WHERE Code IS NOT NULL AND (LEN(Code) = 0 OR Code LIKE '%[^0-9]%')");
+        conn.Execute("ALTER TABLE Plants ALTER COLUMN Code int NULL");
     }
 
     /// <summary>
@@ -93,12 +126,13 @@ public class DatabaseInitializer : ISchemaInitializer
     {
         foreach (var pc in PlantCode.All)
         {
-            var exists = conn.ExecuteScalar<int>("SELECT COUNT(*) FROM Plants WHERE Code = @Code", new { pc.Code });
+            var code = int.Parse(pc.Code);
+            var exists = conn.ExecuteScalar<int>("SELECT COUNT(*) FROM Plants WHERE Code = @Code", new { Code = code });
             if (exists == 0)
             {
                 conn.Execute(
                     "INSERT INTO Plants (Code, Name, Description) VALUES (@Code, @Name, @Description)",
-                    new { pc.Code, Name = $"Plant {pc.Code}", pc.Description });
+                    new { Code = code, Name = $"Plant {pc.Code}", pc.Description });
             }
         }
 
@@ -107,9 +141,9 @@ public class DatabaseInitializer : ISchemaInitializer
 
         conn.Execute(@"
             UPDATE AssetItems
-            SET PlantId = (SELECT p.Id FROM Plants p WHERE p.Code = AssetItems.PlantCode)
+            SET PlantId = (SELECT p.Id FROM Plants p WHERE p.Code = TRY_CAST(AssetItems.PlantCode AS int))
             WHERE PlantId IS NULL AND PlantCode IS NOT NULL
-              AND EXISTS (SELECT 1 FROM Plants p WHERE p.Code = AssetItems.PlantCode)");
+              AND EXISTS (SELECT 1 FROM Plants p WHERE p.Code = TRY_CAST(AssetItems.PlantCode AS int))");
 
         conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantCode");
         conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantDescription");
@@ -149,13 +183,13 @@ CREATE TABLE AspNetUsers (
 IF OBJECT_ID('Plants', 'U') IS NULL
 CREATE TABLE Plants (
     Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    Code nvarchar(20) NULL,
+    Code int NULL,
     Name nvarchar(200) NULL,
     Description nvarchar(200) NULL
 );
 
 IF OBJECT_ID('Plants', 'U') IS NOT NULL AND COL_LENGTH('Plants', 'Code') IS NULL
-ALTER TABLE Plants ADD Code nvarchar(20) NULL;
+ALTER TABLE Plants ADD Code int NULL;
 
 IF OBJECT_ID('AssetItems', 'U') IS NULL
 CREATE TABLE AssetItems (
@@ -171,7 +205,6 @@ CREATE TABLE AssetItems (
     CivilAssetDescription nvarchar(200) NULL,
     CivilAssetDesc nvarchar(200) NULL,
     CivilAssetOrder int NULL,
-    QrCode nvarchar(500) NULL,
     [Function] nvarchar(200) NULL,
     Material nvarchar(200) NULL,
     YearInstalled int NULL,
@@ -213,8 +246,6 @@ IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilA
 ALTER TABLE AssetItems ADD CivilAssetDesc nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetOrder') IS NULL
 ALTER TABLE AssetItems ADD CivilAssetOrder int NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'QrCode') IS NULL
-ALTER TABLE AssetItems ADD QrCode nvarchar(500) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Function') IS NULL
 ALTER TABLE AssetItems ADD [Function] nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Material') IS NULL
@@ -331,11 +362,14 @@ CREATE TABLE AssetItemDocuments (
     Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
     DocumentTitle nvarchar(250) NULL,
     FilePath nvarchar(500) NULL,
+    DocumentType nvarchar(20) NULL,
     CreatedAt datetime2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedBy nvarchar(200) NULL,
     AssetItemId int NULL,
     CONSTRAINT FK_AssetItemDocuments_AssetItems_AssetItemId FOREIGN KEY (AssetItemId) REFERENCES AssetItems(Id)
 );
+IF OBJECT_ID('AssetItemDocuments', 'U') IS NOT NULL AND COL_LENGTH('AssetItemDocuments', 'DocumentType') IS NULL
+ALTER TABLE AssetItemDocuments ADD DocumentType nvarchar(20) NULL;
 
 IF OBJECT_ID('AssetRemarks', 'U') IS NULL
 CREATE TABLE AssetRemarks (

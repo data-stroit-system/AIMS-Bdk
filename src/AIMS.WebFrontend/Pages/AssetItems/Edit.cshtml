@@ -65,7 +65,9 @@
                         <label asp-for="Input.EquipmentCode" class="sims-form-label">Equipment Code <span class="required">*</span></label>
                         <select asp-for="Input.EquipmentCode" class="sims-form-control sims-form-select">
                             @foreach (var ec in EquipmentCode.All)
-                            { <option value="@ec.Code">@ec.Code - @ec.Description</option> }
+                            {
+                                <option value="@ec.Code">@ec.Code - @ec.Description</option>
+                            }
                         </select>
                         <span asp-validation-for="Input.EquipmentCode" class="d-block mt-1 text-danger"></span>
                     </div>
@@ -87,7 +89,9 @@
                         <label asp-for="Input.CivilAssetCode" class="sims-form-label">Civil Code <span class="required">*</span></label>
                         <select asp-for="Input.CivilAssetCode" class="sims-form-control sims-form-select">
                             @foreach (var cc in CivilAssetCode.All)
-                            { <option value="@cc.Code">@cc.Code - @cc.Description</option> }
+                            {
+                                <option value="@cc.Code">@cc.Code - @cc.Description</option>
+                            }
                         </select>
                         <span asp-validation-for="Input.CivilAssetCode" class="d-block mt-1 text-danger"></span>
                     </div>
@@ -109,8 +113,14 @@
                 </div>
                 <div class="col-md-6">
                     <div class="sims-form-group">
-                        <label asp-for="Input.QrCode" class="sims-form-label">QR Code</label>
-                        <input asp-for="Input.QrCode" class="sims-form-control" />
+                        <label class="sims-form-label">QR Code</label>
+                        <div>
+                            <a href="@Url.Page("PrintTag", new { id = Model.AssetItemId })" target="printTagPopup"
+                               onclick="openCenteredPopup(this.href, 'printTagPopup', 420, 640); return false;"
+                               class="sims-btn sims-btn-outline sims-btn-sm">
+                                <i class="fas fa-qrcode"></i> View QR Code
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -260,7 +270,7 @@
 
             <div class="sims-d-flex sims-gap-2 sims-mt-3">
                 <button type="submit" class="sims-btn sims-btn-primary"><i class="fas fa-save"></i> Save</button>
-                <a asp-page="Index" class="sims-btn sims-btn-outline">Cancel</a>
+                <a asp-page="Index" asp-route-assetId="@Model.AssetItemId" asp-route-plantId="@Model.Input.PlantId" class="sims-btn sims-btn-outline">Cancel</a>
             </div>
         </form>
     </div>

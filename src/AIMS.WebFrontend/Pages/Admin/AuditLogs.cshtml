@@ -213,16 +213,16 @@
                 <div class="modal-body">
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <strong>Category:</strong> @log.Category<br>
-                            <strong>Entity/Activity:</strong> @log.EntityName<br>
-                            <strong>Entity ID:</strong> @log.EntityId<br>
-                            <strong>Action:</strong> @log.Action<br>
+                            <strong>Category:</strong> @log.Category<br />
+                            <strong>Entity/Activity:</strong> @log.EntityName<br />
+                            <strong>Entity ID:</strong> @log.EntityId<br />
+                            <strong>Action:</strong> @log.Action<br />
                             <strong>Result:</strong> @log.Result
                         </div>
                         <div class="col-md-6">
-                            <strong>User:</strong> @(log.UserName ?? "System")<br>
-                            <strong>IP Address:</strong> @log.IpAddress<br>
-                            <strong>Timestamp:</strong> @log.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")<br>
+                            <strong>User:</strong> @(log.UserName ?? "System")<br />
+                            <strong>IP Address:</strong> @log.IpAddress<br />
+                            <strong>Timestamp:</strong> @log.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")<br />
                             <strong>Request Path:</strong> @log.RequestPath
                         </div>
                     </div>

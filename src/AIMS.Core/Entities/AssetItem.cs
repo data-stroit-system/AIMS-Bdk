@@ -11,11 +11,21 @@ public class AssetItemDocuments : BaseEntity
     public string DocumentTitle { get; set; }
     [MaxLength(500)]
     public string FilePath { get; set; }
+    /// <summary>DocumentTypeCode.Picture or DocumentTypeCode.Document.</summary>
+    [MaxLength(20)]
+    public string? DocumentType { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [MaxLength(200)]
     public string CreatedBy { get; set; }
 
     public AssetItem AssetItem { get; set; }
+}
+
+/// <summary>Distinguishes picture uploads (jpg/png) from general document uploads (pdf/doc/etc.) within AssetItemDocuments.</summary>
+public static class DocumentTypeCode
+{
+    public const string Picture = "Picture";
+    public const string Document = "Document";
 }
 
 public class AssetItemRemarks : BaseEntity
@@ -30,7 +40,7 @@ public class AssetItemRemarks : BaseEntity
 }
 public class Plant : BaseEntity
 {
-    [MaxLength(20)] public string? Code { get; set; }
+    public int? Code { get; set; }
     [MaxLength(200)] public string Name { get; set; }
     [MaxLength(200)] public string Description { get; set; }
     public List<AssetItem> AssetItems { get; set; }
@@ -52,8 +62,6 @@ public class AssetItem : BaseEntity
     [MaxLength(200)] public string? CivilAssetDescription { get; set; }
     [MaxLength(200)] public string? CivilAssetDesc { get; set; }
     public int? CivilAssetOrder { get; set; }
-
-    [MaxLength(500)] public string? QrCode { get; set; }
 
     [MaxLength(200)] public string? Function { get; set; }
     [MaxLength(200)] public string? Material { get; set; }
@@ -89,7 +97,7 @@ public class AssetItem : BaseEntity
     public Plant Plant { get; set; }
 
     public static string GenerateAssetId(
-        string plantCode, string equipmentCode, int? equipmentOrder,
+        int? plantCode, string equipmentCode, int? equipmentOrder,
         string civilAssetCode, int? civilAssetOrder) =>
         $"{plantCode}{equipmentCode}-{equipmentOrder}/{civilAssetCode}-{civilAssetOrder}";
 }

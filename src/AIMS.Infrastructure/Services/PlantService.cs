@@ -22,7 +22,7 @@ public sealed class PlantService
     {
         using var conn = _context.CreateConnection();
         return (await conn.QueryAsync<Plant>(
-            "SELECT Id, Code, Name, Description FROM Plants ORDER BY Name")).ToList();
+            "SELECT Id, Code, Name, Description FROM Plants ORDER BY Code,Name,Description")).ToList();
     }
 
     public async Task<Plant?> GetByIdAsync(int id)

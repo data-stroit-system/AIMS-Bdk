@@ -80,7 +80,6 @@ public class CreateModel : PageModel
             CivilAssetDescription = civilDesc,
             CivilAssetDesc = Input.CivilAssetDesc,
             CivilAssetOrder = Input.CivilAssetOrder,
-            QrCode = Input.QrCode,
             Function = Input.Function,
             Material = Input.Material,
             YearInstalled = Input.YearInstalled,
@@ -131,8 +130,6 @@ public class CreateModel : PageModel
 
         [StringLength(200)] public string? CivilAssetDesc { get; set; }
         public int? CivilAssetOrder { get; set; }
-
-        [StringLength(500)] public string? QrCode { get; set; }
 
         [StringLength(200)] public string? Function { get; set; }
         [StringLength(200)] public string? Material { get; set; }

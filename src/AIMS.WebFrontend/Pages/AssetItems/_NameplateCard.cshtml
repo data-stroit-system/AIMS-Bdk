@@ -1,0 +1,31 @@
+@model AIMS.Core.Entities.AssetItem
+@{
+    var civilDesc = !string.IsNullOrEmpty(Model.CivilAssetDesc) ? Model.CivilAssetDesc
+        : (Model.CivilAssetDescription ?? "Asset");
+    var equipRef = $"{Model.EquipmentCode}{Model.EquipmentOrder}".Trim();
+}
+<div class="sims-nameplate-card">
+    <div class="sims-nameplate-logos">
+        <img src="~/asset-pictures/badak-lng-small.png" alt="Badak LNG" />
+        <img src="~/asset-pictures/dtp-small.png" alt="DTP" />
+    </div>
+
+    <img id="nameplateQr" class="sims-nameplate-qr" data-src="@Url.Page("QrCode", new { id = Model.Id })"
+         alt="QR code for @Model.AssetId" />
+
+    
+    <h4>@civilDesc</h4>
+    <div class="sims-nameplate-sub">for @equipRef</div>
+    <div class="sims-nameplate-tagno">Tag no.: @Model.AssetId</div>
+
+    
+    @* <div class="sims-nameplate-field">
+        <div class="label">Civil Asset Description</div>
+        <div class="value">@civilDesc</div>
+    </div>
+    <div class="sims-nameplate-field">
+        <div class="label">Asset tag no.</div>
+        <div class="value">@Model.AssetId</div>
+    </div> *@
+
+</div>

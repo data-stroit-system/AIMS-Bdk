@@ -29,12 +29,8 @@ public class DetailsModel : PageModel
 
     public AssetItem AssetItem { get; set; } = null!;
     public Plant? Plant { get; set; }
-    public List<AssetItemRemarks> Remarks { get; set; } = new();
     public List<AssetItemDocuments> Documents { get; set; } = new();
-    public string ActiveTab { get; set; } = "remarks";
-
-    [BindProperty]
-    public AddRemarkInput Input { get; set; } = new();
+    public string ActiveTab { get; set; } = "register";
 
     [BindProperty]
     public AddDocumentInput DocumentInput { get; set; } = new();
@@ -47,41 +43,10 @@ public class DetailsModel : PageModel
         AssetItem = assetItem;
         if (assetItem.PlantId.HasValue)
             Plant = await _plantService.GetByIdAsync(assetItem.PlantId.Value);
-        Remarks = await _assetItemService.GetRemarksAsync(id);
         Documents = await _assetItemService.GetDocumentsAsync(id);
-        ActiveTab = Request.Query["tab"].ToString() == "documents" ? "documents" : "remarks";
+        var tab = Request.Query["tab"].ToString();
+        ActiveTab = tab == "documents" || tab == "condition" || tab == "inspection" ? tab : "register";
         return Page();
-    }
-
-    public async Task<IActionResult> OnPostAsync(int id)
-    {
-        if (!User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("User"))
-            return Forbid();
-
-        ModelState.Remove("DocumentInput.DocumentTitle");
-        ModelState.Remove("DocumentInput.DocumentFile");
-        ModelState.Remove("DocumentTitle");
-        ModelState.Remove("DocumentFile");
-
-        if (!ModelState.IsValid)
-        {
-            ActiveTab = "remarks";
-            await LoadDetailsAsync(id);
-            return Page();
-        }
-
-        var assetItem = await _assetItemService.GetByIdAsync(id);
-        if (assetItem == null) return NotFound();
-
-        await _assetItemService.AddRemarkAsync(id, Input.Description, User.Identity?.Name ?? "Unknown");
-
-        await _activityLogger.LogActivityAsync(
-            "AssetItemRemarkAdded",
-            $"Remark added to asset item '{assetItem.Title}'",
-            "AssetItem",
-            id.ToString());
-
-        return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostUploadDocumentAsync(int id)
@@ -126,7 +91,9 @@ public class DetailsModel : PageModel
         var fileName = _fileUpload.GetFileName(file.FileName, buildUniqueName: true);
         await _fileUpload.SaveFileAsync(file.OpenReadStream(), dir, fileName);
 
-        await _assetItemService.AddDocumentAsync(id, DocumentInput.DocumentTitle, $"/asset-documents/{fileName}", User.Identity?.Name ?? "Unknown");
+        var pictureExtensions = new[] { ".jpg", ".jpeg", ".png" };
+        var documentType = pictureExtensions.Contains(ext) ? DocumentTypeCode.Picture : DocumentTypeCode.Document;
+        await _assetItemService.AddDocumentAsync(id, DocumentInput.DocumentTitle, $"/asset-documents/{fileName}", User.Identity?.Name ?? "Unknown", documentType);
 
         await _activityLogger.LogActivityAsync(
             "AssetItemDocumentUploaded",
@@ -182,16 +149,7 @@ public class DetailsModel : PageModel
         AssetItem = (await _assetItemService.GetByIdAsync(id))!;
         if (AssetItem.PlantId.HasValue)
             Plant = await _plantService.GetByIdAsync(AssetItem.PlantId.Value);
-        Remarks = await _assetItemService.GetRemarksAsync(id);
         Documents = await _assetItemService.GetDocumentsAsync(id);
-    }
-
-    public class AddRemarkInput
-    {
-        [Required]
-        [StringLength(250, MinimumLength = 1)]
-        [Display(Name = "Remark")]
-        public string Description { get; set; } = string.Empty;
     }
 
     public class AddDocumentInput

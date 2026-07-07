@@ -48,8 +48,7 @@ public class CreateModel : PageModel
 
     public class PlantInput
     {
-        [StringLength(20)]
-        public string? Code { get; set; }
+        public int? Code { get; set; }
 
         [Required, StringLength(200)]
         public string Name { get; set; } = string.Empty;

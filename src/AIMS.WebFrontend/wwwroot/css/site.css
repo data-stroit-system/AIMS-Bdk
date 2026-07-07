@@ -14,6 +14,10 @@
     --sims-amber: #f59e0b;
     --sims-red: #ef4444;
     --sims-sky: #0ea5e9;
+    /* Exact condition-status swatches from the SIMS Dashboard mockup (slide 18) */
+    --sims-condition-good: #92d050;
+    --sims-condition-fair: #ffff00;
+    --sims-condition-poor: #ff0000;
     --panel-left: 280px;
     --panel-right: 320px;
     --topbar-height: 54px;
@@ -39,42 +43,75 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
     position: fixed;
     top: 0; left: 0; right: 0;
     height: var(--topbar-height);
-    background: var(--sims-dark);
-    color: #d1d5db;
-    display: flex;
+    background: var(--sims-white);
+    color: #374151;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
     padding: 0 16px;
     z-index: 1040;
     border-bottom: 2px solid var(--sims-blue);
 }
+.sims-topbar-left {
+    justify-self: start;
+    display: flex;
+    align-items: center;
+}
 .sims-topbar-brand {
+    justify-self: center;
     display: flex;
     align-items: center;
     gap: 10px;
     font-weight: 600;
-    font-size: 16px;
-    color: var(--sims-white);
+    font-size: 15px;
+    color: var(--sims-dark);
     text-decoration: none;
+    white-space: nowrap;
 }
-.sims-topbar-brand:hover { color: #93c5fd; text-decoration: none; }
-.sims-topbar-brand img { height: 30px; }
+.sims-topbar-brand:hover { color: var(--sims-blue); text-decoration: none; }
+.sims-topbar-brand img { height: 38px; width: auto; }
 .sims-topbar-right {
+    justify-self: end;
     display: flex;
     align-items: center;
     gap: 12px;
 }
-.sims-topbar-right .btn-link { color: #d1d5db; }
-.sims-topbar-right .btn-link:hover { color: var(--sims-white); }
+.sims-topbar-right .btn-link { color: #374151; }
+.sims-topbar-right .btn-link:hover { color: var(--sims-blue); }
 .sims-topbar-right .dropdown-menu { min-width: 200px; }
+
+/* Top-bar nav buttons (Asset Register / Map Demo / Administration) — pill style from the SIMS Dashboard mockup (slide 6) */
+.sims-topbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.sims-topbar-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #2D6A87;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: none;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.sims-topbar-nav-btn:hover { background: #35809f; color: #fff; text-decoration: none; }
+.sims-topbar-nav-btn.active { background: var(--sims-blue-light); }
+.sims-topbar-nav .dropdown-menu { min-width: 200px; }
 
 .sims-hamburger {
     display: none;
     background: none; border: none;
-    color: #d1d5db; font-size: 20px;
+    color: #374151; font-size: 20px;
     cursor: pointer; padding: 4px 8px;
 }
-.sims-hamburger:hover { color: var(--sims-white); }
+.sims-hamburger:hover { color: var(--sims-blue); }
 
 /* ===== Layout Shell ===== */
 .sims-shell {
@@ -380,6 +417,41 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
 }
 .sims-tab:hover { color: #374151; text-decoration: none; }
 .sims-tab.active { color: var(--sims-blue); border-bottom-color: var(--sims-blue); }
+.sims-tab:disabled, .sims-tab.disabled {
+    color: #c1c5cb;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.sims-tab:disabled:hover, .sims-tab.disabled:hover { color: #c1c5cb; }
+
+/* Locked-module placeholder (slide 21 of the mockup) */
+.sims-module-locked {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 20px;
+    color: var(--sims-gray);
+}
+.sims-module-locked i { font-size: 48px; margin-bottom: 16px; }
+.sims-module-locked p { font-weight: 600; font-size: 13px; margin: 0; }
+
+/* Picture-preview carousel: dark backdrop behind the arrow icons so they stay visible over light/white pictures */
+.sims-preview-carousel .carousel-control-prev,
+.sims-preview-carousel .carousel-control-next {
+    width: 44px;
+}
+.sims-preview-carousel .carousel-control-prev-icon,
+.sims-preview-carousel .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.55);
+    border-radius: 50%;
+    padding: 18px;
+    background-size: 50% 50%;
+}
+.sims-preview-carousel .carousel-control-prev:hover .carousel-control-prev-icon,
+.sims-preview-carousel .carousel-control-next:hover .carousel-control-next-icon {
+    background-color: rgba(0, 0, 0, 0.75);
+}
 
 /* ===== Forms ===== */
 .sims-form-group { margin-bottom: 16px; }
@@ -452,9 +524,9 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
 /* ===== Progress Bars ===== */
 .sims-progress { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
 .sims-progress-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
-.sims-progress-bar.green { background: var(--sims-green); }
-.sims-progress-bar.amber { background: var(--sims-amber); }
-.sims-progress-bar.red { background: var(--sims-red); }
+.sims-progress-bar.green { background: var(--sims-condition-good); }
+.sims-progress-bar.amber { background: var(--sims-condition-fair); }
+.sims-progress-bar.red { background: var(--sims-condition-poor); }
 .sims-progress-bar.gray { background: var(--sims-gray); }
 
 /* ===== Condition indicator ===== */
@@ -463,10 +535,11 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
     width: 10px; height: 10px;
     border-radius: 50%;
     margin-right: 6px;
+    border: 1px solid rgba(0,0,0,0.15);
 }
-.condition-dot.good { background: var(--sims-green); }
-.condition-dot.fair { background: var(--sims-amber); }
-.condition-dot.poor { background: var(--sims-red); }
+.condition-dot.good { background: var(--sims-condition-good); }
+.condition-dot.fair { background: var(--sims-condition-fair); }
+.condition-dot.poor { background: var(--sims-condition-poor); }
 .condition-dot.unknown { background: var(--sims-gray); }
 
 /* ===== Image Gallery ===== */
@@ -575,3 +648,24 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
 .sims-gap-2 { gap: 8px; }
 .sims-gap-3 { gap: 16px; }
 .sims-w-100 { width: 100%; }
+
+/* ===== Name Plate card (slide 24) — shared by the Name Plate tab and Print Tag page ===== */
+.sims-nameplate-card {
+    max-width: 360px;
+    margin: 0 auto;
+    text-align: center;
+    border: 1px solid var(--sims-border);
+    border-radius: 10px;
+    padding: 24px;
+    background: var(--sims-white);
+}
+.sims-nameplate-logos { display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+.sims-nameplate-logos img { height: 100px; }
+.sims-nameplate-card h4 { margin: 0; }
+.sims-nameplate-sub { font-size: 12px; color: var(--sims-gray); margin-bottom: 8px; }
+.sims-nameplate-tagno { font-weight: 600; margin-bottom: 16px; }
+.sims-nameplate-qr { width: 200px; height: 200px; border: 1px solid var(--sims-border); border-radius: 8px; display: block; margin: 0 auto 20px; }
+.sims-nameplate-field { text-align: left; border-top: 1px solid var(--sims-border); padding-top: 10px; margin-bottom: 10px; }
+.sims-nameplate-field:last-child { margin-bottom: 0; }
+.sims-nameplate-field .label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--sims-gray); }
+.sims-nameplate-field .value { font-weight: 600; }

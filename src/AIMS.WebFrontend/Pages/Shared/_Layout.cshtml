@@ -17,15 +17,58 @@
     {
         <!-- Top Bar -->
         <header class="sims-topbar">
-            <div class="sims-d-flex sims-align-center sims-gap-2">
+            <div class="sims-topbar-left">
                 <button class="sims-hamburger" id="toggleSidebar" aria-label="Toggle sidebar">
                     <i class="fas fa-bars"></i>
                 </button>
-                <a asp-page="/Index" class="sims-topbar-brand">
-                    <i class="fas fa-shield-halved"></i> SIMS
-                </a>
             </div>
+            <a asp-page="/Index" class="sims-topbar-brand">
+                <img src="~/asset-pictures/badak-lng-large.png" alt="Badak LNG" />
+                <span>Structural Integrity Management System (SIMS)</span>
+            </a>
             <div class="sims-topbar-right">
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    <nav class="sims-topbar-nav">
+                        <a class="sims-topbar-nav-btn @(Context.Request.Path.StartsWithSegments("/AssetReg") ? "active" : "")" asp-page="/AssetReg/Index">
+                            <i class="fas fa-table-list"></i> Asset Register
+                        </a>
+                        <a class="sims-topbar-nav-btn @(Context.Request.Path.StartsWithSegments("/MapDemo") ? "active" : "")" asp-page="/MapDemo/Index">
+                            <i class="fas fa-map-location-dot"></i> Map Demo
+                        </a>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <div class="dropdown">
+                                <button class="sims-topbar-nav-btn dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-user-shield"></i> Administration
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" asp-page="/Admin/Users/Index">User Management</a></li>
+                                    <li><a class="dropdown-item" asp-page="/Admin/Roles/Index">Role Management</a></li>
+                                    <li><a class="dropdown-item" asp-page="/Admin/AuditLogs">Audit Trail</a></li>
+                                </ul>
+                            </div>
+                        }
+                        else if (User.IsInRole("Manager"))
+                        {
+                            <div class="dropdown">
+                                <button class="sims-topbar-nav-btn dropdown-toggle" data-bs-toggle="dropdown">
+                                    <i class="fas fa-users-gear"></i> Management
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" asp-page="/Admin/Users/Index">View Users</a></li>
+                                    <li><a class="dropdown-item" asp-page="/Admin/AuditLogs">Audit Trail</a></li>
+                                </ul>
+                            </div>
+                        }
+                        else if (User.IsInRole("User"))
+                        {
+                            <a class="sims-topbar-nav-btn @(Context.Request.Path.StartsWithSegments("/Admin/AuditLogs") ? "active" : "")" asp-page="/Admin/AuditLogs">
+                                <i class="fas fa-clipboard-list"></i> My Audit Trail
+                            </a>
+                        }
+                    </nav>
+                }
                 <span class="sims-text-sm sims-text-muted">@User.Identity?.Name</span>
                 <div class="dropdown">
                     <button class="btn btn-link dropdown-toggle sims-text-sm" data-bs-toggle="dropdown">
@@ -138,52 +181,6 @@
                                        asp-page="/Plants/Create">+ add Plant</a>
                                 </li>
                             }
-                            <li class="sims-tree-item">
-                                <a class="sims-tree-link" asp-page="/MapDemo/Index">
-                                    <span class="sims-tree-icon"><i class="fas fa-map-location-dot"></i></span>
-                                    <span class="sims-tree-label">Map Demo</span>
-                                </a>
-                            </li>
-                        }
-                        @if (User.IsInRole("Admin"))
-                        {
-                            <li class="sims-tree-item">
-                                <a class="sims-tree-link collapsed"
-                                   data-bs-toggle="collapse" href="#adminSubmenu" role="button">
-                                    <span class="sims-tree-icon"><i class="fas fa-user-shield"></i></span>
-                                    <span class="sims-tree-label">Administration</span>
-                                    <i class="fas fa-chevron-down ms-auto"></i>
-                                </a>
-                                <ul class="sims-tree-children collapse" id="adminSubmenu">
-                                    <li><a class="sims-tree-link" asp-page="/Admin/Users/Index">User Management</a></li>
-                                    <li><a class="sims-tree-link" asp-page="/Admin/Roles/Index">Role Management</a></li>
-                                    <li><a class="sims-tree-link" asp-page="/Admin/AuditLogs">Audit Trail</a></li>
-                                </ul>
-                            </li>
-                        }
-                        else if (User.IsInRole("Manager"))
-                        {
-                            <li class="sims-tree-item">
-                                <a class="sims-tree-link collapsed"
-                                   data-bs-toggle="collapse" href="#mgmtSubmenu" role="button">
-                                    <span class="sims-tree-icon"><i class="fas fa-users-gear"></i></span>
-                                    <span class="sims-tree-label">Management</span>
-                                    <i class="fas fa-chevron-down ms-auto"></i>
-                                </a>
-                                <ul class="sims-tree-children collapse" id="mgmtSubmenu">
-                                    <li><a class="sims-tree-link" asp-page="/Admin/Users/Index">View Users</a></li>
-                                    <li><a class="sims-tree-link" asp-page="/Admin/AuditLogs">Audit Trail</a></li>
-                                </ul>
-                            </li>
-                        }
-                        else if (User.IsInRole("User"))
-                        {
-                            <li class="sims-tree-item">
-                                <a class="sims-tree-link" asp-page="/Admin/AuditLogs">
-                                    <span class="sims-tree-icon"><i class="fas fa-clipboard-list"></i></span>
-                                    <span class="sims-tree-label">My Audit Trail</span>
-                                </a>
-                            </li>
                         }
                     </ul>
                 </div>
@@ -214,6 +211,7 @@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
     <script>
         $(function() {
             const sidebar = $('#mainSidebar');

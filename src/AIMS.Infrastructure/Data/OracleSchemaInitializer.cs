@@ -21,19 +21,37 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         foreach (var stmt in SchemaStatements)
             conn.Execute(stmt);
 
+        MigratePlantCodeToInt(conn);
         MigrateLegacyPlantData(conn);
         MigrateLegacyIntegrityStatus(conn);
         DropLegacyAssetItemColumns(conn);
         RegenerateAssetIds(conn);
+        BackfillDocumentType(conn);
     }
 
     /// <summary>
-    /// Drops the unused legacy Description/Type/Location/Priority columns from AssetItems.
+    /// Backfills DocumentType for rows uploaded before the column existed, inferring it from
+    /// the file extension (jpg/jpeg/png = Picture, everything else = Document). Safe to run
+    /// on every startup.
+    /// </summary>
+    private static void BackfillDocumentType(IDbConnection conn)
+    {
+        conn.Execute($@"
+            UPDATE AssetItemDocuments
+            SET DocumentType = CASE
+                WHEN LOWER(FilePath) LIKE '%.jpg' OR LOWER(FilePath) LIKE '%.jpeg' OR LOWER(FilePath) LIKE '%.png' THEN '{DocumentTypeCode.Picture}'
+                ELSE '{DocumentTypeCode.Document}'
+            END
+            WHERE DocumentType IS NULL");
+    }
+
+    /// <summary>
+    /// Drops the unused legacy Description/Type/Location/Priority/QrCode columns from AssetItems.
     /// Safe to run on every startup.
     /// </summary>
     private static void DropLegacyAssetItemColumns(IDbConnection conn)
     {
-        foreach (var column in new[] { "DESCRIPTION", "TYPE", "LOCATION", "PRIORITY" })
+        foreach (var column in new[] { "DESCRIPTION", "TYPE", "LOCATION", "PRIORITY", "QRCODE" })
         {
             var exists = conn.ExecuteScalar<int>(
                 $"SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = '{column}'") > 0;
@@ -68,7 +86,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
     /// </summary>
     private static void RegenerateAssetIds(IDbConnection conn)
     {
-        var plantCodes = conn.Query<(int Id, string? Code)>("SELECT Id, Code FROM Plants")
+        var plantCodes = conn.Query<(int Id, int? Code)>("SELECT Id, Code FROM Plants")
             .ToDictionary(p => p.Id, p => p.Code);
 
         var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, int? EquipmentOrder, string? CivilAssetCode, int? CivilAssetOrder, string? AssetId)>(
@@ -79,7 +97,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         {
             var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
             var generated = AssetItem.GenerateAssetId(
-                plantCode ?? string.Empty, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
+                plantCode, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
                 item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder);
 
             if (generated != item.AssetId)
@@ -87,6 +105,24 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 conn.Execute("UPDATE AssetItems SET AssetId = @AssetId WHERE Id = @Id", new { AssetId = generated, Id = item.Id });
             }
         }
+    }
+
+    /// <summary>
+    /// Converts Plants.Code from its original NVARCHAR2(20) to NUMBER. Oracle can't MODIFY a
+    /// column's datatype while it holds data, so this adds a new numeric column, backfills it
+    /// from any cleanly-numeric legacy values, then drops the old column and renames the new
+    /// one into place. No-op once already NUMBER. Safe to run on every startup.
+    /// </summary>
+    private static void MigratePlantCodeToInt(IDbConnection conn)
+    {
+        var dataType = conn.ExecuteScalar<string?>(
+            "SELECT DATA_TYPE FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'PLANTS' AND COLUMN_NAME = 'CODE'");
+        if (dataType == null || dataType == "NUMBER") return;
+
+        conn.Execute("ALTER TABLE Plants ADD (Code_New NUMBER(10,0))");
+        conn.Execute("UPDATE Plants SET Code_New = TO_NUMBER(Code) WHERE Code IS NOT NULL AND REGEXP_LIKE(Code, '^[0-9]+$')");
+        conn.Execute("ALTER TABLE Plants DROP COLUMN Code");
+        conn.Execute("ALTER TABLE Plants RENAME COLUMN Code_New TO Code");
     }
 
     /// <summary>
@@ -98,12 +134,13 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
     {
         foreach (var pc in PlantCode.All)
         {
-            var exists = conn.ExecuteScalar<int>("SELECT COUNT(*) FROM Plants WHERE Code = @Code", new { pc.Code });
+            var code = int.Parse(pc.Code);
+            var exists = conn.ExecuteScalar<int>("SELECT COUNT(*) FROM Plants WHERE Code = @Code", new { Code = code });
             if (exists == 0)
             {
                 conn.Execute(
                     "INSERT INTO Plants (Code, Name, Description) VALUES (@Code, @Name, @Description)",
-                    new { pc.Code, Name = $"Plant {pc.Code}", pc.Description });
+                    new { Code = code, Name = $"Plant {pc.Code}", pc.Description });
             }
         }
 
@@ -113,9 +150,9 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
 
         conn.Execute(@"
             UPDATE AssetItems
-            SET PlantId = (SELECT p.Id FROM Plants p WHERE p.Code = AssetItems.PlantCode)
+            SET PlantId = (SELECT p.Id FROM Plants p WHERE TO_CHAR(p.Code) = AssetItems.PlantCode)
             WHERE PlantId IS NULL AND PlantCode IS NOT NULL
-              AND EXISTS (SELECT 1 FROM Plants p WHERE p.Code = AssetItems.PlantCode)");
+              AND EXISTS (SELECT 1 FROM Plants p WHERE TO_CHAR(p.Code) = AssetItems.PlantCode)");
 
         conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantCode");
         conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantDescription");
@@ -161,14 +198,14 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         @"BEGIN EXECUTE IMMEDIATE '
             CREATE TABLE Plants (
                 Id          NUMBER(10,0) NOT NULL,
-                Code        NVARCHAR2(20),
+                Code        NUMBER(10,0),
                 Name        NVARCHAR2(200),
                 Description NVARCHAR2(200),
                 CONSTRAINT PK_Plants PRIMARY KEY (Id)
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
 
-        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE Plants ADD (Code NVARCHAR2(20))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE Plants ADD (Code NUMBER(10,0))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
 
         @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE Plants_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
@@ -197,7 +234,6 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 CivilAssetDescription NVARCHAR2(200),
                 CivilAssetDesc      NVARCHAR2(200),
                 CivilAssetOrder     NUMBER(10,0),
-                QrCode              NVARCHAR2(500),
                 ""Function""        NVARCHAR2(200),
                 Material            NVARCHAR2(200),
                 YearInstalled       NUMBER(10,0),
@@ -233,7 +269,6 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (CivilAssetDescription NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (CivilAssetDesc NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (CivilAssetOrder NUMBER(10,0))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
-        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (QrCode NVARCHAR2(500))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (""Function"" NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Material NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (YearInstalled NUMBER(10,0))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
@@ -415,6 +450,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 Id             NUMBER(10,0) NOT NULL,
                 DocumentTitle  NVARCHAR2(250),
                 FilePath       NVARCHAR2(500),
+                DocumentType   NVARCHAR2(20),
                 CreatedAt      TIMESTAMP DEFAULT SYS_EXTRACT_UTC(SYSTIMESTAMP) NOT NULL,
                 CreatedBy      NVARCHAR2(200),
                 AssetItemId    NUMBER(10,0),
@@ -423,6 +459,8 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                     FOREIGN KEY (AssetItemId) REFERENCES AssetItems(Id)
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItemDocuments ADD (DocumentType NVARCHAR2(20))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
 
         @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE AssetItemDocuments_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",

@@ -68,7 +68,7 @@ public class FileUploadHelper
     }
 
     public string GetUniqueName(string prefix) =>
-        $"{prefix}{DateTime.Now:yyyyMMddHHmmss}";
+        $"{prefix}{Guid.NewGuid()}{DateTime.Now:yyyyMMddHHmmss}";
 
     public string GetFileExtension(string fileName) =>
         fileName is not null ? Path.GetExtension(fileName).ToLower() : string.Empty;

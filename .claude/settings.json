@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "Bash(podman ps *)",
+      "Bash(podman logs *)",
+      "Bash(tail *)",
+      "Bash(echo *)",
+      "Bash(curl *)",
+      "Bash(grep *)",
+      "Bash(rtk grep *)"
+    ]
+  }
+}
