@@ -42,12 +42,14 @@ Login with the seeded default admin: `admin` / `Admin@123`.
 
 There's no headless browser (no chromium, Playwright is Windows-side Node with WSL path friction) — verify UI changes by rebuilding, running the app, and inspecting HTTP responses/markup, or ask the user to check in a real browser.
 
+**Razor compiler gotcha (this .NET 10 SDK):** a code block whose markup starts on the same line as `{` (e.g. `{ <span>...</span> }`) or has blank lines immediately after `@if (...) {` before the first tag fails to parse — and the failure cascades into unrelated bogus errors elsewhere in the same compilation (unrelated files, "top-level statements" duplication, etc.), making the real cause hard to spot. Always put markup on its own line right after the opening brace. If a build suddenly produces a wall of nonsensical errors across many files, clean `obj`/`bin` for `AIMS.WebFrontend` and look for this pattern first before assuming something else broke.
+
 ## Architecture
 
 Dependency direction: `AIMS.WebFrontend → AIMS.Infrastructure → AIMS.Core → AIMS.SharedKernel` (Core has zero infrastructure dependencies).
 
 - **AIMS.SharedKernel** — `BaseEntity`, `ValueObject`, `IRepository`, `IHandle<T>`, `IDomainEventDispatcher`, `IAuditUserProvider`, `IActivityLogger`.
-- **AIMS.Core** — domain entities (`Entities/AssetItem.cs` holds `AssetItem`, `Plant`, `AssetItemRemarks`, `AssetItemDocuments`; `Entities/LookupCodes.cs` holds static lookup tables `PlantCode`/`EquipmentCode`/`CivilAssetCode` used for dropdowns and tag generation), domain events/handlers, `AuditLog`.
+- **AIMS.Core** — domain entities (`Entities/AssetItem.cs` holds `AssetItem`, `Plant`, `AssetItemRemarks`, `AssetItemDocuments`, `DocumentTypeCode`; `Entities/LookupCodes.cs` holds static lookup tables `PlantCode`/`EquipmentCode`/`CivilAssetCode` used for dropdowns and tag generation), domain events/handlers, `AuditLog`. `AssetItemRemarks`/`AssetItemService.GetRemarksAsync`/`AddRemarkAsync` still exist but are unreachable from the UI since the Condition (GVI) tab's remarks section was removed 2026-07-07 in favor of the picture carousel.
 - **AIMS.Infrastructure** — Dapper repositories, the SQL Server/Oracle strategy-pattern abstraction, Dapper-backed ASP.NET Core Identity stores, audit logging, Autofac wiring (`ContainerSetup.cs`), startup extensions (`StartupSetup.cs`).
 - **AIMS.WebFrontend** — Razor Pages UI. `AIMS.Migrations.{SqlServer,Oracle,PostgreSQL}` are empty placeholder projects (no EF migrations are used anywhere).
 
@@ -65,12 +67,22 @@ Oracle uses `:Name` bind params while Dapper/SQL Server code is written with `@N
 
 `AssetItem.AssetId` (the human-facing tag, e.g. `20D-4/Q-1`) is **always computed server-side** from `Plant.Code` + `EquipmentCode`/`EquipmentOrder` + `CivilAssetCode`/`CivilAssetOrder` via `AssetItem.GenerateAssetId(...)`, called from `AssetItemService.CreateAsync`/`UpdateAsync`. It is never a bound/editable form field — the UI shows a read-only, JS-live-updated preview instead. Keep this generation logic out of any new form input binding.
 
+`Plant.Code` is `int?` (migrated from `string?` on 2026-07-07 — see idempotent `MigratePlantCodeToInt` in both schema initializers for the string→int conversion of existing rows). `AssetItem` has no `QrCode` field — the QR image always encodes `AssetId`, generated on the fly by `Pages/AssetItems/QrCode.cshtml.cs` and surfaced via a "View QR Code" button that opens `PrintTag.cshtml` in a small popup (see `openCenteredPopup()` in `site.js`) rather than a stored URL.
+
+### Home dashboard & the Plant/Asset browsing page
+
+- `Pages/Index.cshtml` (Home dashboard): Site Map (Leaflet/QGIS, main content area) + `@section RightPanel` holding a "Plant Summary" bar chart (Chart.js, Good/Fair/Poor/Unknown per plant plus an "All Plant" aggregate) above a "Condition Breakdown – All Plant" card. There are no stat boxes, "Asset Types", or "Recently Added Assets" sections — they were removed in favor of the map (2026-07-02); don't recreate them without confirming the mockup actually wants them back.
+- `Pages/AssetItems/Index.cshtml` is both the plain asset list *and* the Plant/Asset browsing view driven by the Asset Tree sidebar: selecting a Plant (`?plantId=X`) shows the Site Map plus a Plant Info right panel; selecting a specific asset under it (`&assetId=Y`) swaps the right panel to full Asset Details with an "Open Asset Details" footer link into the real Details page, instead of navigating away immediately. As of 2026-07-07 the flat Asset Items table only renders when **neither** `plantId` nor `assetId` is set, since the map+panel view already covers that case.
+
 ### Shared UI conventions
 
-- `Pages/Shared/_Layout.cshtml` defines a role-based sidebar and a generic drag-to-resize right panel (`.sims-panel-resizer`, 240–560px clamp) that any page can opt into via `@section RightPanel`.
+- `Pages/Shared/_Layout.cshtml` defines a white, centered top bar (3-column CSS grid: hamburger left, `badak-lng-large.png` logo + "Structural Integrity Management System (SIMS)" title centered, nav/user menu right) plus a role-based sidebar (Asset Tree) and a generic drag-to-resize right panel (`.sims-panel-resizer`, 240–560px clamp) that any page can opt into via `@section RightPanel`. **Asset Register, Map Demo, and Administration/Management/My Audit Trail live in the top bar, not the sidebar** (moved there 2026-07-07, styled as `.sims-topbar-nav-btn` pills per the mockup's slide 6) — don't go looking for them in the Asset Tree markup.
 - `Pages/Shared/_SiteMapScripts.cshtml` is the single shared Leaflet + QGIS-Server-WMS init (auto-discovers layers via `GetCapabilities`) reused by the Home dashboard and the Plant asset-tree map view — don't duplicate map init JS per page.
 - Condition badges (`Good`/`Fair`/`Poor`) use a fixed color mapping (green/yellow/red) consistent across the dashboard, asset list, and mockup spec — check `site.css` (`.condition-dot`, `.sims-progress-bar`) before introducing new status colors.
 - There is no lat/lng geo model yet — `AssetItem.CoordinateN`/`CoordinateE` are free-text, not a real coordinate system, so all map views currently render the same site-wide QGIS layer rather than a true per-plant/per-asset pin.
+- On `AssetItems/Details.cshtml`, the Inspection, Risk Based Inspection, Technical Document, and Documentation tabs render a shared `_ModuleLocked.cshtml` partial ("Module Locked" + padlock, per mockup slide 21) instead of real content — this is a deliberate design-phase lock, not a missing feature. The Documentation tab's upload/list/delete backend in `Details.cshtml.cs` still works, it's just not reachable from the UI. The Condition (GVI) tab instead shows a picture-preview carousel (slide 16) sourced from pictures uploaded via `EditCondition.cshtml`, which stages files client-side (JS + `DataTransfer`, no per-file postback) and uploads them together with the condition update on Save (slide 17).
+- `AssetItemDocuments.DocumentType` (`DocumentTypeCode.Picture` / `.Document`) distinguishes condition-tab picture uploads from general documents sharing the same table — filter on it (`DocumentType == DocumentTypeCode.Picture`) when displaying pictures rather than assuming every row is an image.
+- `site.js` (now actually loaded from `_Layout.cshtml` — it wasn't for most of the project's history) provides `openCenteredPopup(url, name, width, height)`, used for the QR-code/PrintTag popups; reuse it for any future popup windows instead of a raw `window.open`.
 
 ### Roles
 
