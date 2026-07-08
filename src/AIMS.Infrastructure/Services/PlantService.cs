@@ -86,7 +86,7 @@ public sealed class PlantService
     {
         using var conn = _context.CreateConnection();
         var plants = (await conn.QueryAsync<Plant>(
-            "SELECT Id, Code, Name, Description FROM Plants ORDER BY Name")).ToList();
+            "SELECT Id, Code, Name, Description FROM Plants ORDER BY Code, Name")).ToList();
         var assets = (await conn.QueryAsync<PlantTreeAsset>(
             "SELECT Id, AssetId, Title, PlantId FROM AssetItems WHERE PlantId IS NOT NULL ORDER BY AssetId")).ToList();
 
