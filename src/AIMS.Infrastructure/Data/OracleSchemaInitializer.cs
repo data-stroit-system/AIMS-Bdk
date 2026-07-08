@@ -22,7 +22,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
             conn.Execute(stmt);
 
         MigratePlantCodeToInt(conn);
-        MigrateLegacyPlantData(conn);
+        BackfillPlantIdFromLegacyColumn(conn);
         MigrateLegacyIntegrityStatus(conn);
         DropLegacyAssetItemColumns(conn);
         RegenerateAssetIds(conn);
@@ -126,24 +126,11 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
     }
 
     /// <summary>
-    /// Seeds Plants from the legacy PlantCode lookup table (idempotent, matched by Code),
-    /// then backfills AssetItems.PlantId from any leftover legacy PlantCode column and
-    /// drops it. Safe to run on every startup.
+    /// Backfills AssetItems.PlantId from any leftover legacy PlantCode text column (matched
+    /// against existing Plants rows by Code) and drops it. Safe to run on every startup.
     /// </summary>
-    private static void MigrateLegacyPlantData(IDbConnection conn)
+    private static void BackfillPlantIdFromLegacyColumn(IDbConnection conn)
     {
-        foreach (var pc in PlantCode.All)
-        {
-            var code = int.Parse(pc.Code);
-            var exists = conn.ExecuteScalar<int>("SELECT COUNT(*) FROM Plants WHERE Code = @Code", new { Code = code });
-            if (exists == 0)
-            {
-                conn.Execute(
-                    "INSERT INTO Plants (Code, Name, Description) VALUES (@Code, @Name, @Description)",
-                    new { Code = code, Name = $"Plant {pc.Code}", pc.Description });
-            }
-        }
-
         var hasPlantCode = conn.ExecuteScalar<int>(
             "SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'PLANTCODE'") > 0;
         if (!hasPlantCode) return;
