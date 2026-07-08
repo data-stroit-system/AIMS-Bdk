@@ -16,7 +16,7 @@
 
 <div class="sims-card">
     <div class="sims-card-body">
-        <form method="post" enctype="multipart/form-data">
+        <form method="post">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
             <!-- Section: Asset Register -->
@@ -208,62 +208,6 @@
                     <div class="sims-form-group">
                         <label asp-for="Input.Train" class="sims-form-label">Train</label>
                         <input asp-for="Input.Train" class="sims-form-control" />
-                    </div>
-                </div>
-            </div>
-
-            <hr class="sims-mt-2">
-            <!-- Section: Condition (GVI) -->
-            <h6 class="sims-text-sm sims-text-muted sims-mb-3" style="text-transform:uppercase;letter-spacing:.5px;">
-                <i class="fas fa-clipboard-check sims-me-2"></i>Condition (GVI) &amp; Inspection
-            </h6>
-
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.DateOfInspection" class="sims-form-label">Date of Inspection</label>
-                        <input asp-for="Input.DateOfInspection" type="date" class="sims-form-control" />
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.Inspector" class="sims-form-label">Inspector</label>
-                        <input asp-for="Input.Inspector" class="sims-form-control" />
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.Condition" class="sims-form-label">Condition</label>
-                        <select asp-for="Input.Condition" class="sims-form-control sims-form-select">
-                            <option value="">&lt;Condition Selection&gt;</option>
-                            <option value="Good">Good</option>
-                            <option value="Fair">Fair</option>
-                            <option value="Poor">Poor</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.Comment" class="sims-form-label">Comment</label>
-                        <input asp-for="Input.Comment" class="sims-form-control" />
-                    </div>
-                </div>
-            </div>
-
-            <hr class="sims-mt-2">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.Picture" class="sims-form-label">Picture</label>
-                        @if (!string.IsNullOrEmpty(Model.ExistingPicturePath))
-                        {
-                            <div class="sims-mb-2">
-                                <img src="@Model.ExistingPicturePath" alt="Current" style="max-height:80px;border-radius:4px;border:1px solid #e5e7eb;" />
-                                <span class="sims-form-hint">Upload a new file to replace.</span>
-                            </div>
-                        }
-                        <input asp-for="Input.Picture" type="file" class="sims-form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
-                        <span class="sims-form-hint">JPG, PNG, GIF, WebP &mdash; max 2 MB</span>
                     </div>
                 </div>
             </div>
