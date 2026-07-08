@@ -1,0 +1,32 @@
+# One config file, two consumers:
+#   - upload.sh runs on your DEV MACHINE and reads the "Upload" section
+#     below to zip + scp the repo to the server.
+#   - deploy.sh runs ON THE SERVER (in an SSH session, after upload.sh has
+#     put the code there) and reads everything else.
+# Copy this file to deploy/deploy.conf (both locally and on the server —
+# they can have different values) and edit as needed. deploy.conf is
+# gitignored and sourced by both scripts — do not commit it.
+
+# --- Upload (used by upload.sh only) ---
+REMOTE_HOST="deli@192.168.0.8"   # user@host
+REMOTE_SSH_PORT=22
+REMOTE_SSH_KEY=""                 # path to a private key, or leave empty for ssh-agent/default
+REMOTE_DIR="AIMS-Bdk"             # path on the server (relative to home, or absolute) to extract into
+
+# --- Layout ---
+APP_USER="aims"           # system user the app runs as (created if missing)
+BASE_DIR="/opt/aims"      # releases/, shared/, current -> live under here
+KEEP_RELEASES=5           # how many old releases to retain for rollback
+
+# --- App runtime ---
+SERVICE_NAME="aims-webfrontend"
+APP_PORT=5000              # Kestrel listens on 127.0.0.1:$APP_PORT, nginx proxies to it
+DOTNET_CHANNEL="10.0"      # ASP.NET Core runtime channel to install on the server
+
+# --- Nginx ---
+SERVER_NAME="_"            # nginx server_name; "_" = catch-all (use a hostname/IP if you have one)
+NGINX_CLIENT_MAX_BODY_SIZE="50m"
+
+# --- Build ---
+CSPROJ_PATH="src/AIMS.WebFrontend/AIMS.WebFrontend.csproj"
+BUILD_CONFIGURATION="Release"
