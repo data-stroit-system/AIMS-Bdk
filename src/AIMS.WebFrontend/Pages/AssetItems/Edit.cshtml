@@ -16,7 +16,7 @@
 
 <div class="sims-card">
     <div class="sims-card-body">
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
             <!-- Section: Asset Register -->
@@ -210,6 +210,30 @@
                         <input asp-for="Input.Train" class="sims-form-control" />
                     </div>
                 </div>
+            </div>
+
+            <hr class="sims-mt-2">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Picture" class="sims-form-label">Picture</label>
+                        <input asp-for="Input.Picture" type="file" class="sims-form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
+                        <span class="sims-form-hint">JPG, PNG, GIF, WebP &mdash; max 2 MB. Leave blank to keep the current picture.</span>
+                        <span asp-validation-for="Input.Picture" class="d-block mt-1 text-danger"></span>
+                    </div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.CurrentPicturePath))
+                {
+                    <div class="col-md-4">
+                        <div class="sims-form-group">
+                            <label class="sims-form-label">Current Picture</label>
+                            <div>
+                                <img src="@Model.CurrentPicturePath" alt="@Model.Input.Title"
+                                     style="width:160px;height:160px;object-fit:cover;border:1px solid var(--sims-border);border-radius:8px;background:#f9fafb;" />
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
 
             <div class="sims-d-flex sims-gap-2 sims-mt-3">
