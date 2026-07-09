@@ -55,7 +55,7 @@ import zipfile
 repo_root, zip_path = sys.argv[1], sys.argv[2]
 
 EXCLUDE_DIRS = {".git", "bin", "obj", ".vs", ".vscode", ".idea", "node_modules",
-                 "asset-pictures", "asset-documents"}
+                 "asset-documents"}
 EXCLUDE_FILES = {"deploy.conf"}
 EXCLUDE_SUFFIXES = (".log",)
 
@@ -82,5 +82,7 @@ ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
   "rm -rf '$REMOTE_DIR' && "\
   "mkdir -p '$REMOTE_DIR' && python3 -m zipfile -e ~/$ZIP_NAME '$REMOTE_DIR' && rm -f ~/$ZIP_NAME"
 
+
+rm -f "$ZIP_PATH"
 log "Done. On the server: cd $REMOTE_DIR && ./deploy/deploy.sh"
 
