@@ -122,6 +122,13 @@ if ! id -u "$APP_USER" >/dev/null 2>&1; then
   sudo useradd --system --no-create-home --shell /usr/sbin/nologin "$APP_USER"
 fi
 
+# Uploads (asset-pictures, asset-documents) are written at runtime by the
+# app process, which runs as $APP_USER (see systemd unit below) — make sure
+# it actually owns these dirs, not just root from the mkdir -p above. Runs
+# every deploy so it stays correct even if the dirs were created earlier
+# under a different owner.
+sudo chown -R "$APP_USER:$APP_USER" "$SHARED_DIR/wwwroot/asset-pictures" "$SHARED_DIR/wwwroot/asset-documents"
+
 # ---------------------------------------------------------------------------
 # 5. Default appsettings.Production.json (never overwritten once present)
 # ---------------------------------------------------------------------------
@@ -148,6 +155,7 @@ sudo ln -sfn "$SHARED_DIR/appsettings.Production.json" "$RELEASE_DIR/appsettings
 # copy the dtp* and badak* pictures from repo folder AIMS.WebFrontend wwwroot/asset-pictures  into the new shared folder, so they survive redeploys (they are not in the repo itself)
 sudo cp -r "$REPO_ROOT/src/AIMS.WebFrontend/wwwroot/asset-pictures/dtp"* "$SHARED_DIR/wwwroot/asset-pictures/"
 sudo cp -r "$REPO_ROOT/src/AIMS.WebFrontend/wwwroot/asset-pictures/badak"* "$SHARED_DIR/wwwroot/asset-pictures/"
+sudo chown -R "$APP_USER:$APP_USER" "$SHARED_DIR/wwwroot/asset-pictures"
 
 sudo chown -R "$APP_USER:$APP_USER" "$RELEASE_DIR"
 sudo ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
