@@ -145,6 +145,8 @@ fi
 sudo ln -sfn "$SHARED_DIR/wwwroot/asset-pictures"  "$RELEASE_DIR/wwwroot/asset-pictures"
 sudo ln -sfn "$SHARED_DIR/wwwroot/asset-documents" "$RELEASE_DIR/wwwroot/asset-documents"
 sudo ln -sfn "$SHARED_DIR/appsettings.Production.json" "$RELEASE_DIR/appsettings.Production.json"
+sudo cp "$SHARED_DIR/wwwroot/asset-pictures/dtp*"  "$RELEASE_DIR/wwwroot/asset-pictures/"
+sudo cp "$SHARED_DIR/wwwroot/asset-pictures/badak*"  "$RELEASE_DIR/wwwroot/asset-pictures/"
 sudo chown -R "$APP_USER:$APP_USER" "$RELEASE_DIR"
 sudo ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 
