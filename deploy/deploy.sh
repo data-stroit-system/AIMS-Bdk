@@ -145,8 +145,9 @@ fi
 sudo ln -sfn "$SHARED_DIR/wwwroot/asset-pictures"  "$RELEASE_DIR/wwwroot/asset-pictures"
 sudo ln -sfn "$SHARED_DIR/wwwroot/asset-documents" "$RELEASE_DIR/wwwroot/asset-documents"
 sudo ln -sfn "$SHARED_DIR/appsettings.Production.json" "$RELEASE_DIR/appsettings.Production.json"
-sudo cp "$SHARED_DIR/wwwroot/asset-pictures/dtp*"  "$RELEASE_DIR/wwwroot/asset-pictures/"
-sudo cp "$SHARED_DIR/wwwroot/asset-pictures/badak*"  "$RELEASE_DIR/wwwroot/asset-pictures/"
+# copy the dtp* and badak* pictures from repo folder AIMS.WebFrontend wwwroot/asset-pictures  into the new shared folder, so they survive redeploys (they are not in the repo itself)
+log "rsync -av $RELEASE_DIR/wwwroot/asset-pictures/* $SHARED_DIR/wwwroot/asset-pictures/"
+sudo rsync -av "$RELEASE_DIR/wwwroot/asset-pictures/" "$SHARED_DIR/wwwroot/asset-pictures/"
 sudo chown -R "$APP_USER:$APP_USER" "$RELEASE_DIR"
 sudo ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 

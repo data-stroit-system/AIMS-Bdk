@@ -43,9 +43,10 @@ SSH_OPTS=(-p "$REMOTE_SSH_PORT" -o StrictHostKeyChecking=accept-new)
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 ZIP_NAME="aims-source-$(date -u +%Y%m%d%H%M%S).zip"
-ZIP_PATH="$WORK_DIR/$ZIP_NAME"
+ZIP_PATH="$REPO_ROOT/$ZIP_NAME"
+trap '[[ -f "$ZIP_PATH" ]] && rm -f "$ZIP_PATH"' ERR
 
-log "Zipping $REPO_ROOT ..."
+log "Zipping $REPO_ROOT -> $ZIP_PATH..."
 python3 - "$REPO_ROOT" "$ZIP_PATH" <<'PY'
 import os
 import sys
@@ -73,11 +74,13 @@ print(f"Zipped {count} files.")
 PY
 
 ZIP_SIZE="$(du -h "$ZIP_PATH" | cut -f1)"
-log "Uploading $ZIP_NAME ($ZIP_SIZE) to $REMOTE_HOST:~/$ZIP_NAME ..."
-scp "${SSH_OPTS[@]}" "$ZIP_PATH" "$REMOTE_HOST:~/$ZIP_NAME"
+log "Uploading $ZIP_PATH ($ZIP_SIZE) to $REMOTE_HOST:/home/deli/$ZIP_NAME ..."
+scp "-r" "$ZIP_PATH" "$REMOTE_HOST:/home/deli/$ZIP_NAME"
 
 log "Extracting into $REMOTE_DIR on $REMOTE_HOST ..."
 ssh "${SSH_OPTS[@]}" "$REMOTE_HOST" \
+  "rm -rf '$REMOTE_DIR' && "\
   "mkdir -p '$REMOTE_DIR' && python3 -m zipfile -e ~/$ZIP_NAME '$REMOTE_DIR' && rm -f ~/$ZIP_NAME"
 
 log "Done. On the server: cd $REMOTE_DIR && ./deploy/deploy.sh"
+
