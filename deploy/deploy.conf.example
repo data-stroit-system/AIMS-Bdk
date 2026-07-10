@@ -31,3 +31,10 @@ NGINX_CLIENT_MAX_BODY_SIZE="50m"
 # --- Build ---
 CSPROJ_PATH="src/AIMS.WebFrontend/AIMS.WebFrontend.csproj"
 BUILD_CONFIGURATION="Release"
+
+# --- DB backup/restore (used by db_backup.sh only) ---
+BACKUP_DIR="$BASE_DIR/backups"   # where .dmp/.log files land
+KEEP_BACKUPS=7                   # how many backups to retain
+ORACLE_CONTAINER_NAME="oracle-xe-11g"                    # must match setup_oracle_xe.sh
+ORACLE_HOME="/u01/app/oracle/product/11.2.0/xe"           # container mode only
+ORACLE_SID="XE"                                           # container mode only
