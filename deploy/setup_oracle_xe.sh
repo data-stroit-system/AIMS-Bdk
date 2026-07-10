@@ -53,14 +53,14 @@ else
 fi
 
 echo "==> Waiting for Oracle listener to accept connections (this can take a few minutes on first start)"
-SQLPLUS="podman exec ${CONTAINER_NAME} bash -c \"ORACLE_HOME=${ORACLE_HOME} ORACLE_SID=${SID} LD_LIBRARY_PATH=${ORACLE_HOME}/lib ${ORACLE_HOME}/bin/sqlplus -S -L system/oracle@//localhost:1521/${SID} <<< 'select 1 from dual;'\""
+SQLPLUS="podman exec ${CONTAINER_NAME} bash -c \"ORACLE_HOME=${ORACLE_HOME} ORACLE_SID=${SID} LD_LIBRARY_PATH=${ORACLE_HOME}/lib ${ORACLE_HOME}/bin/sqlplus -S -L system/oracle@//localhost:1521/${SID} <<< 'select 1 as success from dual;'\""
 
 READY=0
 for i in $(seq 1 60); do
     eval "${SQLPLUS}" >/tmp/oracle_probe.log 2>&1 || true
     # Any of these indicate the listener + DB are accepting connections,
     # regardless of whether system/oracle happens to be the current password.
-    if grep -qE '^1$|ORA-28000|ORA-01017' /tmp/oracle_probe.log; then
+    if grep -qE '^1$|ORA-28000|ORA-01017|SUCCESS' /tmp/oracle_probe.log; then
         READY=1
         break
     fi

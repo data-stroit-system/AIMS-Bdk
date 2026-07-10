@@ -46,6 +46,7 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 : "${APP_PORT:=5000}"           # Kestrel listens on 127.0.0.1:$APP_PORT, nginx proxies to it
 : "${DOTNET_CHANNEL:=10.0}"     # ASP.NET Core runtime channel to install
 : "${SERVER_NAME:=_}"           # nginx server_name; "_" = catch-all
+: "${NGINX_LISTEN_PORT:=80}"    # external port nginx listens on (site is deployed on 81 in prod — set this in deploy.conf, don't hand-edit the generated nginx site, it gets overwritten every deploy)
 : "${NGINX_CLIENT_MAX_BODY_SIZE:=50m}"
 : "${CSPROJ_PATH:=src/AIMS.WebFrontend/AIMS.WebFrontend.csproj}"
 : "${BUILD_CONFIGURATION:=Release}"
@@ -197,15 +198,19 @@ sudo systemctl restart "$SERVICE_NAME"
 log "Writing nginx site for $SERVICE_NAME ..."
 sudo tee "/etc/nginx/sites-available/${SERVICE_NAME}" >/dev/null <<NGINX
 server {
-    listen 80;
-    listen [::]:80;
+    listen $NGINX_LISTEN_PORT;
+    listen [::]:$NGINX_LISTEN_PORT;
     server_name $SERVER_NAME;
 
     client_max_body_size $NGINX_CLIENT_MAX_BODY_SIZE;
 
     location / {
         proxy_pass http://127.0.0.1:$APP_PORT;
-        proxy_set_header Host \$host;
+        # \$http_host (not \$host) — \$host strips the port from the Host
+        # header, so on a non-80 listen port the app's absolute redirects
+        # (e.g. the cookie-auth challenge to /Account/Login on first visit)
+        # come back port-less and the browser falls back to :80.
+        proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
@@ -221,7 +226,7 @@ sudo systemctl reload nginx
 # 9. Firewall (best-effort, only if ufw is active)
 # ---------------------------------------------------------------------------
 if command -v ufw >/dev/null && sudo ufw status | grep -q "Status: active"; then
-  sudo ufw allow 80/tcp >/dev/null || true
+  sudo ufw allow "$NGINX_LISTEN_PORT/tcp" >/dev/null || true
 fi
 
 # ---------------------------------------------------------------------------

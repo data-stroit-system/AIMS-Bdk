@@ -25,6 +25,7 @@ DOTNET_CHANNEL="10.0"      # ASP.NET Core runtime channel to install on the serv
 
 # --- Nginx ---
 SERVER_NAME="_"            # nginx server_name; "_" = catch-all (use a hostname/IP if you have one)
+NGINX_LISTEN_PORT=80       # external port nginx listens on (e.g. 81 in prod) — set here, don't hand-edit the generated nginx site file, deploy.sh overwrites it every run
 NGINX_CLIENT_MAX_BODY_SIZE="50m"
 
 # --- Build ---
