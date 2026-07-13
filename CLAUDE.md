@@ -24,7 +24,7 @@ DatabaseProvider=SqlServer dotnet run --project src/AIMS.WebFrontend   # bash
 $env:DatabaseProvider = "SqlServer"; dotnet run --project src/AIMS.WebFrontend  # PowerShell
 ```
 
-There are **no test projects** in the solution — do not go looking for a test command.
+Tests live in `tests/AIMS.WebFrontend.Tests` (xUnit): `dotnet test tests/AIMS.WebFrontend.Tests/AIMS.WebFrontend.Tests.csproj`. Page-model tests run the real Dapper SQL against a shared in-memory SQLite database via the `SqliteDapperContext` test helper — no SQL Server/Oracle needed.
 
 ### Database via containers
 
