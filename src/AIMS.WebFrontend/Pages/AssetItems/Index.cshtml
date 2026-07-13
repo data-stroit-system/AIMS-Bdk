@@ -5,6 +5,7 @@
     ViewData["Title"] = "Asset Items";
 }
 
+<div class="@(Model.FilterPlant != null ? "d-flex flex-column h-100" : "")">
 <div class="sims-d-flex sims-align-center sims-justify-between sims-mb-4">
     <div>
         <h3 style="margin:0"><i class="fas fa-boxes-stacked sims-me-2"></i>Asset Items</h3>
@@ -31,16 +32,17 @@
 @if (Model.FilterPlant != null)
 {
     <!-- Plant Map -->
-    <div class="sims-card sims-mb-4">
-        <div class="sims-card-header">
+    <div class="sims-card sims-mb-4 flex-grow-1 d-flex flex-column" style="min-height: 0;">
+        <div class="sims-card-header flex-shrink-0">
             <i class="fas fa-map-location-dot"></i> Site Map
             <small id="map-status" class="sims-text-sm sims-text-muted ms-auto">Loading layers&hellip;</small>
         </div>
-        <div class="sims-card-body" style="padding:0">
-            <div id="map" style="height: 400px; width: 100%;"></div>
+        <div class="sims-card-body flex-grow-1" style="padding:0; min-height: 0;">
+            <div id="map" style="height: 100%; width: 100%;"></div>
         </div>
     </div>
 }
+</div>
 
 @section RightPanel {
     @if (Model.SelectedAsset != null)
