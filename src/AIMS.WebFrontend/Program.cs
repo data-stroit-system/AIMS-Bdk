@@ -8,19 +8,24 @@ using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Identity;
 using Serilog;
 
+// Bootstrap logger: console-only, active only while the host is being built
+// (including InitializeDatabase()'s schema-init pass below, which runs before
+// builder.Build()). Replaced once UseSerilog's ReadFrom.Configuration below
+// picks up the "Serilog" section of appsettings*.json — that section previously
+// went unused because UseSerilog() was called with no arguments, which just
+// adopts a logger already fully built in code and ignores config entirely.
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
-    .WriteTo.File("Logs/aims-.log",
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 30,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
-    .CreateLogger();
+    .CreateBootstrapLogger();
 
 try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog();
+    builder.Host.UseSerilog((context, services, configuration) => configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext());
 
     // Autofac hosts the container (IServiceCollection registrations below are
     // Populate()d into it automatically). Autofac-specific wiring — assembly-scanned

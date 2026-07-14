@@ -13,15 +13,18 @@ namespace AIMS.WebFrontend.Pages.Account
         private readonly SignInManager<ApplicationUser> _singInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IActivityLogger _activityLogger;
+        private readonly ILogger<LoginModel> _logger;
 
         public LoginModel(
             SignInManager<ApplicationUser> singInManager,
             UserManager<ApplicationUser> userManager,
-            IActivityLogger activityLogger)
+            IActivityLogger activityLogger,
+            ILogger<LoginModel> logger)
         {
             _singInManager = singInManager;
             _userManager = userManager;
             _activityLogger = activityLogger;
+            _logger = logger;
         }
 
         public void OnGet() { }
@@ -79,7 +82,7 @@ namespace AIMS.WebFrontend.Pages.Account
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e, "Unhandled exception during login for user {UserName}", LoginInput.UserName);
                 throw;
             }
         }
