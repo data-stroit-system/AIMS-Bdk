@@ -67,7 +67,8 @@ sudo -v
 # ---------------------------------------------------------------------------
 sudo mkdir -p "$BASE_DIR/releases" \
   "$SHARED_DIR/wwwroot/asset-pictures" \
-  "$SHARED_DIR/wwwroot/asset-documents"
+  "$SHARED_DIR/wwwroot/asset-documents" \
+  "$SHARED_DIR/Logs"
 sudo chown "$(id -u):$(id -g)" "$BASE_DIR" "$BASE_DIR/releases"
 
 # ---------------------------------------------------------------------------
@@ -128,7 +129,7 @@ fi
 # it actually owns these dirs, not just root from the mkdir -p above. Runs
 # every deploy so it stays correct even if the dirs were created earlier
 # under a different owner.
-sudo chown -R "$APP_USER:$APP_USER" "$SHARED_DIR/wwwroot/asset-pictures" "$SHARED_DIR/wwwroot/asset-documents"
+sudo chown -R "$APP_USER:$APP_USER" "$SHARED_DIR/wwwroot/asset-pictures" "$SHARED_DIR/wwwroot/asset-documents" "$SHARED_DIR/Logs"
 
 # ---------------------------------------------------------------------------
 # 5. Default appsettings.Production.json (never overwritten once present)
@@ -153,6 +154,7 @@ fi
 sudo ln -sfn "$SHARED_DIR/wwwroot/asset-pictures"  "$RELEASE_DIR/wwwroot/asset-pictures"
 sudo ln -sfn "$SHARED_DIR/wwwroot/asset-documents" "$RELEASE_DIR/wwwroot/asset-documents"
 sudo ln -sfn "$SHARED_DIR/appsettings.Production.json" "$RELEASE_DIR/appsettings.Production.json"
+sudo ln -sfn "$SHARED_DIR/Logs" "$RELEASE_DIR/Logs"
 # copy the dtp* and badak* pictures from repo folder AIMS.WebFrontend wwwroot/asset-pictures  into the new shared folder, so they survive redeploys (they are not in the repo itself)
 sudo cp -r "$REPO_ROOT/src/AIMS.WebFrontend/wwwroot/asset-pictures/dtp"* "$SHARED_DIR/wwwroot/asset-pictures/"
 sudo cp -r "$REPO_ROOT/src/AIMS.WebFrontend/wwwroot/asset-pictures/badak"* "$SHARED_DIR/wwwroot/asset-pictures/"
