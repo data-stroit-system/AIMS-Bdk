@@ -1,5 +1,4 @@
-﻿using Autofac;
-using AIMS.SharedKernel.Interfaces;
+﻿using AIMS.SharedKernel.Interfaces;
 using AIMS.SharedKernel;
 using System;
 using System.Collections;

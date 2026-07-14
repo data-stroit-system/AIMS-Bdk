@@ -1,12 +1,20 @@
-using System.Reflection;
 using AIMS.Infrastructure;
+using AIMS.Infrastructure.DependencyInjection;
 using AIMS.Infrastructure.DomainEvents;
 using AIMS.Infrastructure.IdentityClass;
 using AIMS.SharedKernel.Interfaces;
+using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Autofac hosts the container (IServiceCollection registrations below are
+// Populate()d into it automatically). Autofac-specific wiring — assembly-scanned
+// calculation strategies + their decorator — lives in CalculationsModule.
+builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory());
+builder.Host.ConfigureContainer<ContainerBuilder>(container =>
+    container.RegisterModule<CalculationsModule>());
 
 builder.Services.AddDapperContext(builder.Configuration);
 builder.Services.AddAuditTrail();
@@ -26,10 +34,7 @@ builder.Services.ConfigureApplicationCookie(opt =>
 
 builder.Services.AddRazorPages();
 builder.Services.AddHttpClient();
-ContainerSetup.InitializeWeb(Assembly.GetExecutingAssembly(), builder.Services);
 builder.Services.InitializeDatabase();
-builder.Services.AddAutofac(c =>
-    new AutofacServiceProviderFactory());
 
 var app = builder.Build();
 

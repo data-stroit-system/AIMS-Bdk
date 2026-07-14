@@ -1,4 +1,5 @@
 using AIMS.Core.Entities;
+using AIMS.Core.Services.Calculations;
 using AIMS.Infrastructure.FileTransfer;
 using AIMS.Infrastructure.Services;
 using AIMS.SharedKernel.Interfaces;
@@ -17,19 +18,22 @@ public class DetailsModel : PageModel
     private readonly IActivityLogger _activityLogger;
     private readonly IWebHostEnvironment _env;
     private readonly FileUploadHelper _fileUpload;
+    private readonly IEquipmentCalculationResolver _calculationResolver;
 
-    public DetailsModel(AssetItemService assetItemService, PlantService plantService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
+    public DetailsModel(AssetItemService assetItemService, PlantService plantService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload, IEquipmentCalculationResolver calculationResolver)
     {
         _assetItemService = assetItemService;
         _plantService = plantService;
         _activityLogger = activityLogger;
         _env = env;
         _fileUpload = fileUpload;
+        _calculationResolver = calculationResolver;
     }
 
     public AssetItem AssetItem { get; set; } = null!;
     public Plant? Plant { get; set; }
     public List<AssetItemDocuments> Documents { get; set; } = new();
+    public EquipmentCalculationResult? Calculation { get; set; }
     public string ActiveTab { get; set; } = "register";
 
     [BindProperty]
@@ -44,6 +48,7 @@ public class DetailsModel : PageModel
         if (assetItem.PlantId.HasValue)
             Plant = await _plantService.GetByIdAsync(assetItem.PlantId.Value);
         Documents = await _assetItemService.GetDocumentsAsync(id);
+        Calculation = _calculationResolver.Calculate(assetItem);
         var tab = Request.Query["tab"].ToString();
         ActiveTab = tab == "documents" || tab == "condition" || tab == "inspection" ? tab : "register";
         return Page();
@@ -150,6 +155,7 @@ public class DetailsModel : PageModel
         if (AssetItem.PlantId.HasValue)
             Plant = await _plantService.GetByIdAsync(AssetItem.PlantId.Value);
         Documents = await _assetItemService.GetDocumentsAsync(id);
+        Calculation = _calculationResolver.Calculate(AssetItem);
     }
 
     public class AddDocumentInput
