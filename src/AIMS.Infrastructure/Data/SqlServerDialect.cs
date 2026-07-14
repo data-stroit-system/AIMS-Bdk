@@ -22,4 +22,8 @@ internal sealed class SqlServerDialect : ISqlDialect
     {
         return conn.ExecuteAsync(sql, parameters);
     }
+
+    // SQL Server LIKE wildcards: % _ and the [...] character class opener.
+    public string EscapeLike(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_").Replace("[", "\\[");
 }

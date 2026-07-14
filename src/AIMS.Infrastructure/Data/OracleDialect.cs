@@ -74,6 +74,11 @@ internal sealed class OracleDialect : ISqlDialect
             FROM ({selectSql}) page_
         ) WHERE RN_ > @Offset AND RN_ <= @Offset + @PageSize";
 
+    // Oracle LIKE wildcards are only % and _ — escaping anything else (e.g. '[')
+    // raises ORA-01424, so keep this list minimal.
+    public string EscapeLike(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+
     private static object ToOracleValue(object? value) => value switch
     {
         null => DBNull.Value,

@@ -44,8 +44,10 @@ public sealed class AssetItemService
 
         if (!string.IsNullOrEmpty(searchTerm))
         {
-            where.Append(" AND (Title LIKE @Search OR AssetId LIKE @Search OR EquipmentDesc LIKE @Search OR CivilAssetDesc LIKE @Search)");
-            p.Add("Search", $"%{searchTerm}%");
+            // UPPER() on both sides makes the search case-insensitive on every
+            // provider — Oracle compares LIKE case-sensitively by default.
+            where.Append(@" AND (UPPER(Title) LIKE UPPER(@Search) ESCAPE '\' OR UPPER(AssetId) LIKE UPPER(@Search) ESCAPE '\' OR UPPER(EquipmentDesc) LIKE UPPER(@Search) ESCAPE '\' OR UPPER(CivilAssetDesc) LIKE UPPER(@Search) ESCAPE '\')");
+            p.Add("Search", $"%{_dialect.EscapeLike(searchTerm)}%");
         }
         if (!string.IsNullOrEmpty(conditionFilter))
         {

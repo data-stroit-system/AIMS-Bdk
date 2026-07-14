@@ -83,8 +83,8 @@ public class AuditLogsModel : PageModel
 
         if (!string.IsNullOrEmpty(UserNameFilter) && CanViewAllLogs)
         {
-            where.Append(" AND UserName LIKE @UserNameFilter");
-            p.Add("UserNameFilter", $"%{UserNameFilter}%");
+            where.Append(@" AND UserName LIKE @UserNameFilter ESCAPE '\'");
+            p.Add("UserNameFilter", $"%{_dialect.EscapeLike(UserNameFilter)}%");
         }
 
         // Timestamps are stored in UTC; treat the filter inputs as UTC calendar days.

@@ -26,4 +26,8 @@
     <ProjectReference Include="..\AIMS.Core\AIMS.Core.csproj" />
     <ProjectReference Include="..\AIMS.SharedKernel\AIMS.SharedKernel.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AIMS.WebFrontend.Tests" />
+  </ItemGroup>
 </Project>

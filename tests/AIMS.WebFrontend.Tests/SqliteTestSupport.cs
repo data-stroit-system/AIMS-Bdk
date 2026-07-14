@@ -87,10 +87,10 @@ public sealed class SqliteDapperContext : IDapperContext, IDisposable
             "INSERT INTO Plants (Id, Code, Name) VALUES (@Id, @Code, @Name)",
             new { Id = id, Code = code, Name = name });
 
-    public void AddAsset(string assetId, int? plantId, string? condition) =>
+    public void AddAsset(string assetId, int? plantId, string? condition, string? title = null) =>
         _keeper.Execute(
-            "INSERT INTO AssetItems (AssetId, PlantId, Condition) VALUES (@AssetId, @PlantId, @Condition)",
-            new { AssetId = assetId, PlantId = plantId, Condition = condition });
+            "INSERT INTO AssetItems (AssetId, PlantId, Condition, Title) VALUES (@AssetId, @PlantId, @Condition, @Title)",
+            new { AssetId = assetId, PlantId = plantId, Condition = condition, Title = title });
 
     public void AddDocument(int assetItemId, string title, string filePath) =>
         _keeper.Execute(
@@ -131,4 +131,8 @@ public sealed class SqliteTestDialect : ISqlDialect
 
     public string Paginate(string selectSql, string orderBy) =>
         $"{selectSql} ORDER BY {orderBy} LIMIT @PageSize OFFSET @Offset";
+
+    // SQLite LIKE wildcards are % and _, same as Oracle.
+    public string EscapeLike(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 }
