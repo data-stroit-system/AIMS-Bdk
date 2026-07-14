@@ -61,6 +61,22 @@ public sealed class SqliteDapperContext : IDapperContext, IDisposable
                 CreatedBy TEXT NULL,
                 PlantId INTEGER NULL
             );
+            CREATE TABLE AssetItemDocuments (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                DocumentTitle TEXT NULL,
+                FilePath TEXT NULL,
+                DocumentType TEXT NULL,
+                CreatedAt TEXT NULL,
+                CreatedBy TEXT NULL,
+                AssetItemId INTEGER NULL
+            );
+            CREATE TABLE AssetRemarks (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Description TEXT NULL,
+                CreatedAt TEXT NULL,
+                CreatedBy TEXT NULL,
+                AssetItemId INTEGER NULL
+            );
             """);
     }
 
@@ -75,6 +91,19 @@ public sealed class SqliteDapperContext : IDapperContext, IDisposable
         _keeper.Execute(
             "INSERT INTO AssetItems (AssetId, PlantId, Condition) VALUES (@AssetId, @PlantId, @Condition)",
             new { AssetId = assetId, PlantId = plantId, Condition = condition });
+
+    public void AddDocument(int assetItemId, string title, string filePath) =>
+        _keeper.Execute(
+            "INSERT INTO AssetItemDocuments (DocumentTitle, FilePath, AssetItemId) VALUES (@Title, @FilePath, @AssetItemId)",
+            new { Title = title, FilePath = filePath, AssetItemId = assetItemId });
+
+    public void AddRemark(int assetItemId, string description) =>
+        _keeper.Execute(
+            "INSERT INTO AssetRemarks (Description, AssetItemId) VALUES (@Description, @AssetItemId)",
+            new { Description = description, AssetItemId = assetItemId });
+
+    public int Count(string table) =>
+        _keeper.ExecuteScalar<int>($"SELECT COUNT(*) FROM {table}");
 
     public void Dispose() => _keeper.Dispose();
 }

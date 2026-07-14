@@ -42,8 +42,11 @@ internal sealed class OracleParamConnection : DbConnection
     public override void Open() => _inner.Open();
     public override Task OpenAsync(CancellationToken cancellationToken) => _inner.OpenAsync(cancellationToken);
 
+    // ODP.NET rejects IsolationLevel.Unspecified (ORA-50002), which is what a
+    // parameterless conn.BeginTransaction() passes — map it to Oracle's default.
     protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) =>
-        _inner.BeginTransaction(isolationLevel);
+        _inner.BeginTransaction(
+            isolationLevel == IsolationLevel.Unspecified ? IsolationLevel.ReadCommitted : isolationLevel);
 
     protected override DbCommand CreateDbCommand() => new OracleParamCommand(_inner.CreateCommand(), this);
 

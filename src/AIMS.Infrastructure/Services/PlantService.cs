@@ -2,6 +2,7 @@ using AIMS.Core.Entities;
 using AIMS.Infrastructure.Data;
 using Dapper;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -62,12 +63,21 @@ public sealed class PlantService
     public async Task<Plant?> DeleteAsync(int id)
     {
         using var conn = _context.CreateConnection();
+        if (conn.State != ConnectionState.Open)
+            conn.Open();
+
         var plant = await conn.QuerySingleOrDefaultAsync<Plant>(
             "SELECT Id, Code, Name, Description FROM Plants WHERE Id = @Id", new { Id = id });
         if (plant == null) return null;
 
-        await conn.ExecuteAsync("UPDATE AssetItems SET PlantId = NULL WHERE PlantId = @Id", new { Id = id });
-        await conn.ExecuteAsync("DELETE FROM Plants WHERE Id = @Id", new { Id = id });
+        // Detach + delete must land together: failing between them would leave
+        // assets detached from a plant that still exists (or, with an asset assigned
+        // concurrently, an FK violation on the delete after the detach committed).
+        using var tx = conn.BeginTransaction();
+        await conn.ExecuteAsync("UPDATE AssetItems SET PlantId = NULL WHERE PlantId = @Id", new { Id = id }, tx);
+        await conn.ExecuteAsync("DELETE FROM Plants WHERE Id = @Id", new { Id = id }, tx);
+        tx.Commit();
+
         return plant;
     }
 

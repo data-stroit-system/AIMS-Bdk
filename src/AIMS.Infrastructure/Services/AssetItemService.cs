@@ -194,6 +194,9 @@ public sealed class AssetItemService
     public async Task<(AssetItem? Asset, List<AssetItemDocuments> Documents)> DeleteAsync(int id)
     {
         using var conn = _context.CreateConnection();
+        if (conn.State != ConnectionState.Open)
+            conn.Open();
+
         var asset = await conn.QuerySingleOrDefaultAsync<AssetItem>(
             $"SELECT {AllColumns} FROM AssetItems WHERE Id = @Id", new { Id = id });
         if (asset == null) return (null, new List<AssetItemDocuments>());
@@ -201,9 +204,14 @@ public sealed class AssetItemService
         var docs = (await conn.QueryAsync<AssetItemDocuments>(
             "SELECT * FROM AssetItemDocuments WHERE AssetItemId = @Id", new { Id = id })).ToList();
 
-        await conn.ExecuteAsync("DELETE FROM AssetItemDocuments WHERE AssetItemId = @Id", new { Id = id });
-        await conn.ExecuteAsync("DELETE FROM AssetRemarks WHERE AssetItemId = @Id", new { Id = id });
-        await conn.ExecuteAsync("DELETE FROM AssetItems WHERE Id = @Id", new { Id = id });
+        // The three deletes must land together: a failure mid-way (dropped connection,
+        // or an FK violation from a document uploaded concurrently) would otherwise
+        // leave the asset row alive with its documents/remarks already gone.
+        using var tx = conn.BeginTransaction();
+        await conn.ExecuteAsync("DELETE FROM AssetItemDocuments WHERE AssetItemId = @Id", new { Id = id }, tx);
+        await conn.ExecuteAsync("DELETE FROM AssetRemarks WHERE AssetItemId = @Id", new { Id = id }, tx);
+        await conn.ExecuteAsync("DELETE FROM AssetItems WHERE Id = @Id", new { Id = id }, tx);
+        tx.Commit();
 
         return (asset, docs);
     }
