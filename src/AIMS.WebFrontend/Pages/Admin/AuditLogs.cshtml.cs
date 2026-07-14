@@ -87,16 +87,19 @@ public class AuditLogsModel : PageModel
             p.Add("UserNameFilter", $"%{UserNameFilter}%");
         }
 
+        // Timestamps are stored in UTC; treat the filter inputs as UTC calendar days.
+        // (ToUniversalTime() here would treat them as server-local and shift the
+        // window by the server's UTC offset.)
         if (FromDate.HasValue)
         {
             where.Append(" AND Timestamp >= @FromDate");
-            p.Add("FromDate", FromDate.Value.ToUniversalTime());
+            p.Add("FromDate", DateTime.SpecifyKind(FromDate.Value.Date, DateTimeKind.Utc));
         }
 
         if (ToDate.HasValue)
         {
             where.Append(" AND Timestamp < @ToDate");
-            p.Add("ToDate", ToDate.Value.AddDays(1).ToUniversalTime());
+            p.Add("ToDate", DateTime.SpecifyKind(ToDate.Value.Date.AddDays(1), DateTimeKind.Utc));
         }
 
         var whereClause = where.ToString();

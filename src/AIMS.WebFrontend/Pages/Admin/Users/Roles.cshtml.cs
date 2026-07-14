@@ -60,6 +60,24 @@ public class RolesModel : PageModel
             return RedirectToPage(new { id });
         }
 
+        if (currentRoles.Contains("Admin") && !selectedRoles.Contains("Admin"))
+        {
+            if (string.Equals(user.UserName, "admin", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "The Admin role cannot be removed from the built-in 'admin' account.";
+                return RedirectToPage(new { id });
+            }
+
+            // Never strip the last remaining Admin — that would lock everyone
+            // out of user/role management.
+            var admins = await _userManager.GetUsersInRoleAsync("Admin");
+            if (admins.Count <= 1)
+            {
+                TempData["Error"] = "Cannot remove the Admin role from the last user that has it.";
+                return RedirectToPage(new { id });
+            }
+        }
+
         var rolesToRemove = currentRoles.Except(selectedRoles).ToList();
         if (rolesToRemove.Any())
         {

@@ -87,12 +87,16 @@
                                         <a asp-page="Roles" asp-route-id="@user.Id" class="btn btn-outline-secondary" title="Manage Roles">
                                             Roles
                                         </a>
-                                        <button type="button" class="btn btn-outline-danger" 
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#deleteModal-@user.Id.Replace("-", "")"
-                                                title="Delete">
-                                            Delete
-                                        </button>
+                                        @* The built-in admin account is protected server-side; don't offer the button. *@
+                                        @if (!string.Equals(user.UserName, "admin", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <button type="button" class="btn btn-outline-danger"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#deleteModal-@user.Id.Replace("-", "")"
+                                                    title="Delete">
+                                                Delete
+                                            </button>
+                                        }
                                     }
                                     else
                                     {

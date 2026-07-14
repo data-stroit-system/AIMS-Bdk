@@ -102,6 +102,24 @@ public class IndexModel : PageModel
                 return RedirectToPage();
             }
 
+            if (string.Equals(user.UserName, "admin", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "The built-in 'admin' account cannot be deleted.";
+                return RedirectToPage();
+            }
+
+            // Never delete the last remaining Admin — that would lock everyone
+            // out of user/role management.
+            if (await _userManager.IsInRoleAsync(user, "Admin"))
+            {
+                var admins = await _userManager.GetUsersInRoleAsync("Admin");
+                if (admins.Count <= 1)
+                {
+                    TempData["Error"] = "Cannot delete the last user with the Admin role.";
+                    return RedirectToPage();
+                }
+            }
+
             var userName = user.UserName;
             var fullName = user.FullName;
             var userId = user.Id;
