@@ -1,4 +1,3 @@
-using AIMS.Core.Entities;
 using AIMS.Infrastructure.Data;
 using AIMS.Infrastructure.Services;
 using Dapper;
@@ -11,11 +10,13 @@ namespace AIMS.WebFrontend.Pages;
 public class IndexModel : PageModel
 {
     private readonly IDapperContext _context;
+    private readonly ISqlDialect _dialect;
     private readonly PlantService _plantService;
 
-    public IndexModel(IDapperContext context, PlantService plantService)
+    public IndexModel(IDapperContext context, ISqlDialect dialect, PlantService plantService)
     {
         _context = context;
+        _dialect = dialect;
         _plantService = plantService;
     }
 
@@ -30,41 +31,66 @@ public class IndexModel : PageModel
     public async Task OnGetAsync()
     {
         using var conn = _context.CreateConnection();
-        var assets = (await conn.QueryAsync<AssetItem>("SELECT * FROM AssetItems")).ToList();
 
-        TotalAssets = assets.Count;
+        // One aggregate row per (plant, condition) instead of streaming the whole
+        // AssetItems table into memory. UPPER() keeps the Good/Fair/Poor matching
+        // case-insensitive on every provider (Oracle compares case-sensitively).
+        var cn = _dialect.Quote("Condition");
+        var rows = (await conn.QueryAsync<ConditionCountRow>($@"
+            SELECT PlantId, UPPER({cn}) AS ConditionKey, COUNT(*) AS AssetCount
+            FROM AssetItems
+            GROUP BY PlantId, UPPER({cn})")).ToList();
 
-        GoodStatusCount = assets.Count(a => IsCondition(a, "Good"));
-        FairStatusCount = assets.Count(a => IsCondition(a, "Fair"));
-        PoorStatusCount = assets.Count(a => IsCondition(a, "Poor"));
+        var allPlants = new PlantConditionSummary { PlantName = "All Plant" };
+        var perPlant = new Dictionary<int, PlantConditionSummary>();
 
-        var plants = await _plantService.ListAsync();
-
-        PlantConditionSummaries.Add(new PlantConditionSummary
+        foreach (var row in rows)
         {
-            PlantName = "All Plant",
-            Good = GoodStatusCount,
-            Fair = FairStatusCount,
-            Poor = PoorStatusCount,
-            Unknown = assets.Count(a => string.IsNullOrEmpty(a.Condition))
-        });
+            TotalAssets += row.AssetCount;
+            Accumulate(allPlants, row);
 
-        foreach (var plant in plants)
-        {
-            var plantAssets = assets.Where(a => a.PlantId == plant.Id).ToList();
-            PlantConditionSummaries.Add(new PlantConditionSummary
+            if (row.PlantId is int plantId)
             {
-                PlantName = plant.Name,
-                Good = plantAssets.Count(a => IsCondition(a, "Good")),
-                Fair = plantAssets.Count(a => IsCondition(a, "Fair")),
-                Poor = plantAssets.Count(a => IsCondition(a, "Poor")),
-                Unknown = plantAssets.Count(a => string.IsNullOrEmpty(a.Condition))
-            });
+                if (!perPlant.TryGetValue(plantId, out var summary))
+                    perPlant[plantId] = summary = new PlantConditionSummary();
+                Accumulate(summary, row);
+            }
+        }
+
+        GoodStatusCount = allPlants.Good;
+        FairStatusCount = allPlants.Fair;
+        PoorStatusCount = allPlants.Poor;
+
+        PlantConditionSummaries.Add(allPlants);
+        foreach (var plant in await _plantService.ListAsync())
+        {
+            var summary = perPlant.TryGetValue(plant.Id, out var existing)
+                ? existing
+                : new PlantConditionSummary();
+            summary.PlantName = plant.Name;
+            PlantConditionSummaries.Add(summary);
         }
     }
 
-    private static bool IsCondition(AssetItem asset, string condition) =>
-        string.Equals(asset.Condition, condition, StringComparison.OrdinalIgnoreCase);
+    // Unrecognized non-empty conditions (e.g. legacy free text) intentionally count
+    // toward the total only — same semantics as the previous in-memory scan.
+    private static void Accumulate(PlantConditionSummary summary, ConditionCountRow row)
+    {
+        switch (row.ConditionKey)
+        {
+            case "GOOD": summary.Good += row.AssetCount; break;
+            case "FAIR": summary.Fair += row.AssetCount; break;
+            case "POOR": summary.Poor += row.AssetCount; break;
+            case null or "": summary.Unknown += row.AssetCount; break;
+        }
+    }
+
+    private sealed class ConditionCountRow
+    {
+        public int? PlantId { get; set; }
+        public string? ConditionKey { get; set; }
+        public int AssetCount { get; set; }
+    }
 }
 
 public class PlantConditionSummary

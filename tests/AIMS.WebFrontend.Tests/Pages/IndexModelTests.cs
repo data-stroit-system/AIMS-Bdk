@@ -10,7 +10,7 @@ public class IndexModelTests : IDisposable
     private readonly SqliteDapperContext _context = new();
 
     private IndexModel CreateModel() =>
-        new(_context, new PlantService(_context, new SqliteTestDialect()));
+        new(_context, new SqliteTestDialect(), new PlantService(_context, new SqliteTestDialect()));
 
     [Fact]
     public async Task OnGetAsync_EmptyDatabase_ReportsZeroAssetsAndOnlyAllPlantSummary()
