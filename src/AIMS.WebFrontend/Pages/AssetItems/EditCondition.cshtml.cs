@@ -73,7 +73,15 @@ public class EditConditionModel : PageModel
             ModelState.Remove($"Files[{i}].File");
         }
 
-        if (!ModelState.IsValid) return Page();
+        if (!ModelState.IsValid)
+        {
+            // Repopulate the existing-pictures carousel (only OnGetAsync sets it),
+            // otherwise a validation error renders it empty and looks like data loss.
+            ExistingFiles = (await _assetItemService.GetDocumentsAsync(id))
+                .Where(d => d.DocumentType == DocumentTypeCode.Picture)
+                .ToList();
+            return Page();
+        }
 
         // Only the Condition (GVI) fields change here — every other column is carried
         // over unchanged so UpdateAsync's full-row UPDATE doesn't clobber the rest of

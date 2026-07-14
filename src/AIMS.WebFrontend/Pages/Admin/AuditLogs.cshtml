@@ -84,7 +84,7 @@
             @foreach (var log in Model.AuditLogs)
             {
                 <tr>
-                    <td>@log.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td><span class="js-local-time" data-utc="@AuditLogsModel.ToIsoUtc(log.Timestamp)">@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss") UTC</span></td>
                     <td>
                         @if (log.Category == "Security")
                         {
@@ -222,7 +222,7 @@
                         <div class="col-md-6">
                             <strong>User:</strong> @(log.UserName ?? "System")<br />
                             <strong>IP Address:</strong> @log.IpAddress<br />
-                            <strong>Timestamp:</strong> @log.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")<br />
+                            <strong>Timestamp:</strong> <span class="js-local-time" data-utc="@AuditLogsModel.ToIsoUtc(log.Timestamp)">@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss") UTC</span><br />
                             <strong>Request Path:</strong> @log.RequestPath
                         </div>
                     </div>
@@ -273,4 +273,26 @@
             </div>
         </div>
     </div>
+}
+
+@section Scripts {
+    <script>
+        // Render each audit timestamp in the viewer's own browser timezone.
+        // Server emits UTC (data-utc, ISO-8601 with 'Z'); the "… UTC" text is a
+        // no-JS fallback that this replaces.
+        (function () {
+            function fmtLocal(d) {
+                var p = function (n) { return String(n).padStart(2, '0'); };
+                return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+                    ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+            }
+            document.querySelectorAll('.js-local-time').forEach(function (el) {
+                var iso = el.getAttribute('data-utc');
+                if (!iso) return;
+                var d = new Date(iso);
+                if (isNaN(d.getTime())) return;
+                el.textContent = fmtLocal(d);
+            });
+        })();
+    </script>
 }
