@@ -38,7 +38,16 @@ public class FileUploadHelper
     {
         if (string.IsNullOrEmpty(webRelativePath)) return;
         var segments = webRelativePath.TrimStart('/').Split('/');
-        var fullPath = Path.Combine([webRootPath, .. segments]);
+        var fullPath = Path.GetFullPath(Path.Combine([webRootPath, .. segments]));
+
+        // Containment check: canonicalize and refuse anything that resolves outside
+        // webRootPath (e.g. a "/../appsettings.json" traversal). Current callers only
+        // pass server-generated paths from the DB, but this function must not rely
+        // on every future caller upholding that invariant.
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(webRootPath));
+        if (!fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            return;
+
         if (File.Exists(fullPath))
             File.Delete(fullPath);
     }
