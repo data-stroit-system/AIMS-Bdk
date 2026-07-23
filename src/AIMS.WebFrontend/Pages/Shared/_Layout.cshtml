@@ -146,9 +146,9 @@
                                 <li class="sims-tree-item">
                                     <a class="sims-tree-link @(isSelected ? "plant-selected" : "")"
                                        asp-page="/AssetItems/Index" asp-route-plantId="@node.Plant.Id"
-                                       title="@node.Plant.Name @node.Plant.Description">
+                                       title="@node.Plant.Code @node.Plant.Description">
                                         <i class="fas fa-chevron-right sims-tree-chevron @(isSelected ? "expanded" : "")"></i>
-                                        <span class="sims-tree-label">@node.Plant.Name @node.Plant.Description</span>
+                                        <span class="sims-tree-label">@node.Plant.Code @node.Plant.Description</span>
                                     </a>
                                     @if (isSelected)
                                     {

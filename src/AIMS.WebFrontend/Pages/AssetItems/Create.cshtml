@@ -32,7 +32,7 @@
                             <option value="">&lt;Plant selection&gt;</option>
                             @foreach (var plant in Model.Plants)
                             {
-                                <option value="@plant.Id" data-code="@plant.Code">@plant.Code - @plant.Name</option>
+                                <option value="@plant.Id" data-code="@plant.Code">@plant.Code - @plant.Description</option>
                             }
                         </select>
                         <span asp-validation-for="Input.PlantId" class="d-block mt-1 text-danger"></span>

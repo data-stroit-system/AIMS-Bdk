@@ -1,4 +1,5 @@
 @page "{id:int}"
+@using AIMS.Core.Entities
 @model AIMS.WebFrontend.Pages.Plants.EditModel
 @{
     ViewData["Title"] = "Edit Plant";
@@ -24,7 +25,13 @@
 
             <div class="sims-mb-3">
                 <label asp-for="Input.Code" class="sims-form-label">Code</label>
-                <input asp-for="Input.Code" class="sims-form-control" autocomplete="off" />
+                <select asp-for="Input.Code" class="sims-form-control sims-form-select">
+                    <option value="">&lt;Plant code selection&gt;</option>
+                    @foreach (var pc in PlantCode.All)
+                    {
+                        <option value="@pc.Code">@pc.Code - @pc.Description</option>
+                    }
+                </select>
                 <span asp-validation-for="Input.Code" class="text-danger sims-text-sm"></span>
             </div>
 
@@ -52,4 +59,11 @@
 
 @section Scripts {
     @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+        var plantCodeDescriptions = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(PlantCode.All.ToDictionary(pc => pc.Code, pc => pc.Description)));
+        document.getElementById('Input_Code').addEventListener('change', function () {
+            var description = plantCodeDescriptions[this.value];
+            document.getElementById('Input_Description').value = description || '';
+        });
+    </script>
 }

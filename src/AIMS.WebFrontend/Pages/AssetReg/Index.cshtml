@@ -41,7 +41,7 @@
                         <option value="">All Plants</option>
                         @foreach (var plant in Model.Plants)
                         {
-                            <option value="@plant.Id" selected="@(Model.PlantId == plant.Id)">@plant.Code - @plant.Name</option>
+                            <option value="@plant.Id" selected="@(Model.PlantId == plant.Id)">@plant.Code - @plant.Description</option>
                         }
                     </select>
                 </div>
@@ -117,7 +117,7 @@
                                 <td class="sims-text-sm">
                                     @if (plant != null)
                                     {
-                                        <span class="sims-badge sims-badge-sky">@plant.Code</span> @plant.Name
+                                        <span class="sims-badge sims-badge-sky">@plant.Code</span> @plant.Description
                                     }
                                     else
                                     {
