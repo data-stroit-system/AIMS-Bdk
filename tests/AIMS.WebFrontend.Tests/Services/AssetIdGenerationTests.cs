@@ -25,7 +25,7 @@ public class AssetIdGenerationTests : IDisposable
     }
 
     [Theory]
-    [InlineData(17, "D", "Q", 1, "17D")]
+    [InlineData(17, "D", "Q", 1, "17D-1")]
     [InlineData(17, "F", "Q", 1, "17Q-1-Q")]
     public void GenerateAssetId_RespectsCategory(
         int? plantCode, string equipmentCode,

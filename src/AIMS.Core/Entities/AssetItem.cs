@@ -105,7 +105,7 @@ public class AssetItem : BaseEntity
         const string foundCategory = "Foundation / Supporting Structure";
 
         if (string.Equals(category, equipCategory, StringComparison.OrdinalIgnoreCase))
-            return $"{plantCode}{equipmentCode}";
+            return $"{plantCode}{equipmentCode}-{civilAssetOrder}";
 
         if (string.Equals(category, foundCategory, StringComparison.OrdinalIgnoreCase))
             return $"{plantCode}{civilAssetCode}-{civilAssetOrder}-Q";

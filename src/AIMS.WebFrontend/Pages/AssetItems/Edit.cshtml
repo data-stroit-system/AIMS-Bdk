@@ -263,7 +263,7 @@
                 var category = $('#Input_Category').val() || '';
                 var tag;
                 if (category === 'Equipment / Main Structure') {
-                    tag = pc + ec;
+                    tag = pc + ec + '-' + co;
                 } else if (category === 'Foundation / Supporting Structure') {
                     tag = pc + cc + '-' + co + '-Q';
                 } else {

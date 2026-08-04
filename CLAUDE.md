@@ -87,7 +87,7 @@ Oracle uses `:Name` bind params while Dapper/SQL Server code is written with `@N
 `AssetItem.AssetId` (the human-facing tag) is **always computed server-side** via `AssetItem.GenerateAssetId(plantCode, equipmentCode, civilAssetCode, civilAssetOrder, category)`, called from `AssetItemService.CreateAsync`/`UpdateAsync`. It is never a bound/editable form field — the UI shows a read-only, JS-live-updated preview instead. Keep this generation logic out of any new form input binding.
 
 **Category-based formula (2026-08-04):** The tag format depends on `AssetItem.Category`:
-- `"Equipment / Main Structure"` → `{plantCode}{equipmentCode}` (e.g. `17D`)
+- `"Equipment / Main Structure"` → `{plantCode}{equipmentCode}-{civilAssetOrder}` (e.g. `17D-1`)
 - `"Foundation / Supporting Structure"` → `{plantCode}{civilAssetCode}-{civilAssetOrder}-Q` (e.g. `17D-1-Q`)
 - `null`/other → legacy combined format `{plantCode}{equipmentCode}/{civilAssetCode}-{civilAssetOrder}` (e.g. `17D/4-2`)
 
