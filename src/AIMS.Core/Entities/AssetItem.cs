@@ -56,7 +56,6 @@ public class AssetItem : BaseEntity
     [MaxLength(200)] public string? EquipmentCode { get; set; }
     [MaxLength(200)] public string? EquipmentDescription { get; set; }
     [MaxLength(200)] public string? EquipmentDesc { get; set; }
-    public int? EquipmentOrder { get; set; }
 
     [MaxLength(200)] public string? CivilAssetCode { get; set; }
     [MaxLength(200)] public string? CivilAssetDescription { get; set; }
@@ -78,6 +77,8 @@ public class AssetItem : BaseEntity
     [MaxLength(200)] public string? Area { get; set; }
     [MaxLength(200)] public string? Train { get; set; }
 
+    [MaxLength(250)] public string? Category { get; set; }
+
     public DateTime? DateOfInspection { get; set; }
     [MaxLength(200)] public string? Inspector { get; set; }
     [MaxLength(200)] public string? Condition { get; set; }
@@ -97,7 +98,18 @@ public class AssetItem : BaseEntity
     public Plant Plant { get; set; }
 
     public static string GenerateAssetId(
-        int? plantCode, string equipmentCode, int? equipmentOrder,
-        string civilAssetCode, int? civilAssetOrder) =>
-        $"{plantCode}{equipmentCode}-{equipmentOrder}/{civilAssetCode}-{civilAssetOrder}";
+        int? plantCode, string equipmentCode,
+        string civilAssetCode, int? civilAssetOrder, string? category = null)
+    {
+        const string equipCategory = "Equipment / Main Structure";
+        const string foundCategory = "Foundation / Supporting Structure";
+
+        if (string.Equals(category, equipCategory, StringComparison.OrdinalIgnoreCase))
+            return $"{plantCode}{equipmentCode}";
+
+        if (string.Equals(category, foundCategory, StringComparison.OrdinalIgnoreCase))
+            return $"{plantCode}{civilAssetCode}-{civilAssetOrder}-Q";
+
+        return $"{plantCode}{equipmentCode}/{civilAssetCode}-{civilAssetOrder}";
+    }
 }

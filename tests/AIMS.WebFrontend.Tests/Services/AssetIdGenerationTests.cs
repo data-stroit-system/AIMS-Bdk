@@ -11,15 +11,30 @@ public class AssetIdGenerationTests : IDisposable
     private AssetItemService CreateService() => new(_context, new SqliteTestDialect());
 
     [Theory]
-    [InlineData(20, "D", 4, "Q", 1, "20D-4/Q-1")]
-    [InlineData(31, "F", 1, "FDN", 2, "31F-1/FDN-2")]
-    [InlineData(null, "D", 4, "Q", 1, "D-4/Q-1")] // no plant → no numeric prefix
-    public void GenerateAssetId_FormatsPlantEquipmentAndCivilParts(
-        int? plantCode, string equipmentCode, int? equipmentOrder,
+    [InlineData(20, "D", "Q", 1, "20D/Q-1")]
+    [InlineData(31, "F", "FDN", 2, "31F/FDN-2")]
+    [InlineData(null, "D", "Q", 1, "D/Q-1")]
+    public void GenerateAssetId_FormatsPlantAndCivilParts(
+        int? plantCode, string equipmentCode,
         string civilAssetCode, int? civilAssetOrder, string expected)
     {
         var assetId = AssetItem.GenerateAssetId(
-            plantCode, equipmentCode, equipmentOrder, civilAssetCode, civilAssetOrder);
+            plantCode, equipmentCode, civilAssetCode, civilAssetOrder);
+
+        Assert.Equal(expected, assetId);
+    }
+
+    [Theory]
+    [InlineData(17, "D", "Q", 1, "17D")]
+    [InlineData(17, "F", "Q", 1, "17Q-1-Q")]
+    public void GenerateAssetId_RespectsCategory(
+        int? plantCode, string equipmentCode,
+        string civilAssetCode, int? civilAssetOrder, string expected)
+    {
+        var categories = new[] { "Equipment / Main Structure", "Foundation / Supporting Structure" };
+        var index = expected.EndsWith("-Q") ? 1 : 0;
+        var assetId = AssetItem.GenerateAssetId(
+            plantCode, equipmentCode, civilAssetCode, civilAssetOrder, categories[index]);
 
         Assert.Equal(expected, assetId);
     }
@@ -33,17 +48,16 @@ public class AssetIdGenerationTests : IDisposable
         {
             PlantId = 1,
             EquipmentCode = "D",
-            EquipmentOrder = 4,
             CivilAssetCode = "Q",
             CivilAssetOrder = 1
         };
 
         var id = await service.CreateAsync(item);
 
-        Assert.Equal("20D-4/Q-1", item.AssetId);
+        Assert.Equal("20D/Q-1", item.AssetId);
         var stored = await service.GetByIdAsync(id);
         Assert.NotNull(stored);
-        Assert.Equal("20D-4/Q-1", stored.AssetId);
+        Assert.Equal("20D/Q-1", stored.AssetId);
     }
 
     [Fact]
@@ -53,10 +67,9 @@ public class AssetIdGenerationTests : IDisposable
         var service = CreateService();
         var item = new AssetItem
         {
-            AssetId = "TAMPERED-TAG", // must never be accepted from client input
+            AssetId = "TAMPERED-TAG",
             PlantId = 1,
             EquipmentCode = "D",
-            EquipmentOrder = 4,
             CivilAssetCode = "Q",
             CivilAssetOrder = 1
         };
@@ -64,7 +77,7 @@ public class AssetIdGenerationTests : IDisposable
         var id = await service.CreateAsync(item);
 
         var stored = await service.GetByIdAsync(id);
-        Assert.Equal("20D-4/Q-1", stored!.AssetId);
+        Assert.Equal("20D/Q-1", stored!.AssetId);
     }
 
     [Fact]
@@ -77,18 +90,17 @@ public class AssetIdGenerationTests : IDisposable
         {
             PlantId = 1,
             EquipmentCode = "D",
-            EquipmentOrder = 4,
             CivilAssetCode = "Q",
             CivilAssetOrder = 1
         };
         var id = await service.CreateAsync(item);
 
         item.PlantId = 2;
-        item.EquipmentOrder = 7;
+        item.CivilAssetOrder = 7;
         await service.UpdateAsync(id, item);
 
         var stored = await service.GetByIdAsync(id);
-        Assert.Equal("31D-7/Q-1", stored!.AssetId);
+        Assert.Equal("31D/Q-7", stored!.AssetId);
     }
 
     public void Dispose() => _context.Dispose();

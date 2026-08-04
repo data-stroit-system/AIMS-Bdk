@@ -2,7 +2,7 @@
 @{
     var civilDesc = !string.IsNullOrEmpty(Model.CivilAssetDesc) ? Model.CivilAssetDesc
         : (Model.CivilAssetDescription ?? "Asset");
-    var equipRef = $"{Model.EquipmentCode}{Model.EquipmentOrder}".Trim();
+    var equipRef = $"{Model.EquipmentCode}".Trim();
 }
 <div class="sims-nameplate-card">
     <div class="sims-nameplate-logos">

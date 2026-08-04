@@ -89,16 +89,16 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         var plantCodes = conn.Query<(int Id, int? Code)>("SELECT Id, Code FROM Plants")
             .ToDictionary(p => p.Id, p => p.Code);
 
-        var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, int? EquipmentOrder, string? CivilAssetCode, int? CivilAssetOrder, string? AssetId)>(
-            "SELECT Id, PlantId, EquipmentCode, EquipmentOrder, CivilAssetCode, CivilAssetOrder, AssetId FROM AssetItems " +
+        var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, string? CivilAssetCode, int? CivilAssetOrder, string? AssetId, string? Category)>(
+            "SELECT Id, PlantId, EquipmentCode, CivilAssetCode, CivilAssetOrder, AssetId, Category FROM AssetItems " +
             "WHERE PlantId IS NOT NULL AND EquipmentCode IS NOT NULL AND CivilAssetCode IS NOT NULL");
 
         foreach (var item in items)
         {
             var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
             var generated = AssetItem.GenerateAssetId(
-                plantCode, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
-                item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder);
+                plantCode, item.EquipmentCode ?? string.Empty,
+                item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder, item.Category);
 
             if (generated != item.AssetId)
             {
@@ -216,7 +216,6 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 EquipmentCode       NVARCHAR2(200),
                 EquipmentDescription NVARCHAR2(200),
                 EquipmentDesc       NVARCHAR2(200),
-                EquipmentOrder      NUMBER(10,0),
                 CivilAssetCode      NVARCHAR2(200),
                 CivilAssetDescription NVARCHAR2(200),
                 CivilAssetDesc      NVARCHAR2(200),
@@ -251,7 +250,6 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (EquipmentCode NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (EquipmentDescription NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (EquipmentDesc NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
-        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (EquipmentOrder NUMBER(10,0))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (CivilAssetCode NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (CivilAssetDescription NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (CivilAssetDesc NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
@@ -267,6 +265,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Zone NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Area NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Train NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Category NVARCHAR2(250))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (DateOfInspection TIMESTAMP)'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Inspector NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (""Condition"" NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",

@@ -103,9 +103,7 @@
                         </tr>
                         <tr>
                             <td style="font-weight:600;background:#f9fafb;">Equipment Desc.</td>
-                            <td>@(item.EquipmentDesc ?? "-")</td>
-                            <td style="font-weight:600;background:#f9fafb;">Equipment Order</td>
-                            <td>@(item.EquipmentOrder?.ToString() ?? "-")</td>
+                            <td colspan="3">@(item.EquipmentDesc ?? "-")</td>
                         </tr>
                         <tr>
                             <td style="font-weight:600;background:#f9fafb;">Civil Asset Code</td>
@@ -119,6 +117,10 @@
                         <tr>
                             <td style="font-weight:600;background:#f9fafb;">Civil Asset Desc.</td>
                             <td>@(item.CivilAssetDesc ?? "-")</td>
+                            <td style="font-weight:600;background:#f9fafb;">Category</td>
+                            <td>@(item.Category ?? "-")</td>
+                        </tr>
+                        <tr>
                             <td style="font-weight:600;background:#f9fafb;">QR Code</td>
                             <td>
                                 <a href="@Url.Page("PrintTag", new { id = item.Id })" target="printTagPopup"
@@ -127,6 +129,8 @@
                                     <i class="fas fa-qrcode"></i> View QR Code
                                 </a>
                             </td>
+                            <td></td>
+                            <td></td>
                         </tr>
                     </tbody>
                 </table>

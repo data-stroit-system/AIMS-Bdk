@@ -84,16 +84,16 @@ public class DatabaseInitializer : ISchemaInitializer
         var plantCodes = conn.Query<(int Id, int? Code)>("SELECT Id, Code FROM Plants")
             .ToDictionary(p => p.Id, p => p.Code);
 
-        var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, int? EquipmentOrder, string? CivilAssetCode, int? CivilAssetOrder, string? AssetId)>(
-            "SELECT Id, PlantId, EquipmentCode, EquipmentOrder, CivilAssetCode, CivilAssetOrder, AssetId FROM AssetItems " +
+        var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, string? CivilAssetCode, int? CivilAssetOrder, string? AssetId, string? Category)>(
+            "SELECT Id, PlantId, EquipmentCode, CivilAssetCode, CivilAssetOrder, AssetId, Category FROM AssetItems " +
             "WHERE PlantId IS NOT NULL AND EquipmentCode IS NOT NULL AND CivilAssetCode IS NOT NULL");
 
         foreach (var item in items)
         {
             var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
             var generated = AssetItem.GenerateAssetId(
-                plantCode, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
-                item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder);
+                plantCode, item.EquipmentCode ?? string.Empty,
+                item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder, item.Category);
 
             if (generated != item.AssetId)
             {
@@ -187,7 +187,6 @@ CREATE TABLE AssetItems (
     EquipmentCode nvarchar(200) NULL,
     EquipmentDescription nvarchar(200) NULL,
     EquipmentDesc nvarchar(200) NULL,
-    EquipmentOrder int NULL,
     CivilAssetCode nvarchar(200) NULL,
     CivilAssetDescription nvarchar(200) NULL,
     CivilAssetDesc nvarchar(200) NULL,
@@ -223,8 +222,6 @@ IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Equipm
 ALTER TABLE AssetItems ADD EquipmentDescription nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentDesc') IS NULL
 ALTER TABLE AssetItems ADD EquipmentDesc nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentOrder') IS NULL
-ALTER TABLE AssetItems ADD EquipmentOrder int NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetCode') IS NULL
 ALTER TABLE AssetItems ADD CivilAssetCode nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetDescription') IS NULL
@@ -255,6 +252,8 @@ IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Area')
 ALTER TABLE AssetItems ADD Area nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Train') IS NULL
 ALTER TABLE AssetItems ADD Train nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Category') IS NULL
+ALTER TABLE AssetItems ADD Category nvarchar(250) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'DateOfInspection') IS NULL
 ALTER TABLE AssetItems ADD DateOfInspection datetime2 NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Inspector') IS NULL

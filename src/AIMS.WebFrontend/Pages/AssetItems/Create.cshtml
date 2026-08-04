@@ -79,13 +79,7 @@
                         <input asp-for="Input.EquipmentDesc" class="sims-form-control" placeholder="<Text>" />
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.EquipmentOrder" class="sims-form-label">Equipment Order</label>
-                        <input asp-for="Input.EquipmentOrder" type="number" class="sims-form-control" placeholder="<number>" />
-                    </div>
-                </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <div class="sims-form-group">
                         <label asp-for="Input.CivilAssetCode" class="sims-form-label">Civil Asset Code <span class="required">*</span></label>
                         <select asp-for="Input.CivilAssetCode" class="sims-form-control sims-form-select">
@@ -98,7 +92,7 @@
                         <span asp-validation-for="Input.CivilAssetCode" class="d-block mt-1 text-danger"></span>
                     </div>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <div class="sims-form-group">
                         <label asp-for="Input.CivilAssetOrder" class="sims-form-label">Civil Order</label>
                         <input asp-for="Input.CivilAssetOrder" type="number" class="sims-form-control" placeholder="<number>" />
@@ -119,6 +113,19 @@
                         <div>
                             <span class="sims-text-sm sims-text-muted">Available after the asset is saved</span>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Category" class="sims-form-label">Category</label>
+                        <select asp-for="Input.Category" class="sims-form-control sims-form-select">
+                            <option value="">&lt;Category selection&gt;</option>
+                            <option value="Equipment / Main Structure">Equipment / Main Structure</option>
+                            <option value="Foundation / Supporting Structure">Foundation / Supporting Structure</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -274,12 +281,20 @@
             function updateAssetId() {
                 var pc = $('#Input_PlantId option:selected').data('code') || '';
                 var ec = $('#Input_EquipmentCode').val() || '';
-                var eo = $('#Input_EquipmentOrder').val() || '';
                 var cc = $('#Input_CivilAssetCode').val() || '';
                 var co = $('#Input_CivilAssetOrder').val() || '';
-                $('#assetTagPreview').val(pc + ec + '-' + eo + '/' + cc + '-' + co);
+                var category = $('#Input_Category').val() || '';
+                var tag;
+                if (category === 'Equipment / Main Structure') {
+                    tag = pc + ec;
+                } else if (category === 'Foundation / Supporting Structure') {
+                    tag = pc + cc + '-' + co + '-Q';
+                } else {
+                    tag = pc + ec + '/' + cc + '-' + co;
+                }
+                $('#assetTagPreview').val(tag);
             }
-            $('#Input_PlantId, #Input_EquipmentCode, #Input_EquipmentOrder, #Input_CivilAssetCode, #Input_CivilAssetOrder').on('change input', updateAssetId);
+            $('#Input_PlantId, #Input_EquipmentCode, #Input_CivilAssetCode, #Input_CivilAssetOrder, #Input_Category').on('change input', updateAssetId);
             updateAssetId();
         });
     </script>

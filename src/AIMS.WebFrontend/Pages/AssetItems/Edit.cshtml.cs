@@ -55,7 +55,6 @@ public class EditModel : PageModel
             Title = assetItem.Title,
             EquipmentCode = assetItem.EquipmentCode,
             EquipmentDesc = assetItem.EquipmentDesc,
-            EquipmentOrder = assetItem.EquipmentOrder,
             CivilAssetCode = assetItem.CivilAssetCode,
             CivilAssetDesc = assetItem.CivilAssetDesc,
             CivilAssetOrder = assetItem.CivilAssetOrder,
@@ -69,7 +68,8 @@ public class EditModel : PageModel
             CoordinateE = assetItem.CoordinateE,
             Zone = assetItem.Zone,
             Area = assetItem.Area,
-            Train = assetItem.Train
+            Train = assetItem.Train,
+            Category = assetItem.Category
         };
 
         return Page();
@@ -113,7 +113,6 @@ public class EditModel : PageModel
             EquipmentCode = Input.EquipmentCode,
             EquipmentDescription = equipDesc,
             EquipmentDesc = Input.EquipmentDesc,
-            EquipmentOrder = Input.EquipmentOrder,
             CivilAssetCode = Input.CivilAssetCode,
             CivilAssetDescription = civilDesc,
             CivilAssetDesc = Input.CivilAssetDesc,
@@ -129,6 +128,7 @@ public class EditModel : PageModel
             Zone = Input.Zone,
             Area = Input.Area,
             Train = Input.Train,
+            Category = Input.Category,
             // Condition (GVI) & Inspection fields are owned by the dedicated Condition
             // tab (EditCondition.cshtml) — carry them over unchanged so this page's
             // full-row UPDATE doesn't clobber that data.
@@ -163,7 +163,6 @@ public class EditModel : PageModel
         [Required, StringLength(200)] public string EquipmentCode { get; set; } = string.Empty;
 
         [StringLength(200)] public string? EquipmentDesc { get; set; }
-        public int? EquipmentOrder { get; set; }
 
         [Required, StringLength(200)] public string CivilAssetCode { get; set; } = string.Empty;
 
@@ -184,6 +183,7 @@ public class EditModel : PageModel
         [StringLength(200)] public string? Zone { get; set; }
         [StringLength(200)] public string? Area { get; set; }
         [StringLength(200)] public string? Train { get; set; }
+        [StringLength(250)] public string? Category { get; set; }
 
         public IFormFile? Picture { get; set; }
     }

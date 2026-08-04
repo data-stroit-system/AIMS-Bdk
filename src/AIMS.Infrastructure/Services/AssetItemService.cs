@@ -28,12 +28,12 @@ public sealed class AssetItemService
 
     private string AllColumns => $@"
         Id, GisRefNo, AssetId, Title,
-        EquipmentCode, EquipmentDescription, EquipmentDesc, EquipmentOrder,
+        EquipmentCode, EquipmentDescription, EquipmentDesc,
         CivilAssetCode, CivilAssetDescription, CivilAssetDesc, CivilAssetOrder,
         {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)},
         CoordinateN, CoordinateE, Zone, Area, Train,
         DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)},
-        PicturePath,
+        Category, PicturePath,
         CreatedAt, CreatedBy, PlantId";
 
     public async Task<(List<AssetItem> Items, int TotalCount)> GetPagedAsync(
@@ -96,8 +96,8 @@ public sealed class AssetItemService
         }
 
         return AssetItem.GenerateAssetId(
-            plantCode, item.EquipmentCode ?? string.Empty, item.EquipmentOrder,
-            item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder);
+            plantCode, item.EquipmentCode ?? string.Empty,
+            item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder, item.Category);
     }
 
     public async Task<int> CreateAsync(AssetItem item)
@@ -110,28 +110,28 @@ public sealed class AssetItemService
         var id = _dialect.InsertAndGetId(conn,
             "AssetItems",
             $"GisRefNo, AssetId, Title, " +
-            "EquipmentCode, EquipmentDescription, EquipmentDesc, EquipmentOrder, " +
+            "EquipmentCode, EquipmentDescription, EquipmentDesc, " +
             "CivilAssetCode, CivilAssetDescription, CivilAssetDesc, CivilAssetOrder, " +
             $"{_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)}, " +
             "CoordinateN, CoordinateE, Zone, Area, Train, " +
             $"DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)}, " +
-            "PicturePath, CreatedAt, CreatedBy, PlantId",
+            $"Category, PicturePath, CreatedAt, CreatedBy, PlantId",
             "@GisRefNo, @AssetId, @Title, " +
-            "@EquipmentCode, @EquipmentDescription, @EquipmentDesc, @EquipmentOrder, " +
+            "@EquipmentCode, @EquipmentDescription, @EquipmentDesc, " +
             "@CivilAssetCode, @CivilAssetDescription, @CivilAssetDesc, @CivilAssetOrder, " +
             "@Function, @Material, @YearInstalled, @Owner, @Constrain, @Access, " +
             "@CoordinateN, @CoordinateE, @Zone, @Area, @Train, " +
             "@DateOfInspection, @Inspector, @Condition, @Comment, " +
-            "@PicturePath, @CreatedAt, @CreatedBy, @PlantId",
+            "@Category, @PicturePath, @CreatedAt, @CreatedBy, @PlantId",
             new
             {
                 item.GisRefNo, item.AssetId, item.Title,
-                item.EquipmentCode, item.EquipmentDescription, item.EquipmentDesc, item.EquipmentOrder,
+                item.EquipmentCode, item.EquipmentDescription, item.EquipmentDesc,
                 item.CivilAssetCode, item.CivilAssetDescription, item.CivilAssetDesc, item.CivilAssetOrder,
                 item.Function, item.Material, item.YearInstalled, item.Owner, item.Constrain, item.Access,
                 item.CoordinateN, item.CoordinateE, item.Zone, item.Area, item.Train,
                 item.DateOfInspection, item.Inspector, item.Condition, item.Comment,
-                item.PicturePath, item.CreatedAt, item.CreatedBy, item.PlantId
+                item.Category, item.PicturePath, item.CreatedAt, item.CreatedBy, item.PlantId
             });
         return id;
     }
@@ -145,7 +145,7 @@ public sealed class AssetItemService
             UPDATE AssetItems
             SET GisRefNo = @GisRefNo, AssetId = @AssetId, Title = @Title,
                 EquipmentCode = @EquipmentCode, EquipmentDescription = @EquipmentDescription,
-                EquipmentDesc = @EquipmentDesc, EquipmentOrder = @EquipmentOrder,
+                EquipmentDesc = @EquipmentDesc,
                 CivilAssetCode = @CivilAssetCode, CivilAssetDescription = @CivilAssetDescription,
                 CivilAssetDesc = @CivilAssetDesc, CivilAssetOrder = @CivilAssetOrder,
                 {_dialect.Quote(Fn)} = @Function, Material = @Material, YearInstalled = @YearInstalled,
@@ -154,7 +154,7 @@ public sealed class AssetItemService
                 Zone = @Zone, Area = @Area, Train = @Train,
                 DateOfInspection = @DateOfInspection, Inspector = @Inspector,
                 {_dialect.Quote(Cn)} = @Condition, {_dialect.Quote(Cm)} = @Comment,
-                PicturePath = @PicturePath, PlantId = @PlantId
+                Category = @Category, PicturePath = @PicturePath, PlantId = @PlantId
             WHERE Id = @Id";
 
         var parameters = new Dictionary<string, object?>
@@ -165,7 +165,6 @@ public sealed class AssetItemService
             { "EquipmentCode", updates.EquipmentCode },
             { "EquipmentDescription", updates.EquipmentDescription },
             { "EquipmentDesc", updates.EquipmentDesc },
-            { "EquipmentOrder", updates.EquipmentOrder },
             { "CivilAssetCode", updates.CivilAssetCode },
             { "CivilAssetDescription", updates.CivilAssetDescription },
             { "CivilAssetDesc", updates.CivilAssetDesc },
@@ -185,6 +184,7 @@ public sealed class AssetItemService
             { "Inspector", updates.Inspector },
             { "Condition", updates.Condition },
             { "Comment", updates.Comment },
+            { "Category", updates.Category },
             { "PicturePath", updates.PicturePath },
             { "PlantId", updates.PlantId },
             { "Id", id }

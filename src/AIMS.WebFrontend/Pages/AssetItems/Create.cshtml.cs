@@ -75,7 +75,6 @@ public class CreateModel : PageModel
             EquipmentCode = Input.EquipmentCode,
             EquipmentDescription = equipDesc,
             EquipmentDesc = Input.EquipmentDesc,
-            EquipmentOrder = Input.EquipmentOrder,
             CivilAssetCode = Input.CivilAssetCode,
             CivilAssetDescription = civilDesc,
             CivilAssetDesc = Input.CivilAssetDesc,
@@ -91,6 +90,7 @@ public class CreateModel : PageModel
             Zone = Input.Zone,
             Area = Input.Area,
             Train = Input.Train,
+            Category = Input.Category,
             DateOfInspection = Input.DateOfInspection,
             Inspector = Input.Inspector,
             Condition = Input.Condition,
@@ -124,7 +124,6 @@ public class CreateModel : PageModel
         [Required, StringLength(200)] public string EquipmentCode { get; set; } = string.Empty;
 
         [StringLength(200)] public string? EquipmentDesc { get; set; }
-        public int? EquipmentOrder { get; set; }
 
         [Required, StringLength(200)] public string CivilAssetCode { get; set; } = string.Empty;
 
@@ -145,6 +144,7 @@ public class CreateModel : PageModel
         [StringLength(200)] public string? Zone { get; set; }
         [StringLength(200)] public string? Area { get; set; }
         [StringLength(200)] public string? Train { get; set; }
+        [StringLength(250)] public string? Category { get; set; }
 
         public DateTime? DateOfInspection { get; set; }
         [StringLength(200)] public string? Inspector { get; set; }
