@@ -118,6 +118,14 @@ else
   log "nginx already installed."
 fi
 
+if ! command -v jq >/dev/null; then
+  log "Installing jq ..."
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq jq
+else
+  log "jq already installed."
+fi
+
 # ---------------------------------------------------------------------------
 # 4. System user (idempotent)
 # ---------------------------------------------------------------------------
@@ -152,6 +160,23 @@ if [[ ! -f "$SHARED_DIR/appsettings.Production.json" ]]; then
 JSON
   sudo chown "$APP_USER:$APP_USER" "$SHARED_DIR/appsettings.Production.json"
   sudo chmod 640 "$SHARED_DIR/appsettings.Production.json"
+fi
+
+# Upsert QgisServer section on every deploy so deploy.conf changes take
+# effect even when appsettings.Production.json already exists.
+if command -v jq >/dev/null; then
+  log "Upserting QgisServer section in appsettings.Production.json ..."
+  sudo cat "$SHARED_DIR/appsettings.Production.json" | jq \
+    --arg url "$QGIS_SERVER_URL" \
+    --arg project "$QGIS_MAP_PROJECT" \
+    '.QgisServer = {"ServerUrl": $url, "MapProject": $project}' \
+    | sudo tee "$SHARED_DIR/appsettings.Production.json.tmp" >/dev/null
+  sudo mv "$SHARED_DIR/appsettings.Production.json.tmp" "$SHARED_DIR/appsettings.Production.json"
+  sudo chown "$APP_USER:$APP_USER" "$SHARED_DIR/appsettings.Production.json"
+  sudo chmod 640 "$SHARED_DIR/appsettings.Production.json"
+else
+  log "jq not installed — QgisServer section not updated in appsettings.Production.json."
+  log "  Install with: sudo apt-get install -y jq"
 fi
 
 # ---------------------------------------------------------------------------
