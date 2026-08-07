@@ -115,3 +115,8 @@ The JS preview in `Create.cshtml`/`Edit.cshtml` mirrors this logic client-side, 
 ### Roles
 
 Three seeded roles — `Admin` (full access), `Manager` (user management + audit view), `User` (self-service) — enforced via Razor Pages `[Authorize(Roles=...)]`. The `Admin` role and the seeded `admin` account are protected from deletion/self-deletion in the Roles/Users pages. Beyond self-deletion, `Admin/Users/Index.cshtml.cs` and `Admin/Users/Roles.cshtml.cs` (hardened 2026-07-14) also refuse to delete/demote the seeded `admin` account specifically (by username) and refuse to remove the last remaining user holding the `Admin` role — either would otherwise lock everyone out of user/role management.
+
+## COPY Over the Orthophoto QGIS Project
+```
+scp -r .\OrthoProject1 root@159.223.33.82:/root/
+```
