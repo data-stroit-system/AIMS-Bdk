@@ -88,6 +88,7 @@ public class EditModel : PageModel
         if (!ModelState.IsValid) return Page();
 
         var picturePath = assetItem.PicturePath;
+        var newPictureSaved = false;
         if (Input.Picture != null && Input.Picture.Length > 0)
         {
             var (isValid, error) = _fileUpload.ValidatePicture(Input.Picture);
@@ -97,8 +98,9 @@ public class EditModel : PageModel
                 return Page();
             }
             picturePath = await _fileUpload.SaveAssetPictureAsync(Input.Picture, _env.WebRootPath);
-            if (!string.IsNullOrEmpty(assetItem.PicturePath))
-                _fileUpload.DeleteFile(assetItem.PicturePath, _env.WebRootPath);
+            newPictureSaved = true;
+            // The old picture is deliberately left in place until the update below
+            // succeeds — if the update is refused, no file is lost.
         }
 
         var equipDesc = EquipmentCode.GetDescription(Input.EquipmentCode);
@@ -140,7 +142,24 @@ public class EditModel : PageModel
             PlantId = Input.PlantId
         };
 
-        await _assetItemService.UpdateAsync(id, updates);
+        try
+        {
+            await _assetItemService.UpdateAsync(id, updates);
+        }
+        catch (DuplicateAssetIdException ex)
+        {
+            // The regenerated tag already belongs to another asset — discard the
+            // replacement picture staged above; the old one is still on disk and still
+            // referenced by the DB, so the form re-renders with no data lost.
+            if (newPictureSaved)
+                _fileUpload.DeleteFile(picturePath!, _env.WebRootPath);
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return Page();
+        }
+
+        // Update committed — only now is it safe to drop the superseded picture.
+        if (newPictureSaved && !string.IsNullOrEmpty(assetItem.PicturePath))
+            _fileUpload.DeleteFile(assetItem.PicturePath, _env.WebRootPath);
 
         await _activityLogger.LogActivityAsync(
             "AssetItemUpdated",

@@ -101,7 +101,20 @@ public class CreateModel : PageModel
             PlantId = Input.PlantId
         };
 
-        var newId = await _assetItemService.CreateAsync(item);
+        var newId = 0;
+        try
+        {
+            newId = await _assetItemService.CreateAsync(item);
+        }
+        catch (DuplicateAssetIdException ex)
+        {
+            // The tag already belongs to another asset — discard the picture that was
+            // staged for this never-created asset before re-rendering the form.
+            if (!string.IsNullOrEmpty(picturePath))
+                _fileUpload.DeleteFile(picturePath, _env.WebRootPath);
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return Page();
+        }
 
         await _activityLogger.LogActivityAsync(
             "AssetItemCreated",

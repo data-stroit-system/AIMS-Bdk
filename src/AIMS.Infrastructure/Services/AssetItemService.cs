@@ -100,10 +100,22 @@ public sealed class AssetItemService
             item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder, item.Category);
     }
 
+    private async Task EnsureAssetIdUniqueAsync(IDbConnection conn, string assetId, int? excludeId = null)
+    {
+        var exists = await conn.QuerySingleAsync<int>(
+            "SELECT COUNT(*) FROM AssetItems WHERE UPPER(AssetId) = UPPER(@AssetId)" +
+            (excludeId.HasValue ? " AND Id <> @ExcludeId" : string.Empty),
+            new { AssetId = assetId, ExcludeId = excludeId });
+
+        if (exists > 0)
+            throw new DuplicateAssetIdException(assetId);
+    }
+
     public async Task<int> CreateAsync(AssetItem item)
     {
         using var conn = _context.CreateConnection();
         item.AssetId = await GenerateAssetIdAsync(conn, item);
+        await EnsureAssetIdUniqueAsync(conn, item.AssetId);
 
         // Table name is created unquoted (uppercase on Oracle) — quoting it makes Oracle
         // look up a case-sensitive "AssetItems" and fail with ORA-00942.
@@ -140,6 +152,7 @@ public sealed class AssetItemService
     {
         using var conn = _context.CreateConnection();
         updates.AssetId = await GenerateAssetIdAsync(conn, updates);
+        await EnsureAssetIdUniqueAsync(conn, updates.AssetId, id);
 
         var sql = $@"
             UPDATE AssetItems
