@@ -3,18 +3,25 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace AIMS.WebFrontend.Pages.MapDemo;
 
-public class IndexModel(IHttpClientFactory httpClientFactory) : PageModel
+public class IndexModel(IHttpClientFactory httpClientFactory, IConfiguration configuration) : PageModel
 {
-    private const string QgisServer = "http://159.223.33.82/qgisserver";
-    private const string MapProject = "/home/qgis/projects/world.qgs";
+    public string QgisServerUrl { get; private set; } = string.Empty;
+    public string MapProject { get; private set; } = string.Empty;
 
-    public void OnGet() { }
+    public void OnGet()
+    {
+        QgisServerUrl = configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
+        MapProject = configuration["QgisServer:MapProject"] ?? "/home/deli/OrthoProject1/OrthoProject1.qgs";
+    }
 
     public async Task<IActionResult> OnGetFeatureInfoAsync(
         string layers, string bbox, int width, int height, int i, int j)
     {
-        var url = QgisServer
-            + $"?MAP={Uri.EscapeDataString(MapProject)}"
+        var serverUrl = configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
+        var mapProject = configuration["QgisServer:MapProject"] ?? "/home/deli/OrthoProject1/OrthoProject1.qgs";
+
+        var url = serverUrl
+            + $"?MAP={Uri.EscapeDataString(mapProject)}"
             + "&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo"
             + "&CRS=EPSG:4326"
             + "&INFO_FORMAT=text/plain"

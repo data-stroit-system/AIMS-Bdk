@@ -32,6 +32,10 @@ NGINX_CLIENT_MAX_BODY_SIZE="50m"
 CSPROJ_PATH="src/AIMS.WebFrontend/AIMS.WebFrontend.csproj"
 BUILD_CONFIGURATION="Release"
 
+# --- QGIS Server (injected into appsettings.Production.json by deploy.sh) ---
+QGIS_SERVER_URL="http://192.168.0.8/qgisserver"
+QGIS_MAP_PROJECT="/home/deli/OrthoProject1/OrthoProject1.qgs"
+
 # --- DB backup/restore (used by db_backup.sh only) ---
 BACKUP_DIR="$BASE_DIR/backups"   # where .dmp/.log files land
 KEEP_BACKUPS=7                   # how many backups to retain

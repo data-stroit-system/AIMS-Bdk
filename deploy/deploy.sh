@@ -50,6 +50,8 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 : "${NGINX_CLIENT_MAX_BODY_SIZE:=50m}"
 : "${CSPROJ_PATH:=src/AIMS.WebFrontend/AIMS.WebFrontend.csproj}"
 : "${BUILD_CONFIGURATION:=Release}"
+: "${QGIS_SERVER_URL:=http://192.168.0.8/qgisserver}"
+: "${QGIS_MAP_PROJECT:=/home/deli/OrthoProject1/OrthoProject1.qgs}"
 
 command -v dotnet >/dev/null || die "dotnet SDK not found on this machine."
 [[ $EUID -ne 0 ]] || die "Run this as your normal login user (it uses sudo itself), not as root."
@@ -138,6 +140,10 @@ if [[ ! -f "$SHARED_DIR/appsettings.Production.json" ]]; then
   log "Writing default $SHARED_DIR/appsettings.Production.json — EDIT THIS with the real Oracle password, then restart the service."
   sudo tee "$SHARED_DIR/appsettings.Production.json" >/dev/null <<JSON
 {
+  "QgisServer": {
+    "ServerUrl": "${QGIS_SERVER_URL}",
+    "MapProject": "${QGIS_MAP_PROJECT}"
+  },
   "DatabaseProvider": "Oracle",
   "ConnectionStrings": {
     "Oracle": "Data Source=192.168.0.8:1521/xe;User Id=aims;Password=del123;"
