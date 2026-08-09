@@ -70,26 +70,6 @@ public sealed class EquipmentCode
         All.FirstOrDefault(e => e.Code == code);
 }
 
-public sealed class CivilAssetCode
-{
-    public string Code { get; init; } = string.Empty;
-    public string Description { get; init; } = string.Empty;
-
-    public static readonly IReadOnlyList<CivilAssetCode> All =
-    [
-        new() { Code = "M", Description = "Structure" },
-        new() { Code = "Q", Description = "Foundation" },
-        new() { Code = "R", Description = "Buildings" },
-        new() { Code = "S", Description = "Site Improvement" },
-    ];
-
-    public static string? GetDescription(string code) =>
-        All.FirstOrDefault(c => c.Code == code)?.Description;
-
-    public static CivilAssetCode? Find(string code) =>
-        All.FirstOrDefault(c => c.Code == code);
-}
-
 public sealed class PlantCode
 {
     public int Code { get; init; }

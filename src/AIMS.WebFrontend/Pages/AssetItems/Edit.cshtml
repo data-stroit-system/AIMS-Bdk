@@ -74,35 +74,8 @@
                 </div>
                 <div class="col-md-3">
                     <div class="sims-form-group">
-                        <label asp-for="Input.EquipmentDesc" class="sims-form-label">Equipment Desc.</label>
-                        <input asp-for="Input.EquipmentDesc" class="sims-form-control" />
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.CivilAssetCode" class="sims-form-label">Civil Code <span class="required">*</span></label>
-                        <select asp-for="Input.CivilAssetCode" class="sims-form-control sims-form-select">
-                            @foreach (var cc in CivilAssetCode.All)
-                            {
-                                <option value="@cc.Code">@cc.Code - @cc.Description</option>
-                            }
-                        </select>
-                        <span asp-validation-for="Input.CivilAssetCode" class="d-block mt-1 text-danger"></span>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="sims-form-group">
                         <label asp-for="Input.CivilAssetOrder" class="sims-form-label">Civil Order</label>
                         <input asp-for="Input.CivilAssetOrder" type="number" class="sims-form-control" />
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <div class="sims-form-group">
-                        <label asp-for="Input.CivilAssetDesc" class="sims-form-label">Civil Asset Desc.</label>
-                        <input asp-for="Input.CivilAssetDesc" class="sims-form-control" />
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -258,20 +231,17 @@
             function updateAssetId() {
                 var pc = $('#Input_PlantId option:selected').data('code') || '';
                 var ec = $('#Input_EquipmentCode').val() || '';
-                var cc = $('#Input_CivilAssetCode').val() || '';
                 var co = $('#Input_CivilAssetOrder').val() || '';
                 var category = $('#Input_Category').val() || '';
                 var tag;
-                if (category === 'Equipment / Main Structure') {
-                    tag = pc + ec + '-' + co;
-                } else if (category === 'Foundation / Supporting Structure') {
-                    tag = pc + cc + '-' + co + '-Q';
+                if (category === 'Foundation / Supporting Structure') {
+                    tag = pc + ec + '-' + co + '-Q';
                 } else {
-                    tag = pc + ec + '/' + cc + '-' + co;
+                    tag = pc + ec + '-' + co;
                 }
                 $('#assetTagPreview').val(tag);
             }
-            $('#Input_PlantId, #Input_EquipmentCode, #Input_CivilAssetCode, #Input_CivilAssetOrder, #Input_Category').on('change input', updateAssetId);
+            $('#Input_PlantId, #Input_EquipmentCode, #Input_CivilAssetOrder, #Input_Category').on('change input', updateAssetId);
         });
     </script>
 }

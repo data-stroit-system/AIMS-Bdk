@@ -28,8 +28,7 @@ public sealed class AssetItemService
 
     private string AllColumns => $@"
         Id, GisRefNo, AssetId, Title,
-        EquipmentCode, EquipmentDescription, EquipmentDesc,
-        CivilAssetCode, CivilAssetDescription, CivilAssetDesc, CivilAssetOrder,
+        EquipmentCode, EquipmentDescription, CivilAssetOrder,
         {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)},
         CoordinateN, CoordinateE, Zone, Area, Train,
         DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)},
@@ -46,7 +45,7 @@ public sealed class AssetItemService
         {
             // UPPER() on both sides makes the search case-insensitive on every
             // provider — Oracle compares LIKE case-sensitively by default.
-            where.Append(@" AND (UPPER(Title) LIKE UPPER(@Search) ESCAPE '\' OR UPPER(AssetId) LIKE UPPER(@Search) ESCAPE '\' OR UPPER(EquipmentDesc) LIKE UPPER(@Search) ESCAPE '\' OR UPPER(CivilAssetDesc) LIKE UPPER(@Search) ESCAPE '\')");
+            where.Append(@" AND (UPPER(Title) LIKE UPPER(@Search) ESCAPE '\' OR UPPER(AssetId) LIKE UPPER(@Search) ESCAPE '\')");
             p.Add("Search", $"%{_dialect.EscapeLike(searchTerm)}%");
         }
         if (!string.IsNullOrEmpty(conditionFilter))
@@ -97,7 +96,7 @@ public sealed class AssetItemService
 
         return AssetItem.GenerateAssetId(
             plantCode, item.EquipmentCode ?? string.Empty,
-            item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder, item.Category);
+            item.CivilAssetOrder, item.Category);
     }
 
     private async Task EnsureAssetIdUniqueAsync(IDbConnection conn, string assetId, int? excludeId = null)
@@ -122,15 +121,13 @@ public sealed class AssetItemService
         var id = _dialect.InsertAndGetId(conn,
             "AssetItems",
             $"GisRefNo, AssetId, Title, " +
-            "EquipmentCode, EquipmentDescription, EquipmentDesc, " +
-            "CivilAssetCode, CivilAssetDescription, CivilAssetDesc, CivilAssetOrder, " +
+            "EquipmentCode, EquipmentDescription, CivilAssetOrder, " +
             $"{_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)}, " +
             "CoordinateN, CoordinateE, Zone, Area, Train, " +
             $"DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)}, " +
             $"Category, PicturePath, CreatedAt, CreatedBy, PlantId",
             "@GisRefNo, @AssetId, @Title, " +
-            "@EquipmentCode, @EquipmentDescription, @EquipmentDesc, " +
-            "@CivilAssetCode, @CivilAssetDescription, @CivilAssetDesc, @CivilAssetOrder, " +
+            "@EquipmentCode, @EquipmentDescription, @CivilAssetOrder, " +
             "@Function, @Material, @YearInstalled, @Owner, @Constrain, @Access, " +
             "@CoordinateN, @CoordinateE, @Zone, @Area, @Train, " +
             "@DateOfInspection, @Inspector, @Condition, @Comment, " +
@@ -138,8 +135,7 @@ public sealed class AssetItemService
             new
             {
                 item.GisRefNo, item.AssetId, item.Title,
-                item.EquipmentCode, item.EquipmentDescription, item.EquipmentDesc,
-                item.CivilAssetCode, item.CivilAssetDescription, item.CivilAssetDesc, item.CivilAssetOrder,
+                item.EquipmentCode, item.EquipmentDescription, item.CivilAssetOrder,
                 item.Function, item.Material, item.YearInstalled, item.Owner, item.Constrain, item.Access,
                 item.CoordinateN, item.CoordinateE, item.Zone, item.Area, item.Train,
                 item.DateOfInspection, item.Inspector, item.Condition, item.Comment,
@@ -158,9 +154,7 @@ public sealed class AssetItemService
             UPDATE AssetItems
             SET GisRefNo = @GisRefNo, AssetId = @AssetId, Title = @Title,
                 EquipmentCode = @EquipmentCode, EquipmentDescription = @EquipmentDescription,
-                EquipmentDesc = @EquipmentDesc,
-                CivilAssetCode = @CivilAssetCode, CivilAssetDescription = @CivilAssetDescription,
-                CivilAssetDesc = @CivilAssetDesc, CivilAssetOrder = @CivilAssetOrder,
+                CivilAssetOrder = @CivilAssetOrder,
                 {_dialect.Quote(Fn)} = @Function, Material = @Material, YearInstalled = @YearInstalled,
                 {_dialect.Quote(Ow)} = @Owner, Constrain = @Constrain, {_dialect.Quote(Ac)} = @Access,
                 CoordinateN = @CoordinateN, CoordinateE = @CoordinateE,
@@ -177,10 +171,6 @@ public sealed class AssetItemService
             { "Title", updates.Title },
             { "EquipmentCode", updates.EquipmentCode },
             { "EquipmentDescription", updates.EquipmentDescription },
-            { "EquipmentDesc", updates.EquipmentDesc },
-            { "CivilAssetCode", updates.CivilAssetCode },
-            { "CivilAssetDescription", updates.CivilAssetDescription },
-            { "CivilAssetDesc", updates.CivilAssetDesc },
             { "CivilAssetOrder", updates.CivilAssetOrder },
             { "Function", updates.Function },
             { "Material", updates.Material },

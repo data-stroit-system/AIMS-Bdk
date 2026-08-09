@@ -55,11 +55,7 @@ public class AssetItem : BaseEntity
 
     [MaxLength(200)] public string? EquipmentCode { get; set; }
     [MaxLength(200)] public string? EquipmentDescription { get; set; }
-    [MaxLength(200)] public string? EquipmentDesc { get; set; }
 
-    [MaxLength(200)] public string? CivilAssetCode { get; set; }
-    [MaxLength(200)] public string? CivilAssetDescription { get; set; }
-    [MaxLength(200)] public string? CivilAssetDesc { get; set; }
     public int? CivilAssetOrder { get; set; }
 
     [MaxLength(200)] public string? Function { get; set; }
@@ -99,17 +95,13 @@ public class AssetItem : BaseEntity
 
     public static string GenerateAssetId(
         int? plantCode, string equipmentCode,
-        string civilAssetCode, int? civilAssetOrder, string? category = null)
+        int? civilAssetOrder, string? category = null)
     {
-        const string equipCategory = "Equipment / Main Structure";
         const string foundCategory = "Foundation / Supporting Structure";
 
-        if (string.Equals(category, equipCategory, StringComparison.OrdinalIgnoreCase))
-            return $"{plantCode}{equipmentCode}-{civilAssetOrder}";
-
         if (string.Equals(category, foundCategory, StringComparison.OrdinalIgnoreCase))
-            return $"{plantCode}{civilAssetCode}-{civilAssetOrder}-Q";
+            return $"{plantCode}{equipmentCode}-{civilAssetOrder}-Q";
 
-        return $"{plantCode}{equipmentCode}/{civilAssetCode}-{civilAssetOrder}";
+        return $"{plantCode}{equipmentCode}-{civilAssetOrder}";
     }
 }

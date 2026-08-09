@@ -36,7 +36,6 @@ public class EditModel : PageModel
     public int AssetItemId { get; set; }
 
     public List<EquipmentCode> EquipmentCodes => EquipmentCode.All.ToList();
-    public List<CivilAssetCode> CivilAssetCodes => CivilAssetCode.All.ToList();
     public List<Plant> Plants { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync(int id)
@@ -54,9 +53,6 @@ public class EditModel : PageModel
             GisRefNo = assetItem.GisRefNo,
             Title = assetItem.Title,
             EquipmentCode = assetItem.EquipmentCode,
-            EquipmentDesc = assetItem.EquipmentDesc,
-            CivilAssetCode = assetItem.CivilAssetCode,
-            CivilAssetDesc = assetItem.CivilAssetDesc,
             CivilAssetOrder = assetItem.CivilAssetOrder,
             Function = assetItem.Function,
             Material = assetItem.Material,
@@ -104,20 +100,15 @@ public class EditModel : PageModel
         }
 
         var equipDesc = EquipmentCode.GetDescription(Input.EquipmentCode);
-        var civilDesc = CivilAssetCode.GetDescription(Input.CivilAssetCode);
 
         // AssetId (Asset Tag No.) is regenerated server-side by AssetItemService from
-        // Plant/Equipment/Civil codes — it is never accepted as client input.
+        // Plant/Equipment codes — it is never accepted as client input.
         var updates = new AssetItem
         {
             GisRefNo = Input.GisRefNo,
             Title = Input.Title,
             EquipmentCode = Input.EquipmentCode,
             EquipmentDescription = equipDesc,
-            EquipmentDesc = Input.EquipmentDesc,
-            CivilAssetCode = Input.CivilAssetCode,
-            CivilAssetDescription = civilDesc,
-            CivilAssetDesc = Input.CivilAssetDesc,
             CivilAssetOrder = Input.CivilAssetOrder,
             Function = Input.Function,
             Material = Input.Material,
@@ -181,11 +172,6 @@ public class EditModel : PageModel
 
         [Required, StringLength(200)] public string EquipmentCode { get; set; } = string.Empty;
 
-        [StringLength(200)] public string? EquipmentDesc { get; set; }
-
-        [Required, StringLength(200)] public string CivilAssetCode { get; set; } = string.Empty;
-
-        [StringLength(200)] public string? CivilAssetDesc { get; set; }
         public int? CivilAssetOrder { get; set; }
 
         [StringLength(200)] public string? Function { get; set; }

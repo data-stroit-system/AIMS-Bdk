@@ -31,7 +31,6 @@ public class CreateModel : PageModel
     public CreateAssetItemInput Input { get; set; } = new();
 
     public List<EquipmentCode> EquipmentCodes => EquipmentCode.All.ToList();
-    public List<CivilAssetCode> CivilAssetCodes => CivilAssetCode.All.ToList();
     public List<Plant> Plants { get; set; } = new();
 
     public async Task OnGetAsync(int? plantId)
@@ -64,20 +63,15 @@ public class CreateModel : PageModel
         }
 
         var equipDesc = EquipmentCode.GetDescription(Input.EquipmentCode);
-        var civilDesc = CivilAssetCode.GetDescription(Input.CivilAssetCode);
 
         // AssetId (Asset Tag No.) is generated server-side by AssetItemService from
-        // Plant/Equipment/Civil codes — it is never accepted as client input.
+        // Plant/Equipment codes — it is never accepted as client input.
         var item = new AssetItem
         {
             GisRefNo = Input.GisRefNo,
             Title = Input.Title,
             EquipmentCode = Input.EquipmentCode,
             EquipmentDescription = equipDesc,
-            EquipmentDesc = Input.EquipmentDesc,
-            CivilAssetCode = Input.CivilAssetCode,
-            CivilAssetDescription = civilDesc,
-            CivilAssetDesc = Input.CivilAssetDesc,
             CivilAssetOrder = Input.CivilAssetOrder,
             Function = Input.Function,
             Material = Input.Material,
@@ -136,11 +130,6 @@ public class CreateModel : PageModel
 
         [Required, StringLength(200)] public string EquipmentCode { get; set; } = string.Empty;
 
-        [StringLength(200)] public string? EquipmentDesc { get; set; }
-
-        [Required, StringLength(200)] public string CivilAssetCode { get; set; } = string.Empty;
-
-        [StringLength(200)] public string? CivilAssetDesc { get; set; }
         public int? CivilAssetOrder { get; set; }
 
         [StringLength(200)] public string? Function { get; set; }

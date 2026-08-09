@@ -48,7 +48,7 @@ public class DatabaseInitializer : ISchemaInitializer
     /// </summary>
     private static void DropLegacyAssetItemColumns(IDbConnection conn)
     {
-        foreach (var column in new[] { "Description", "Type", "Location", "Priority", "QrCode" })
+        foreach (var column in new[] { "Description", "Type", "Location", "Priority", "QrCode", "EquipmentDesc", "CivilAssetCode", "CivilAssetDescription", "CivilAssetDesc" })
         {
             var exists = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', '{column}')") != null;
             if (exists)
@@ -84,16 +84,16 @@ public class DatabaseInitializer : ISchemaInitializer
         var plantCodes = conn.Query<(int Id, int? Code)>("SELECT Id, Code FROM Plants")
             .ToDictionary(p => p.Id, p => p.Code);
 
-        var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, string? CivilAssetCode, int? CivilAssetOrder, string? AssetId, string? Category)>(
-            "SELECT Id, PlantId, EquipmentCode, CivilAssetCode, CivilAssetOrder, AssetId, Category FROM AssetItems " +
-            "WHERE PlantId IS NOT NULL AND EquipmentCode IS NOT NULL AND CivilAssetCode IS NOT NULL");
+        var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, int? CivilAssetOrder, string? AssetId, string? Category)>(
+            "SELECT Id, PlantId, EquipmentCode, CivilAssetOrder, AssetId, Category FROM AssetItems " +
+            "WHERE PlantId IS NOT NULL AND EquipmentCode IS NOT NULL");
 
         foreach (var item in items)
         {
             var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
             var generated = AssetItem.GenerateAssetId(
                 plantCode, item.EquipmentCode ?? string.Empty,
-                item.CivilAssetCode ?? string.Empty, item.CivilAssetOrder, item.Category);
+                item.CivilAssetOrder, item.Category);
 
             if (generated != item.AssetId)
             {
@@ -186,10 +186,6 @@ CREATE TABLE AssetItems (
     Title nvarchar(200) NULL,
     EquipmentCode nvarchar(200) NULL,
     EquipmentDescription nvarchar(200) NULL,
-    EquipmentDesc nvarchar(200) NULL,
-    CivilAssetCode nvarchar(200) NULL,
-    CivilAssetDescription nvarchar(200) NULL,
-    CivilAssetDesc nvarchar(200) NULL,
     CivilAssetOrder int NULL,
     [Function] nvarchar(200) NULL,
     Material nvarchar(200) NULL,
@@ -220,14 +216,6 @@ IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Equipm
 ALTER TABLE AssetItems ADD EquipmentCode nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentDescription') IS NULL
 ALTER TABLE AssetItems ADD EquipmentDescription nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentDesc') IS NULL
-ALTER TABLE AssetItems ADD EquipmentDesc nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetCode') IS NULL
-ALTER TABLE AssetItems ADD CivilAssetCode nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetDescription') IS NULL
-ALTER TABLE AssetItems ADD CivilAssetDescription nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetDesc') IS NULL
-ALTER TABLE AssetItems ADD CivilAssetDesc nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetOrder') IS NULL
 ALTER TABLE AssetItems ADD CivilAssetOrder int NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Function') IS NULL

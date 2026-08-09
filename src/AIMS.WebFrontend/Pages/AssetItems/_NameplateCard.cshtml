@@ -1,8 +1,7 @@
 @model AIMS.Core.Entities.AssetItem
 @{
-    var civilDesc = !string.IsNullOrEmpty(Model.CivilAssetDesc) ? Model.CivilAssetDesc
-        : (Model.CivilAssetDescription ?? "Asset");
     var equipRef = $"{Model.EquipmentCode}".Trim();
+    var equipDesc = Model.EquipmentDescription ?? Model.Title ?? "Asset";
 }
 <div class="sims-nameplate-card">
     <div class="sims-nameplate-logos">
@@ -13,8 +12,8 @@
     <img id="nameplateQr" class="sims-nameplate-qr" data-src="@Url.Page("QrCode", new { id = Model.Id })"
          alt="QR code for @Model.AssetId" />
 
-    
-    <h4>@civilDesc</h4>
+
+    <h4>@equipDesc</h4>
     <div class="sims-nameplate-sub">for @equipRef</div>
     <div class="sims-nameplate-tagno">Tag no.: @Model.AssetId</div>
 
