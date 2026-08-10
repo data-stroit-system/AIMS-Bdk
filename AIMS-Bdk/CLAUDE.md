@@ -87,7 +87,7 @@ Oracle uses `:Name` bind params while Dapper/SQL Server code is written with `@N
 `AssetItem.AssetId` (the human-facing tag) is **always computed server-side** via `AssetItem.GenerateAssetId(plantCode, assetCode, civilAssetCode, assetOrder, category)`, called from `AssetItemService.CreateAsync`/`UpdateAsync`. It is never a bound/editable form field — the UI shows a read-only, JS-live-updated preview instead. Keep this generation logic out of any new form input binding.
 
 **Category-based formula (2026-08-04):** The tag format depends on `AssetItem.Category`:
-- `"Equipment / Main Structure"` → `{plantCode}{assetCode}` (e.g. `17D`)
+- `"Equipment / Main Structure"` → `{plantCode}{assetCode}-{assetOrder}` (e.g. `17D-1`)
 - `"Foundation / Supporting Structure"` → `{plantCode}{civilAssetCode}-{assetOrder}-Q` (e.g. `17D-1-Q`)
 - `null`/other → legacy combined format `{plantCode}{assetCode}/{civilAssetCode}-{assetOrder}` (e.g. `17D/4-2`)
 
@@ -115,3 +115,8 @@ The JS preview in `Create.cshtml`/`Edit.cshtml` mirrors this logic client-side, 
 ### Roles
 
 Three seeded roles — `Admin` (full access), `Manager` (user management + audit view), `User` (self-service) — enforced via Razor Pages `[Authorize(Roles=...)]`. The `Admin` role and the seeded `admin` account are protected from deletion/self-deletion in the Roles/Users pages. Beyond self-deletion, `Admin/Users/Index.cshtml.cs` and `Admin/Users/Roles.cshtml.cs` (hardened 2026-07-14) also refuse to delete/demote the seeded `admin` account specifically (by username) and refuse to remove the last remaining user holding the `Admin` role — either would otherwise lock everyone out of user/role management.
+
+## COPY Over the Orthophoto QGIS Project
+```
+scp -r .\OrthoProject1 root@159.223.33.82:/root/
+```
