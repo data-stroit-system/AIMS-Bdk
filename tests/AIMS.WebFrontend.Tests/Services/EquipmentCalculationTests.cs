@@ -5,10 +5,10 @@ using Autofac;
 
 namespace AIMS.WebFrontend.Tests.Services;
 
-public class EquipmentCalculationResolverTests
+public class AssetCalculationResolverTests
 {
-    private static EquipmentCalculationResolver CreateResolver() =>
-        new([new TankCalculation(), new PressureVesselCalculation(), new DefaultEquipmentCalculation()]);
+    private static AssetCalculationResolver CreateResolver() =>
+        new([new TankCalculation(), new PressureVesselCalculation(), new DefaultAssetCalculation()]);
 
     [Fact]
     public void Resolve_TankCode_ReturnsTankCalculation()
@@ -23,15 +23,15 @@ public class EquipmentCalculationResolverTests
     {
         var resolver = CreateResolver();
 
-        Assert.IsType<DefaultEquipmentCalculation>(resolver.Resolve("ZZ"));
-        Assert.IsType<DefaultEquipmentCalculation>(resolver.Resolve(null));
+        Assert.IsType<DefaultAssetCalculation>(resolver.Resolve("ZZ"));
+        Assert.IsType<DefaultAssetCalculation>(resolver.Resolve(null));
     }
 
     [Fact]
     public void Constructor_WithoutFallback_Throws()
     {
         Assert.Throws<InvalidOperationException>(
-            () => new EquipmentCalculationResolver([new TankCalculation()]));
+            () => new AssetCalculationResolver([new TankCalculation()]));
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class EquipmentCalculationResolverTests
     {
         var resolver = CreateResolver();
         var inspected = new DateTime(2026, 1, 1);
-        var item = new AssetItem { EquipmentCode = "D", DateOfInspection = inspected };
+        var item = new AssetItem { AssetCode = "D", DateOfInspection = inspected };
 
         var result = resolver.Calculate(item);
 
@@ -50,7 +50,7 @@ public class EquipmentCalculationResolverTests
     [Fact]
     public void Calculate_NeverInspected_HasNoDueDate()
     {
-        var result = CreateResolver().Calculate(new AssetItem { EquipmentCode = "D" });
+        var result = CreateResolver().Calculate(new AssetItem { AssetCode = "D" });
 
         Assert.Null(result.NextInspectionDue);
     }
@@ -63,7 +63,7 @@ public class ConditionAdjustedCalculationTests
     {
         var decorated = new ConditionAdjustedCalculation(new TankCalculation());
         var inspected = new DateTime(2026, 1, 1);
-        var item = new AssetItem { EquipmentCode = "D", Condition = "Poor", DateOfInspection = inspected };
+        var item = new AssetItem { AssetCode = "D", Condition = "Poor", DateOfInspection = inspected };
 
         var result = decorated.Calculate(item);
 
@@ -119,12 +119,12 @@ public class CalculationsModuleTests
     {
         using var container = BuildContainer();
 
-        var resolver = container.Resolve<IEquipmentCalculationResolver>();
+        var resolver = container.Resolve<IAssetCalculationResolver>();
 
         // One strategy per code from the scan; unknown falls back.
-        Assert.Equal("D", resolver.Resolve("D").EquipmentCode);
-        Assert.Equal("C", resolver.Resolve("C").EquipmentCode);
-        Assert.Equal(string.Empty, resolver.Resolve("ZZ").EquipmentCode);
+        Assert.Equal("D", resolver.Resolve("D").AssetCode);
+        Assert.Equal("C", resolver.Resolve("C").AssetCode);
+        Assert.Equal(string.Empty, resolver.Resolve("ZZ").AssetCode);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public class CalculationsModuleTests
     {
         using var container = BuildContainer();
 
-        var strategies = container.Resolve<IEnumerable<IEquipmentCalculation>>().ToList();
+        var strategies = container.Resolve<IEnumerable<IAssetCalculation>>().ToList();
 
         Assert.NotEmpty(strategies);
         Assert.All(strategies, s => Assert.IsType<ConditionAdjustedCalculation>(s));
@@ -142,9 +142,9 @@ public class CalculationsModuleTests
     public void DecoratorIsApplied_PoorTankGetsHalvedInterval_ThroughContainer()
     {
         using var container = BuildContainer();
-        var resolver = container.Resolve<IEquipmentCalculationResolver>();
+        var resolver = container.Resolve<IAssetCalculationResolver>();
 
-        var result = resolver.Calculate(new AssetItem { EquipmentCode = "D", Condition = "Poor" });
+        var result = resolver.Calculate(new AssetItem { AssetCode = "D", Condition = "Poor" });
 
         Assert.Equal(2, result.InspectionIntervalYears);
     }

@@ -21,6 +21,8 @@ public class DatabaseInitializer : ISchemaInitializer
         MigratePlantCodeToInt(conn);
         BackfillPlantIdFromLegacyColumn(conn);
         MigrateLegacyIntegrityStatus(conn);
+        MigrateAssetCodeAndOrder(conn);
+        MigrateAssetOrderToText(conn);
         DropLegacyAssetItemColumns(conn);
         RegenerateAssetIds(conn);
         BackfillDocumentType(conn);
@@ -43,12 +45,45 @@ public class DatabaseInitializer : ISchemaInitializer
     }
 
     /// <summary>
+    /// Backfills the renamed AssetCode and AssetOrder columns from their legacy
+    /// EquipmentCode / CivilAssetOrder predecessors, then drops the old columns.
+    /// Safe to run on every startup.
+    /// </summary>
+    private static void MigrateAssetCodeAndOrder(IDbConnection conn)
+    {
+        var hasEquipmentCode = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', 'EquipmentCode')") != null;
+        if (hasEquipmentCode)
+        {
+            conn.Execute("UPDATE AssetItems SET AssetCode = EquipmentCode WHERE AssetCode IS NULL AND EquipmentCode IS NOT NULL");
+        }
+
+        var hasCivilAssetOrder = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', 'CivilAssetOrder')") != null;
+        if (hasCivilAssetOrder)
+        {
+            conn.Execute("UPDATE AssetItems SET AssetOrder = CivilAssetOrder WHERE AssetOrder IS NULL AND CivilAssetOrder IS NOT NULL");
+        }
+    }
+
+    /// <summary>
+    /// Converts AssetItems.AssetOrder from its original int to nvarchar(200) so alphanumeric
+    /// order values are supported. No-op once already nvarchar. Safe to run on every startup.
+    /// </summary>
+    private static void MigrateAssetOrderToText(IDbConnection conn)
+    {
+        var currentType = conn.ExecuteScalar<string?>(
+            "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssetItems' AND COLUMN_NAME = 'AssetOrder'");
+        if (currentType == null || currentType == "nvarchar") return;
+
+        conn.Execute("ALTER TABLE AssetItems ALTER COLUMN AssetOrder nvarchar(200) NULL");
+    }
+
+    /// <summary>
     /// Drops the unused legacy Description/Type/Location/Priority/QrCode columns from AssetItems.
     /// Safe to run on every startup.
     /// </summary>
     private static void DropLegacyAssetItemColumns(IDbConnection conn)
     {
-        foreach (var column in new[] { "Description", "Type", "Location", "Priority", "QrCode", "EquipmentDesc", "CivilAssetCode", "CivilAssetDescription", "CivilAssetDesc" })
+        foreach (var column in new[] { "Description", "Type", "Location", "Priority", "QrCode", "EquipmentDesc", "CivilAssetCode", "CivilAssetDescription", "CivilAssetDesc", "EquipmentCode", "CivilAssetOrder" })
         {
             var exists = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', '{column}')") != null;
             if (exists)
@@ -84,16 +119,16 @@ public class DatabaseInitializer : ISchemaInitializer
         var plantCodes = conn.Query<(int Id, int? Code)>("SELECT Id, Code FROM Plants")
             .ToDictionary(p => p.Id, p => p.Code);
 
-        var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, int? CivilAssetOrder, string? AssetId, string? Category)>(
-            "SELECT Id, PlantId, EquipmentCode, CivilAssetOrder, AssetId, Category FROM AssetItems " +
-            "WHERE PlantId IS NOT NULL AND EquipmentCode IS NOT NULL");
+        var items = conn.Query<(int Id, int? PlantId, string? AssetCode, string? AssetOrder, string? AssetId, string? Category)>(
+            "SELECT Id, PlantId, AssetCode, AssetOrder, AssetId, Category FROM AssetItems " +
+            "WHERE PlantId IS NOT NULL AND AssetCode IS NOT NULL");
 
         foreach (var item in items)
         {
             var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
             var generated = AssetItem.GenerateAssetId(
-                plantCode, item.EquipmentCode ?? string.Empty,
-                item.CivilAssetOrder, item.Category);
+                plantCode, item.AssetCode ?? string.Empty,
+                item.AssetOrder, item.Category);
 
             if (generated != item.AssetId)
             {
@@ -184,9 +219,9 @@ CREATE TABLE AssetItems (
     GisRefNo nvarchar(200) NULL,
     AssetId nvarchar(max) NULL,
     Title nvarchar(200) NULL,
-    EquipmentCode nvarchar(200) NULL,
+    AssetCode nvarchar(200) NULL,
     EquipmentDescription nvarchar(200) NULL,
-    CivilAssetOrder int NULL,
+    AssetOrder nvarchar(200) NULL,
     [Function] nvarchar(200) NULL,
     Material nvarchar(200) NULL,
     YearInstalled int NULL,
@@ -212,12 +247,12 @@ CREATE TABLE AssetItems (
 -- Add new columns for existing tables (idempotent)
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'GisRefNo') IS NULL
 ALTER TABLE AssetItems ADD GisRefNo nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentCode') IS NULL
-ALTER TABLE AssetItems ADD EquipmentCode nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'AssetCode') IS NULL
+ALTER TABLE AssetItems ADD AssetCode nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentDescription') IS NULL
 ALTER TABLE AssetItems ADD EquipmentDescription nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CivilAssetOrder') IS NULL
-ALTER TABLE AssetItems ADD CivilAssetOrder int NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'AssetOrder') IS NULL
+ALTER TABLE AssetItems ADD AssetOrder nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Function') IS NULL
 ALTER TABLE AssetItems ADD [Function] nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Material') IS NULL

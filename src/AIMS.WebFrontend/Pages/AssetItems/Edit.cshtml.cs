@@ -35,7 +35,7 @@ public class EditModel : PageModel
     public string? CurrentPicturePath { get; set; }
     public int AssetItemId { get; set; }
 
-    public List<EquipmentCode> EquipmentCodes => EquipmentCode.All.ToList();
+    public List<AssetCode> AssetCodes => AssetCode.All.ToList();
     public List<Plant> Plants { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync(int id)
@@ -52,8 +52,8 @@ public class EditModel : PageModel
             PlantId = assetItem.PlantId,
             GisRefNo = assetItem.GisRefNo,
             Title = assetItem.Title,
-            EquipmentCode = assetItem.EquipmentCode,
-            CivilAssetOrder = assetItem.CivilAssetOrder,
+            AssetCode = assetItem.AssetCode,
+            AssetOrder = assetItem.AssetOrder,
             Function = assetItem.Function,
             Material = assetItem.Material,
             YearInstalled = assetItem.YearInstalled,
@@ -99,7 +99,7 @@ public class EditModel : PageModel
             // succeeds — if the update is refused, no file is lost.
         }
 
-        var equipDesc = EquipmentCode.GetDescription(Input.EquipmentCode);
+        var equipDesc = AssetCode.GetDescription(Input.AssetCode);
 
         // AssetId (Asset Tag No.) is regenerated server-side by AssetItemService from
         // Plant/Equipment codes — it is never accepted as client input.
@@ -107,9 +107,9 @@ public class EditModel : PageModel
         {
             GisRefNo = Input.GisRefNo,
             Title = Input.Title,
-            EquipmentCode = Input.EquipmentCode,
+            AssetCode = Input.AssetCode,
             EquipmentDescription = equipDesc,
-            CivilAssetOrder = Input.CivilAssetOrder,
+            AssetOrder = Input.AssetOrder,
             Function = Input.Function,
             Material = Input.Material,
             YearInstalled = Input.YearInstalled,
@@ -145,6 +145,8 @@ public class EditModel : PageModel
             if (newPictureSaved)
                 _fileUpload.DeleteFile(picturePath!, _env.WebRootPath);
             ModelState.AddModelError(string.Empty, ex.Message);
+            // Show the conflicting newly-computed tag, not the old persisted one.
+            CurrentAssetId = ex.AssetId;
             return Page();
         }
 
@@ -170,9 +172,9 @@ public class EditModel : PageModel
 
         [Required, StringLength(200)] public string Title { get; set; } = string.Empty;
 
-        [Required, StringLength(200)] public string EquipmentCode { get; set; } = string.Empty;
+        [Required, StringLength(200)] public string AssetCode { get; set; } = string.Empty;
 
-        public int? CivilAssetOrder { get; set; }
+        [StringLength(200)] public string? AssetOrder { get; set; }
 
         [StringLength(200)] public string? Function { get; set; }
         [StringLength(200)] public string? Material { get; set; }

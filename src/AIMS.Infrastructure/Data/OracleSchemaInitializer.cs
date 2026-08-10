@@ -24,6 +24,8 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         MigratePlantCodeToInt(conn);
         BackfillPlantIdFromLegacyColumn(conn);
         MigrateLegacyIntegrityStatus(conn);
+        MigrateAssetCodeAndOrder(conn);
+        MigrateAssetOrderToText(conn);
         DropLegacyAssetItemColumns(conn);
         RegenerateAssetIds(conn);
         BackfillDocumentType(conn);
@@ -46,12 +48,48 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
     }
 
     /// <summary>
+    /// Backfills the renamed AssetCode and AssetOrder columns from their legacy
+    /// EquipmentCode / CivilAssetOrder predecessors, then drops the old columns.
+    /// Safe to run on every startup.
+    /// </summary>
+    private static void MigrateAssetCodeAndOrder(IDbConnection conn)
+    {
+        var hasEquipmentCode = conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'EQUIPMENTCODE'") > 0;
+        if (hasEquipmentCode)
+        {
+            conn.Execute("UPDATE AssetItems SET AssetCode = EquipmentCode WHERE AssetCode IS NULL AND EquipmentCode IS NOT NULL");
+        }
+
+        var hasCivilAssetOrder = conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'CIVILASSETORDER'") > 0;
+        if (hasCivilAssetOrder)
+        {
+            conn.Execute("UPDATE AssetItems SET AssetOrder = CivilAssetOrder WHERE AssetOrder IS NULL AND CivilAssetOrder IS NOT NULL");
+        }
+    }
+
+    /// <summary>
+    /// Converts AssetItems.AssetOrder from its original NUMBER to NVARCHAR2(200) so alphanumeric
+    /// order values are supported. Oracle permits this MODIFY for a NUMBER column holding data
+    /// (implicit conversion to text). No-op once already NVARCHAR2. Safe to run on every startup.
+    /// </summary>
+    private static void MigrateAssetOrderToText(IDbConnection conn)
+    {
+        var dataType = conn.ExecuteScalar<string?>(
+            "SELECT DATA_TYPE FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'ASSETORDER'");
+        if (dataType == null || dataType == "NVARCHAR2") return;
+
+        conn.Execute("ALTER TABLE AssetItems MODIFY (AssetOrder NVARCHAR2(200))");
+    }
+
+    /// <summary>
     /// Drops the unused legacy Description/Type/Location/Priority/QrCode columns from AssetItems.
     /// Safe to run on every startup.
     /// </summary>
     private static void DropLegacyAssetItemColumns(IDbConnection conn)
     {
-        foreach (var column in new[] { "DESCRIPTION", "TYPE", "LOCATION", "PRIORITY", "QRCODE", "EQUIPMENTDESC", "CIVILASSETCODE", "CIVILASSETDESCRIPTION", "CIVILASSETDESC" })
+        foreach (var column in new[] { "DESCRIPTION", "TYPE", "LOCATION", "PRIORITY", "QRCODE", "EQUIPMENTDESC", "CIVILASSETCODE", "CIVILASSETDESCRIPTION", "CIVILASSETDESC", "EQUIPMENTCODE", "CIVILASSETORDER" })
         {
             var exists = conn.ExecuteScalar<int>(
                 $"SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = '{column}'") > 0;
@@ -89,16 +127,16 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         var plantCodes = conn.Query<(int Id, int? Code)>("SELECT Id, Code FROM Plants")
             .ToDictionary(p => p.Id, p => p.Code);
 
-        var items = conn.Query<(int Id, int? PlantId, string? EquipmentCode, int? CivilAssetOrder, string? AssetId, string? Category)>(
-            "SELECT Id, PlantId, EquipmentCode, CivilAssetOrder, AssetId, Category FROM AssetItems " +
-            "WHERE PlantId IS NOT NULL AND EquipmentCode IS NOT NULL");
+        var items = conn.Query<(int Id, int? PlantId, string? AssetCode, string? AssetOrder, string? AssetId, string? Category)>(
+            "SELECT Id, PlantId, AssetCode, AssetOrder, AssetId, Category FROM AssetItems " +
+            "WHERE PlantId IS NOT NULL AND AssetCode IS NOT NULL");
 
         foreach (var item in items)
         {
             var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
             var generated = AssetItem.GenerateAssetId(
-                plantCode, item.EquipmentCode ?? string.Empty,
-                item.CivilAssetOrder, item.Category);
+                plantCode, item.AssetCode ?? string.Empty,
+                item.AssetOrder, item.Category);
 
             if (generated != item.AssetId)
             {
@@ -213,9 +251,9 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 GisRefNo            NVARCHAR2(200),
                 AssetId             VARCHAR2(4000),
                 Title               NVARCHAR2(200),
-                EquipmentCode       NVARCHAR2(200),
+                AssetCode       NVARCHAR2(200),
                 EquipmentDescription NVARCHAR2(200),
-                CivilAssetOrder     NUMBER(10,0),
+                AssetOrder     NVARCHAR2(200),
                 ""Function""        NVARCHAR2(200),
                 Material            NVARCHAR2(200),
                 YearInstalled       NUMBER(10,0),
@@ -243,9 +281,9 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
 
         // Add new columns to existing AssetItems table (for upgrades)
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (GisRefNo NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
-        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (EquipmentCode NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (AssetCode NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (EquipmentDescription NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
-        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (CivilAssetOrder NUMBER(10,0))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (AssetOrder NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (""Function"" NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Material NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (YearInstalled NUMBER(10,0))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",

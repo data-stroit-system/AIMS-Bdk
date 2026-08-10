@@ -3,12 +3,12 @@ using System.Linq;
 
 namespace AIMS.Core.Entities;
 
-public sealed class EquipmentCode
+public sealed class AssetCode
 {
     public string Code { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
 
-    public static readonly IReadOnlyList<EquipmentCode> All =
+    public static readonly IReadOnlyList<AssetCode> All =
     [
         new() { Code = "A",  Description = "General" },
         new() { Code = "B",  Description = "Process" },
@@ -66,7 +66,7 @@ public sealed class EquipmentCode
     public static string? GetDescription(string code) =>
         All.FirstOrDefault(e => e.Code == code)?.Description;
 
-    public static EquipmentCode? Find(string code) =>
+    public static AssetCode? Find(string code) =>
         All.FirstOrDefault(e => e.Code == code);
 }
 

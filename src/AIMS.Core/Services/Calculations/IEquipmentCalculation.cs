@@ -4,26 +4,26 @@ using System;
 namespace AIMS.Core.Services.Calculations;
 
 /// <summary>
-/// Per-EquipmentCode calculation strategy. Each equipment type (Tanks, Pressure
+/// Per-AssetCode calculation strategy. Each equipment type (Tanks, Pressure
 /// Vessels, ...) can supply its own implementation of the calculated fields; add a
 /// new implementation in this namespace and it is picked up automatically by the
 /// Autofac assembly scan in AIMS.Infrastructure (CalculationsModule) — no explicit
 /// registration needed. Cross-cutting rules are layered on top as decorators (see
 /// <see cref="ConditionAdjustedCalculation"/>).
 /// </summary>
-public interface IEquipmentCalculation
+public interface IAssetCalculation
 {
     /// <summary>
-    /// The <see cref="Entities.EquipmentCode"/>.Code this strategy applies to
+    /// The <see cref="Entities.AssetCode"/>.Code this strategy applies to
     /// (e.g. "D" = Tanks). Empty string marks the fallback used for codes without
     /// a dedicated implementation.
     /// </summary>
-    string EquipmentCode { get; }
+    string AssetCode { get; }
 
-    EquipmentCalculationResult Calculate(AssetItem item);
+    AssetCalculationResult Calculate(AssetItem item);
 }
 
-public sealed class EquipmentCalculationResult
+public sealed class AssetCalculationResult
 {
     /// <summary>How often this equipment type should get a GVI, in years.</summary>
     public int InspectionIntervalYears { get; init; }

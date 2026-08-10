@@ -5,45 +5,45 @@ using System.Collections.Generic;
 namespace AIMS.Core.Services.Calculations;
 
 /// <summary>
-/// Picks the <see cref="IEquipmentCalculation"/> for an asset's EquipmentCode,
-/// falling back to <see cref="DefaultEquipmentCalculation"/> (empty code) when no
+/// Picks the <see cref="IAssetCalculation"/> for an asset's AssetCode,
+/// falling back to <see cref="DefaultAssetCalculation"/> (empty code) when no
 /// dedicated strategy exists. The injected collection comes from Autofac's
 /// assembly scan, already wrapped in any registered decorators.
 /// </summary>
-public interface IEquipmentCalculationResolver
+public interface IAssetCalculationResolver
 {
-    IEquipmentCalculation Resolve(string? equipmentCode);
+    IAssetCalculation Resolve(string? assetCode);
 
-    EquipmentCalculationResult Calculate(AssetItem item);
+    AssetCalculationResult Calculate(AssetItem item);
 }
 
-public sealed class EquipmentCalculationResolver : IEquipmentCalculationResolver
+public sealed class AssetCalculationResolver : IAssetCalculationResolver
 {
-    private readonly Dictionary<string, IEquipmentCalculation> _byCode;
-    private readonly IEquipmentCalculation _fallback;
+    private readonly Dictionary<string, IAssetCalculation> _byCode;
+    private readonly IAssetCalculation _fallback;
 
-    public EquipmentCalculationResolver(IEnumerable<IEquipmentCalculation> calculations)
+    public AssetCalculationResolver(IEnumerable<IAssetCalculation> calculations)
     {
-        _byCode = new Dictionary<string, IEquipmentCalculation>(StringComparer.OrdinalIgnoreCase);
+        _byCode = new Dictionary<string, IAssetCalculation>(StringComparer.OrdinalIgnoreCase);
         foreach (var calculation in calculations)
         {
             // Last registration wins on duplicates, mirroring Autofac's default.
-            _byCode[calculation.EquipmentCode] = calculation;
+            _byCode[calculation.AssetCode] = calculation;
         }
 
         if (!_byCode.TryGetValue(string.Empty, out var fallback))
         {
             throw new InvalidOperationException(
-                $"No fallback {nameof(IEquipmentCalculation)} registered (implementation with an empty EquipmentCode).");
+                $"No fallback {nameof(IAssetCalculation)} registered (implementation with an empty AssetCode).");
         }
         _fallback = fallback;
     }
 
-    public IEquipmentCalculation Resolve(string? equipmentCode) =>
-        equipmentCode != null && _byCode.TryGetValue(equipmentCode, out var calculation)
+    public IAssetCalculation Resolve(string? assetCode) =>
+        assetCode != null && _byCode.TryGetValue(assetCode, out var calculation)
             ? calculation
             : _fallback;
 
-    public EquipmentCalculationResult Calculate(AssetItem item) =>
-        Resolve(item.EquipmentCode).Calculate(item);
+    public AssetCalculationResult Calculate(AssetItem item) =>
+        Resolve(item.AssetCode).Calculate(item);
 }

@@ -53,10 +53,10 @@ public class AssetItem : BaseEntity
 
     [MaxLength(200)] public string? Title { get; set; }
 
-    [MaxLength(200)] public string? EquipmentCode { get; set; }
+    [MaxLength(200)] public string? AssetCode { get; set; }
     [MaxLength(200)] public string? EquipmentDescription { get; set; }
 
-    public int? CivilAssetOrder { get; set; }
+    [MaxLength(200)] public string? AssetOrder { get; set; }
 
     [MaxLength(200)] public string? Function { get; set; }
     [MaxLength(200)] public string? Material { get; set; }
@@ -94,14 +94,14 @@ public class AssetItem : BaseEntity
     public Plant Plant { get; set; }
 
     public static string GenerateAssetId(
-        int? plantCode, string equipmentCode,
-        int? civilAssetOrder, string? category = null)
+        int? plantCode, string assetCode,
+        string? assetOrder, string? category = null)
     {
         const string foundCategory = "Foundation / Supporting Structure";
 
         if (string.Equals(category, foundCategory, StringComparison.OrdinalIgnoreCase))
-            return $"{plantCode}{equipmentCode}-{civilAssetOrder}-Q";
+            return $"{plantCode}{assetCode}-{assetOrder}-Q";
 
-        return $"{plantCode}{equipmentCode}-{civilAssetOrder}";
+        return $"{plantCode}{assetCode}-{assetOrder}";
     }
 }

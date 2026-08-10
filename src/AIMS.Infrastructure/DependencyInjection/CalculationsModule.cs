@@ -5,9 +5,9 @@ using Module = Autofac.Module;
 namespace AIMS.Infrastructure.DependencyInjection;
 
 /// <summary>
-/// Autofac wiring for the per-EquipmentCode calculation strategies in AIMS.Core.
+/// Autofac wiring for the per-AssetCode calculation strategies in AIMS.Core.
 ///
-/// - Assembly-scans AIMS.Core for <see cref="IEquipmentCalculation"/> implementations,
+/// - Assembly-scans AIMS.Core for <see cref="IAssetCalculation"/> implementations,
 ///   so adding a new equipment type calculation (e.g. HeatExchangerCalculation) in
 ///   Core is all that's needed — no registration edits here.
 /// - Applies <see cref="ConditionAdjustedCalculation"/> as a decorator over every
@@ -22,18 +22,18 @@ public sealed class CalculationsModule : Module
 {
     protected override void Load(ContainerBuilder builder)
     {
-        var coreAssembly = typeof(IEquipmentCalculation).Assembly;
+        var coreAssembly = typeof(IAssetCalculation).Assembly;
 
         builder.RegisterAssemblyTypes(coreAssembly)
-            .Where(t => typeof(IEquipmentCalculation).IsAssignableFrom(t))
+            .Where(t => typeof(IAssetCalculation).IsAssignableFrom(t))
             .Except<ConditionAdjustedCalculation>()
-            .As<IEquipmentCalculation>()
+            .As<IAssetCalculation>()
             .SingleInstance(); // strategies are stateless
 
-        builder.RegisterDecorator<ConditionAdjustedCalculation, IEquipmentCalculation>();
+        builder.RegisterDecorator<ConditionAdjustedCalculation, IAssetCalculation>();
 
-        builder.RegisterType<EquipmentCalculationResolver>()
-            .As<IEquipmentCalculationResolver>()
+        builder.RegisterType<AssetCalculationResolver>()
+            .As<IAssetCalculationResolver>()
             .SingleInstance();
     }
 }

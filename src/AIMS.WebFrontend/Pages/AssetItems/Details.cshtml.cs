@@ -18,9 +18,9 @@ public class DetailsModel : PageModel
     private readonly IActivityLogger _activityLogger;
     private readonly IWebHostEnvironment _env;
     private readonly FileUploadHelper _fileUpload;
-    private readonly IEquipmentCalculationResolver _calculationResolver;
+    private readonly IAssetCalculationResolver _calculationResolver;
 
-    public DetailsModel(AssetItemService assetItemService, PlantService plantService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload, IEquipmentCalculationResolver calculationResolver)
+    public DetailsModel(AssetItemService assetItemService, PlantService plantService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload, IAssetCalculationResolver calculationResolver)
     {
         _assetItemService = assetItemService;
         _plantService = plantService;
@@ -33,7 +33,7 @@ public class DetailsModel : PageModel
     public AssetItem AssetItem { get; set; } = null!;
     public Plant? Plant { get; set; }
     public List<AssetItemDocuments> Documents { get; set; } = new();
-    public EquipmentCalculationResult? Calculation { get; set; }
+    public AssetCalculationResult? Calculation { get; set; }
     public string ActiveTab { get; set; } = "register";
 
     [BindProperty]

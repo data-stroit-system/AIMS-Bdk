@@ -11,30 +11,30 @@ public class AssetIdGenerationTests : IDisposable
     private AssetItemService CreateService() => new(_context, new SqliteTestDialect());
 
     [Theory]
-    [InlineData(20, "D", 1, "20D-1")]
-    [InlineData(31, "F", 2, "31F-2")]
-    [InlineData(null, "D", 1, "D-1")]
+    [InlineData(20, "D", "1", "20D-1")]
+    [InlineData(31, "F", "2", "31F-2")]
+    [InlineData(null, "D", "1", "D-1")]
     public void GenerateAssetId_FormatsPlantAndCivilParts(
-        int? plantCode, string equipmentCode,
-        int? civilAssetOrder, string expected)
+        int? plantCode, string assetCode,
+        string? assetOrder, string expected)
     {
         var assetId = AssetItem.GenerateAssetId(
-            plantCode, equipmentCode, civilAssetOrder);
+            plantCode, assetCode, assetOrder);
 
         Assert.Equal(expected, assetId);
     }
 
     [Theory]
-    [InlineData(17, "D", 1, "17D-1")]
-    [InlineData(17, "F", 1, "17F-1-Q")]
+    [InlineData(17, "D", "1", "17D-1")]
+    [InlineData(17, "F", "1", "17F-1-Q")]
     public void GenerateAssetId_RespectsCategory(
-        int? plantCode, string equipmentCode,
-        int? civilAssetOrder, string expected)
+        int? plantCode, string assetCode,
+        string? assetOrder, string expected)
     {
         var categories = new[] { "Equipment / Main Structure", "Foundation / Supporting Structure" };
         var index = expected.EndsWith("-Q") ? 1 : 0;
         var assetId = AssetItem.GenerateAssetId(
-            plantCode, equipmentCode, civilAssetOrder, categories[index]);
+            plantCode, assetCode, assetOrder, categories[index]);
 
         Assert.Equal(expected, assetId);
     }
@@ -47,8 +47,8 @@ public class AssetIdGenerationTests : IDisposable
         var item = new AssetItem
         {
             PlantId = 1,
-            EquipmentCode = "D",
-            CivilAssetOrder = 1
+            AssetCode = "D",
+            AssetOrder = "1"
         };
 
         var id = await service.CreateAsync(item);
@@ -68,8 +68,8 @@ public class AssetIdGenerationTests : IDisposable
         {
             AssetId = "TAMPERED-TAG",
             PlantId = 1,
-            EquipmentCode = "D",
-            CivilAssetOrder = 1
+            AssetCode = "D",
+            AssetOrder = "1"
         };
 
         var id = await service.CreateAsync(item);
@@ -87,13 +87,13 @@ public class AssetIdGenerationTests : IDisposable
         var item = new AssetItem
         {
             PlantId = 1,
-            EquipmentCode = "D",
-            CivilAssetOrder = 1
+            AssetCode = "D",
+            AssetOrder = "1"
         };
         var id = await service.CreateAsync(item);
 
         item.PlantId = 2;
-        item.CivilAssetOrder = 7;
+        item.AssetOrder = "7";
         await service.UpdateAsync(id, item);
 
         var stored = await service.GetByIdAsync(id);
@@ -109,8 +109,8 @@ public class AssetIdGenerationTests : IDisposable
         var item = new AssetItem
         {
             PlantId = 1,
-            EquipmentCode = "D",
-            CivilAssetOrder = 1
+            AssetCode = "D",
+            AssetOrder = "1"
         };
 
         var ex = await Assert.ThrowsAsync<DuplicateAssetIdException>(
@@ -128,13 +128,13 @@ public class AssetIdGenerationTests : IDisposable
         var item = new AssetItem
         {
             PlantId = 1,
-            EquipmentCode = "D",
-            CivilAssetOrder = 1
+            AssetCode = "D",
+            AssetOrder = "1"
         };
         var id = await service.CreateAsync(item);
         _context.AddAsset("20D-2", plantId: 1, condition: null);
 
-        item.CivilAssetOrder = 2;
+        item.AssetOrder = "2";
         var ex = await Assert.ThrowsAsync<DuplicateAssetIdException>(
             () => service.UpdateAsync(id, item));
 
@@ -149,8 +149,8 @@ public class AssetIdGenerationTests : IDisposable
         var item = new AssetItem
         {
             PlantId = 1,
-            EquipmentCode = "D",
-            CivilAssetOrder = 1
+            AssetCode = "D",
+            AssetOrder = "1"
         };
         var id = await service.CreateAsync(item);
 

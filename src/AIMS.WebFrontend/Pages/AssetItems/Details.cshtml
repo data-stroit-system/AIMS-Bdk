@@ -95,15 +95,15 @@
                                 <span class="sims-badge sims-badge-sky">@Model.Plant?.Code</span>
                                 @Model.Plant?.Description
                             </td>
-                            <td style="font-weight:600;background:#f9fafb;">Equipment Code</td>
+                            <td style="font-weight:600;background:#f9fafb;">Asset Code</td>
                             <td>
-                                <span class="sims-badge sims-badge-gray">@item.EquipmentCode</span>
+                                <span class="sims-badge sims-badge-gray">@item.AssetCode</span>
                                 @item.EquipmentDescription
                             </td>
                         </tr>
                         <tr>
-                            <td style="font-weight:600;background:#f9fafb;">Civil Asset Order</td>
-                            <td>@(item.CivilAssetOrder?.ToString() ?? "-")</td>
+                            <td style="font-weight:600;background:#f9fafb;">Asset Order</td>
+                            <td>@(item.AssetOrder?.ToString() ?? "-")</td>
                             <td style="font-weight:600;background:#f9fafb;">Category</td>
                             <td>@(item.Category ?? "-")</td>
                         </tr>

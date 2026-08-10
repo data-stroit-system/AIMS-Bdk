@@ -62,21 +62,21 @@
             <div class="row g-3">
                 <div class="col-md-3">
                     <div class="sims-form-group">
-                        <label asp-for="Input.EquipmentCode" class="sims-form-label">Equipment Code <span class="required">*</span></label>
-                        <select asp-for="Input.EquipmentCode" class="sims-form-control sims-form-select">
-                            <option value="">&lt;Equipment code selection&gt;</option>
-                            @foreach (var ec in EquipmentCode.All)
+                        <label asp-for="Input.AssetCode" class="sims-form-label">Asset Code <span class="required">*</span></label>
+                        <select asp-for="Input.AssetCode" class="sims-form-control sims-form-select">
+                            <option value="">&lt;Asset code selection&gt;</option>
+                            @foreach (var ac in AssetCode.All)
                             {
-                                <option value="@ec.Code">@ec.Code - @ec.Description</option>
+                                <option value="@ac.Code">@ac.Code - @ac.Description</option>
                             }
                         </select>
-                        <span asp-validation-for="Input.EquipmentCode" class="d-block mt-1 text-danger"></span>
+                        <span asp-validation-for="Input.AssetCode" class="d-block mt-1 text-danger"></span>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="sims-form-group">
-                        <label asp-for="Input.CivilAssetOrder" class="sims-form-label">Civil Order</label>
-                        <input asp-for="Input.CivilAssetOrder" type="number" class="sims-form-control" placeholder="<number>" />
+                        <label asp-for="Input.AssetOrder" class="sims-form-label">Asset Order</label>
+                        <input asp-for="Input.AssetOrder" class="sims-form-control" placeholder="<text>" />
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -252,18 +252,18 @@
         $(function() {
             function updateAssetId() {
                 var pc = $('#Input_PlantId option:selected').data('code') || '';
-                var ec = $('#Input_EquipmentCode').val() || '';
-                var co = $('#Input_CivilAssetOrder').val() || '';
+                var ac = $('#Input_AssetCode').val() || '';
+                var ao = $('#Input_AssetOrder').val() || '';
                 var category = $('#Input_Category').val() || '';
                 var tag;
                 if (category === 'Foundation / Supporting Structure') {
-                    tag = pc + ec + '-' + co + '-Q';
+                    tag = pc + ac + '-' + ao + '-Q';
                 } else {
-                    tag = pc + ec + '-' + co;
+                    tag = pc + ac + '-' + ao;
                 }
                 $('#assetTagPreview').val(tag);
             }
-            $('#Input_PlantId, #Input_EquipmentCode, #Input_CivilAssetOrder, #Input_Category').on('change input', updateAssetId);
+            $('#Input_PlantId, #Input_AssetCode, #Input_AssetOrder, #Input_Category').on('change input', updateAssetId);
             updateAssetId();
         });
     </script>
