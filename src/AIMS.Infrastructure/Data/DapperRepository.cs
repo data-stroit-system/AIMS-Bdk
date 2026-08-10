@@ -23,7 +23,7 @@ public class DapperRepository : IRepository
     {
         using var conn = _context.CreateConnection();
         return conn.QuerySingleOrDefault<T>(
-            $"SELECT * FROM {_dialect.Quote(TableName<T>())} WHERE Id = @Id", new { Id = id });
+            $"SELECT * FROM {_dialect.Quote(TableName<T>())} WHERE Id = @Id", new { Id = id })!;
     }
 
     public List<T> List<T>() where T : BaseEntity

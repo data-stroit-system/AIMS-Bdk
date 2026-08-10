@@ -90,7 +90,7 @@ public class EditModel : PageModel
         }
 
         existingRole.Name = Input.Name;
-        existingRole.Description = Input.Description;
+        existingRole.Description = Input.Description ?? string.Empty;
 
         var result = await _roleManager.UpdateAsync(existingRole);
 

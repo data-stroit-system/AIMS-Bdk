@@ -34,7 +34,7 @@ public class CreateModel : PageModel
         {
             Code = Input.Code,
             Name = Input.Name,
-            Description = Input.Description
+            Description = Input.Description ?? string.Empty
         });
 
         await _activityLogger.LogActivityAsync(

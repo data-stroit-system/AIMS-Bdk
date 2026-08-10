@@ -1,4 +1,5 @@
-﻿using AIMS.SharedKernel;
+﻿#nullable enable
+using AIMS.SharedKernel;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -8,17 +9,17 @@ namespace AIMS.Core.Entities;
 public class AssetItemDocuments : BaseEntity
 {
     [MaxLength(250)]
-    public string DocumentTitle { get; set; }
+    public string DocumentTitle { get; set; } = string.Empty;
     [MaxLength(500)]
-    public string FilePath { get; set; }
+    public string FilePath { get; set; } = string.Empty;
     /// <summary>DocumentTypeCode.Picture or DocumentTypeCode.Document.</summary>
     [MaxLength(20)]
     public string? DocumentType { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [MaxLength(200)]
-    public string CreatedBy { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
 
-    public AssetItem AssetItem { get; set; }
+    public AssetItem AssetItem { get; set; } = null!;
 }
 
 /// <summary>Distinguishes picture uploads (jpg/png) from general document uploads (pdf/doc/etc.) within AssetItemDocuments.</summary>
@@ -31,19 +32,19 @@ public static class DocumentTypeCode
 public class AssetItemRemarks : BaseEntity
 {
     [MaxLength(250)]
-    public string Description { get; set; }
+    public string Description { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [MaxLength(200)]
-    public string CreatedBy { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
 
-    public AssetItem AssetItem { get; set; }
+    public AssetItem AssetItem { get; set; } = null!;
 }
 public class Plant : BaseEntity
 {
     public int? Code { get; set; }
-    [MaxLength(200)] public string Name { get; set; }
-    [MaxLength(200)] public string Description { get; set; }
-    public List<AssetItem> AssetItems { get; set; }
+    [MaxLength(200)] public string Name { get; set; } = string.Empty;
+    [MaxLength(200)] public string Description { get; set; } = string.Empty;
+    public List<AssetItem> AssetItems { get; set; } = null!;
 }
 public class AssetItem : BaseEntity
 {
@@ -83,15 +84,15 @@ public class AssetItem : BaseEntity
     [MaxLength(500)]
     public string? PicturePath { get; set; }
 
-    public List<AssetItemRemarks> AssetItemRemarks { get; set; }
-    public List<AssetItemDocuments> AssetItemDocuments { get; set; }
+    public List<AssetItemRemarks> AssetItemRemarks { get; set; } = null!;
+    public List<AssetItemDocuments> AssetItemDocuments { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [MaxLength(200)]
     public string? CreatedBy { get; set; }
 
     public int? PlantId { get; set; }
-    public Plant Plant { get; set; }
+    public Plant Plant { get; set; } = null!;
 
     public static string GenerateAssetId(
         int? plantCode, string assetCode,

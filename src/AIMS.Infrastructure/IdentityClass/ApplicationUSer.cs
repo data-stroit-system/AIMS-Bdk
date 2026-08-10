@@ -11,15 +11,15 @@ namespace AIMS.Infrastructure.IdentityClass
     public class ApplicationUser : IdentityUser
     {
         [MaxLength(250)]
-        public string FullName { get; set; }
+        public string FullName { get; set; } = string.Empty;
         [MaxLength(250)]
-        public string JobTitle { get; set; }
+        public string JobTitle { get; set; } = string.Empty;
 
     }
 
     public class ApplicationRole : IdentityRole
     {
         [MaxLength(250)]
-        public string Description { get; set; }
+        public string Description { get; set; } = string.Empty;
     }
 }

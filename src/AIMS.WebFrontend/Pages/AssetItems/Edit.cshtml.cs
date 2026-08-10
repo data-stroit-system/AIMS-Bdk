@@ -51,8 +51,8 @@ public class EditModel : PageModel
         {
             PlantId = assetItem.PlantId,
             GisRefNo = assetItem.GisRefNo,
-            Title = assetItem.Title,
-            AssetCode = assetItem.AssetCode,
+            Title = assetItem.Title!,
+            AssetCode = assetItem.AssetCode!,
             AssetOrder = assetItem.AssetOrder,
             Function = assetItem.Function,
             Material = assetItem.Material,

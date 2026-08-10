@@ -1,3 +1,4 @@
+#nullable enable
 using AIMS.Core.Entities;
 using System;
 using System.Collections.Generic;
