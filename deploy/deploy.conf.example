@@ -36,9 +36,11 @@ BUILD_CONFIGURATION="Release"
 QGIS_SERVER_URL="http://192.168.0.8/qgisserver"
 QGIS_MAP_PROJECT="/home/deli/OrthoProject1/OrthoProject1.qgs"
 
-# --- DB backup/restore (used by db_backup.sh only) ---
-BACKUP_DIR="$BASE_DIR/backups"   # where .dmp/.log files land
+# --- DB backup/restore (used by db_backup.sh and db_backup_sqlplus.sh) ---
+BACKUP_DIR="$BASE_DIR/backups"   # where .dmp/.sql backup files land
 KEEP_BACKUPS=7                   # how many backups to retain
+APPSETTINGS_FILE="$BASE_DIR/shared/appsettings.Production.json"   # app config whose ConnectionStrings:Oracle is used
 ORACLE_CONTAINER_NAME="oracle-xe-11g"                    # must match setup_oracle_xe.sh
-ORACLE_HOME="/u01/app/oracle/product/11.2.0/xe"           # container mode only
-ORACLE_SID="XE"                                           # container mode only
+ORACLE_OS_USER="oracle"                                  # native Oracle only: OS user that owns the install
+ORACLE_HOME="/u01/app/oracle/product/11.2.0/xe"           # native and container mode
+ORACLE_SID="XE"                                           # native and container mode

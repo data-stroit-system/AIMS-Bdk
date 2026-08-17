@@ -18,9 +18,10 @@
 #     (auto-detected by container name), everything runs via
 #     `podman exec --user oracle`, and the dump file is `podman cp`'d
 #     in/out of the container.
-#   - otherwise this assumes a native install and runs as the host's
-#     `oracle` OS user via `sudo -u oracle -i` (a login shell, so its own
-#     oraenv/profile sets ORACLE_HOME/ORACLE_SID -- no path guessing).
+#   - otherwise this assumes a native install and runs as the OS user
+#     that owns it (ORACLE_OS_USER), exporting ORACLE_HOME/ORACLE_SID
+#     explicitly -- no login shell involved, so the account does not
+#     need a home directory or profile.
 #
 # The DB password is never placed on a command line or process argument
 # (both podman exec and sudo -u leave those visible to `ps`) -- it only
@@ -48,9 +49,11 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 : "${BACKUP_DIR:=$BASE_DIR/backups}"
 : "${KEEP_BACKUPS:=7}"
 : "${SERVICE_NAME:=aims-webfrontend}"
+: "${APPSETTINGS_FILE:=$BASE_DIR/shared/appsettings.Production.json}"
 : "${ORACLE_CONTAINER_NAME:=oracle-xe-11g}"              # must match setup_oracle_xe.sh
-: "${ORACLE_HOME:=/u01/app/oracle/product/11.2.0/xe}"    # container mode only
-: "${ORACLE_SID:=XE}"                                    # container mode only
+: "${ORACLE_OS_USER:=oracle}"                            # native mode only: OS user owning the Oracle install
+: "${ORACLE_HOME:=/u01/app/oracle/product/11.2.0/xe}"    # native and container mode
+: "${ORACLE_SID:=XE}"                                    # native and container mode
 
 DIR_OBJECT="AIMS_DPDUMP_DIR"
 CONTAINER_DUMP_PATH="/tmp/aims_dpdump"
@@ -65,7 +68,7 @@ shift
 # Read the Oracle connection string the app itself is configured with, so
 # backup/restore always target exactly the DB the running app points at.
 # ---------------------------------------------------------------------------
-APPSETTINGS="$BASE_DIR/shared/appsettings.Production.json"
+APPSETTINGS="$APPSETTINGS_FILE"
 [[ -f "$APPSETTINGS" ]] || die "Not found: $APPSETTINGS (run this on the server after deploy.sh has run at least once)."
 
 mapfile -t _dbinfo < <(python3 - "$APPSETTINGS" <<'PY'
@@ -106,7 +109,10 @@ sql_as_sysdba() {
         podman exec -i --user oracle "$ORACLE_CONTAINER_NAME" bash -c \
             "ORACLE_HOME=$ORACLE_HOME ORACLE_SID=$ORACLE_SID LD_LIBRARY_PATH=$ORACLE_HOME/lib $ORACLE_HOME/bin/sqlplus -S / as sysdba" <<<"$1"
     else
-        sudo -u oracle -i sqlplus -S / as sysdba <<<"$1"
+        # No login shell (-i): the OS account may have no home
+        # directory, so export the Oracle env explicitly instead.
+        sudo -u "$ORACLE_OS_USER" env ORACLE_HOME="$ORACLE_HOME" ORACLE_SID="$ORACLE_SID" \
+            LD_LIBRARY_PATH="$ORACLE_HOME/lib" "$ORACLE_HOME/bin/sqlplus" -S / as sysdba <<<"$1"
     fi
 }
 
@@ -133,10 +139,11 @@ $extra_par"
             "ORACLE_HOME=$ORACLE_HOME ORACLE_SID=$ORACLE_SID LD_LIBRARY_PATH=$ORACLE_HOME/lib $ORACLE_HOME/bin/$tool parfile=$CONTAINER_DUMP_PATH/dp.par"
         podman exec --user oracle "$ORACLE_CONTAINER_NAME" rm -f "$CONTAINER_DUMP_PATH/dp.par"
     else
-        sudo install -o oracle -g oracle -m 600 "$local_tmp" "$BACKUP_DIR/dp.par" 2>/dev/null \
-            || sudo install -o oracle -m 600 "$local_tmp" "$BACKUP_DIR/dp.par"
+        sudo install -o "$ORACLE_OS_USER" -g "$ORACLE_OS_USER" -m 600 "$local_tmp" "$BACKUP_DIR/dp.par" 2>/dev/null \
+            || sudo install -o "$ORACLE_OS_USER" -m 600 "$local_tmp" "$BACKUP_DIR/dp.par"
         rm -f "$local_tmp"
-        sudo -u oracle -i "$tool" "parfile=$BACKUP_DIR/dp.par"
+        sudo -u "$ORACLE_OS_USER" env ORACLE_HOME="$ORACLE_HOME" ORACLE_SID="$ORACLE_SID" \
+            LD_LIBRARY_PATH="$ORACLE_HOME/lib" "$ORACLE_HOME/bin/$tool" "parfile=$BACKUP_DIR/dp.par"
         sudo rm -f "$BACKUP_DIR/dp.par"
     fi
 }
@@ -149,9 +156,10 @@ ensure_directory_object() {
     else
         sudo mkdir -p "$fs_path"
         # Sidesteps guessing the oracle OS user/group name across
-        # different native installs: the oracle server process needs
-        # write access to drop dump files here, and the deploying user
-        # needs to list/prune them afterwards.
+        # different native installs (only ORACLE_OS_USER matters): the
+        # oracle server process needs write access to drop dump files
+        # here, and the deploying user needs to list/prune them
+        # afterwards.
         sudo chmod 777 "$fs_path"
     fi
     sql_as_sysdba "
