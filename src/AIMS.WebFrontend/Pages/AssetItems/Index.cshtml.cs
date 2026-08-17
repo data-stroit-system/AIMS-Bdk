@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AIMS.Core.Entities;
 using AIMS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -11,12 +12,20 @@ public class IndexModel : PageModel
 {
     private readonly AssetItemService _assetItemService;
     private readonly PlantService _plantService;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
     private const int PageSize = 10;
 
-    public IndexModel(AssetItemService assetItemService, PlantService plantService)
+    public IndexModel(
+        AssetItemService assetItemService,
+        PlantService plantService,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration)
     {
         _assetItemService = assetItemService;
         _plantService = plantService;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
     public List<AssetItem> AssetItems { get; set; } = new();
@@ -25,6 +34,10 @@ public class IndexModel : PageModel
     public AssetItem? SelectedAsset { get; set; }
     public int CurrentPage { get; set; } = 1;
     public int TotalPages { get; set; } = 1;
+
+    public string QgisServerUrl { get; private set; } = string.Empty;
+    public string MapProject { get; private set; } = string.Empty;
+    public string SearchTermsJson { get; private set; } = "[]";
 
     [BindProperty(SupportsGet = true)]
     public string? SearchTerm { get; set; }
@@ -42,11 +55,29 @@ public class IndexModel : PageModel
     {
         CurrentPage = page < 1 ? 1 : page;
 
+        QgisServerUrl = _configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
+        MapProject = _configuration["QgisServer:MapProject"] ?? "/home/deli/ProjectPelatihan/Ortho Project_QGS.qgs";
+
         if (PlantId.HasValue)
             FilterPlant = await _plantService.GetByIdAsync(PlantId.Value);
 
         if (AssetId.HasValue)
             SelectedAsset = await _assetItemService.GetByIdAsync(AssetId.Value);
+
+        // Candidate search terms for the Site Map auto-zoom: the asset tag first
+        // (falls through to the parent plant's terms when no layer matches it),
+        // then the plant name and code. First term matching a WMS layer wins.
+        var mapSearchTerms = new List<string>();
+        if (SelectedAsset != null && !string.IsNullOrWhiteSpace(SelectedAsset.AssetId))
+            mapSearchTerms.Add(SelectedAsset.AssetId);
+        if (FilterPlant != null)
+        {
+            if (!string.IsNullOrWhiteSpace(FilterPlant.Name))
+                mapSearchTerms.Add(FilterPlant.Name);
+            if (FilterPlant.Code.HasValue)
+                mapSearchTerms.Add(FilterPlant.Code.Value.ToString());
+        }
+        SearchTermsJson = JsonSerializer.Serialize(mapSearchTerms);
 
         PlantsById = (await _plantService.ListAsync()).ToDictionary(p => p.Id, p => p);
 
@@ -56,5 +87,36 @@ public class IndexModel : PageModel
         AssetItems = items;
         TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
         TotalPages = TotalPages < 1 ? 1 : TotalPages;
+    }
+
+    // Same WMS GetFeatureInfo proxy as MapDemo/Index — the Site Map partial
+    // calls ?handler=FeatureInfo on this page when a popup is requested.
+    public async Task<IActionResult> OnGetFeatureInfoAsync(
+        string layers, string bbox, int width, int height, int i, int j)
+    {
+        var serverUrl = _configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
+        var mapProject = _configuration["QgisServer:MapProject"] ?? "/home/deli/ProjectPelatihan/Ortho Project_QGS.qgs";
+
+        var url = serverUrl
+            + $"?MAP={Uri.EscapeDataString(mapProject)}"
+            + "&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo"
+            + "&CRS=EPSG:4326"
+            + "&INFO_FORMAT=text/plain"
+            + $"&LAYERS={Uri.EscapeDataString(layers)}"
+            + $"&QUERY_LAYERS={Uri.EscapeDataString(layers)}"
+            + $"&BBOX={bbox}"
+            + $"&WIDTH={width}&HEIGHT={height}"
+            + $"&I={i}&J={j}";
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            var text = await client.GetStringAsync(url);
+            return Content(text, "text/plain");
+        }
+        catch
+        {
+            return Content(string.Empty, "text/plain");
+        }
     }
 }

@@ -12,13 +12,22 @@ public class IndexModel : PageModel
     private readonly IDapperContext _context;
     private readonly ISqlDialect _dialect;
     private readonly PlantService _plantService;
+    private readonly IConfiguration _configuration;
 
-    public IndexModel(IDapperContext context, ISqlDialect dialect, PlantService plantService)
+    public IndexModel(
+        IDapperContext context,
+        ISqlDialect dialect,
+        PlantService plantService,
+        IConfiguration configuration)
     {
         _context = context;
         _dialect = dialect;
         _plantService = plantService;
+        _configuration = configuration;
     }
+
+    public string QgisServerUrl { get; private set; } = string.Empty;
+    public string MapProject { get; private set; } = string.Empty;
 
     public int TotalAssets { get; set; }
 
@@ -30,6 +39,9 @@ public class IndexModel : PageModel
 
     public async Task OnGetAsync()
     {
+        QgisServerUrl = _configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
+        MapProject = _configuration["QgisServer:MapProject"] ?? "/home/deli/ProjectPelatihan/Ortho Project_QGS.qgs";
+
         using var conn = _context.CreateConnection();
 
         // One aggregate row per (plant, condition) instead of streaming the whole

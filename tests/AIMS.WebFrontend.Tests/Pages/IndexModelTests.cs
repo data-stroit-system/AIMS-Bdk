@@ -1,6 +1,7 @@
 using AIMS.Infrastructure.Services;
 using AIMS.WebFrontend.Pages;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AIMS.WebFrontend.Tests.Pages;
@@ -8,9 +9,10 @@ namespace AIMS.WebFrontend.Tests.Pages;
 public class IndexModelTests : IDisposable
 {
     private readonly SqliteDapperContext _context = new();
+    private static readonly IConfiguration EmptyConfig = new ConfigurationBuilder().Build();
 
     private IndexModel CreateModel() =>
-        new(_context, new SqliteTestDialect(), new PlantService(_context, new SqliteTestDialect()));
+        new(_context, new SqliteTestDialect(), new PlantService(_context, new SqliteTestDialect()), EmptyConfig);
 
     [Fact]
     public async Task OnGetAsync_EmptyDatabase_ReportsZeroAssetsAndOnlyAllPlantSummary()

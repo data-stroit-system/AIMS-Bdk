@@ -38,7 +38,13 @@
             <small id="map-status" class="sims-text-sm sims-text-muted ms-auto">Loading layers&hellip;</small>
         </div>
         <div class="sims-card-body flex-grow-1" style="padding:0; min-height: 0;">
-            <div id="map" style="height: 100%; width: 100%;"></div>
+            <div id="map" style="height: 100%; width: 100%;"
+                 data-qgis-server="@Model.QgisServerUrl"
+                 data-map-project="@Model.MapProject"
+                 data-feature-info="true"
+                 data-base-layer="Pelatihan Bulan Juli 2026"
+                 data-init-lat="-6.16526" data-init-lng="106.92418" data-init-zoom="17"
+                 data-search-terms="@Model.SearchTermsJson"></div>
         </div>
     </div>
 }
