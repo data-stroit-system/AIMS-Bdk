@@ -85,14 +85,14 @@
                     maxZoom: 25,
                     attribution: 'QGIS Server',
                     zIndex: overlayNames.length - i,
-                    opacity: name === 'Luas Area Pelatihan' ? 0.4 : 1
+                    opacity: name === 'Luas Area Pelatihan' ? 0.4 : 0.6
                 });
             });
 
             const overlayKeys = Object.keys(overlays);
             overlayKeys.forEach(name => overlays[name].addTo(map));
 
-            L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
+            L.control.layers(baseLayers, overlays, { collapsed: false, autoZIndex: false }).addTo(map);
 
             const allVisible = baseLayerIdx !== -1
                 ? [baseLayerName, ...overlayKeys]
