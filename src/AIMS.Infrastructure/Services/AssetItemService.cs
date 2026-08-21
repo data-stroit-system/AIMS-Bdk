@@ -28,7 +28,7 @@ public sealed class AssetItemService
 
     private string AllColumns => $@"
         Id, GisRefNo, AssetId, Title,
-        AssetCode, EquipmentDescription, AssetOrder,
+        AssetCode, AssetOrder,
         {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)},
         CoordinateN, CoordinateE, Zone, Area, Train,
         DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)},
@@ -121,13 +121,13 @@ public sealed class AssetItemService
         var id = _dialect.InsertAndGetId(conn,
             "AssetItems",
             $"GisRefNo, AssetId, Title, " +
-            "AssetCode, EquipmentDescription, AssetOrder, " +
+            "AssetCode, AssetOrder, " +
             $"{_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)}, " +
             "CoordinateN, CoordinateE, Zone, Area, Train, " +
             $"DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)}, " +
             $"Category, PicturePath, CreatedAt, CreatedBy, PlantId",
             "@GisRefNo, @AssetId, @Title, " +
-            "@AssetCode, @EquipmentDescription, @AssetOrder, " +
+            "@AssetCode, @AssetOrder, " +
             "@Function, @Material, @YearInstalled, @Owner, @Constrain, @Access, " +
             "@CoordinateN, @CoordinateE, @Zone, @Area, @Train, " +
             "@DateOfInspection, @Inspector, @Condition, @Comment, " +
@@ -135,7 +135,7 @@ public sealed class AssetItemService
             new
             {
                 item.GisRefNo, item.AssetId, item.Title,
-                item.AssetCode, item.EquipmentDescription, item.AssetOrder,
+                item.AssetCode, item.AssetOrder,
                 item.Function, item.Material, item.YearInstalled, item.Owner, item.Constrain, item.Access,
                 item.CoordinateN, item.CoordinateE, item.Zone, item.Area, item.Train,
                 item.DateOfInspection, item.Inspector, item.Condition, item.Comment,
@@ -153,7 +153,7 @@ public sealed class AssetItemService
         var sql = $@"
             UPDATE AssetItems
             SET GisRefNo = @GisRefNo, AssetId = @AssetId, Title = @Title,
-                AssetCode = @AssetCode, EquipmentDescription = @EquipmentDescription,
+                AssetCode = @AssetCode,
                 AssetOrder = @AssetOrder,
                 {_dialect.Quote(Fn)} = @Function, Material = @Material, YearInstalled = @YearInstalled,
                 {_dialect.Quote(Ow)} = @Owner, Constrain = @Constrain, {_dialect.Quote(Ac)} = @Access,
@@ -170,7 +170,6 @@ public sealed class AssetItemService
             { "AssetId", updates.AssetId },
             { "Title", updates.Title },
             { "AssetCode", updates.AssetCode },
-            { "EquipmentDescription", updates.EquipmentDescription },
             { "AssetOrder", updates.AssetOrder },
             { "Function", updates.Function },
             { "Material", updates.Material },

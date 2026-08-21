@@ -83,7 +83,7 @@ public class DatabaseInitializer : ISchemaInitializer
     /// </summary>
     private static void DropLegacyAssetItemColumns(IDbConnection conn)
     {
-        foreach (var column in new[] { "Description", "Type", "Location", "Priority", "QrCode", "EquipmentDesc", "CivilAssetCode", "CivilAssetDescription", "CivilAssetDesc", "EquipmentCode", "CivilAssetOrder" })
+        foreach (var column in new[] { "Description", "Type", "Location", "Priority", "QrCode", "EquipmentDesc", "CivilAssetCode", "CivilAssetDescription", "CivilAssetDesc", "EquipmentCode", "CivilAssetOrder", "EquipmentDescription" })
         {
             var exists = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', '{column}')") != null;
             if (exists)
@@ -220,7 +220,6 @@ CREATE TABLE AssetItems (
     AssetId nvarchar(max) NULL,
     Title nvarchar(200) NULL,
     AssetCode nvarchar(200) NULL,
-    EquipmentDescription nvarchar(200) NULL,
     AssetOrder nvarchar(200) NULL,
     [Function] nvarchar(200) NULL,
     Material nvarchar(200) NULL,
@@ -249,8 +248,6 @@ IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'GisRef
 ALTER TABLE AssetItems ADD GisRefNo nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'AssetCode') IS NULL
 ALTER TABLE AssetItems ADD AssetCode nvarchar(200) NULL;
-IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'EquipmentDescription') IS NULL
-ALTER TABLE AssetItems ADD EquipmentDescription nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'AssetOrder') IS NULL
 ALTER TABLE AssetItems ADD AssetOrder nvarchar(200) NULL;
 IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Function') IS NULL

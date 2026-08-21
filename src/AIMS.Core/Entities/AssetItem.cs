@@ -55,7 +55,6 @@ public class AssetItem : BaseEntity
     [MaxLength(200)] public string? Title { get; set; }
 
     [MaxLength(200)] public string? AssetCode { get; set; }
-    [MaxLength(200)] public string? EquipmentDescription { get; set; }
 
     [MaxLength(200)] public string? AssetOrder { get; set; }
 

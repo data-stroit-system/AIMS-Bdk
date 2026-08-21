@@ -1,7 +1,7 @@
 @model AIMS.Core.Entities.AssetItem
 @{
     var assetRef = $"{Model.AssetCode}".Trim();
-    var assetDesc = Model.EquipmentDescription ?? Model.Title ?? "Asset";
+    var assetDesc = Model.Title ?? "Asset";
 }
 <div class="sims-nameplate-card">
     <div class="sims-nameplate-logos">
@@ -14,7 +14,7 @@
 
 
     <h4>@assetDesc</h4>
-    <div class="sims-nameplate-sub">for @assetRef</div>
+    
     <div class="sims-nameplate-tagno">Tag no.: @Model.AssetId</div>
 
     

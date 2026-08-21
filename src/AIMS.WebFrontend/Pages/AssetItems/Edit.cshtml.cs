@@ -99,8 +99,6 @@ public class EditModel : PageModel
             // succeeds — if the update is refused, no file is lost.
         }
 
-        var equipDesc = AssetCode.GetDescription(Input.AssetCode);
-
         // AssetId (Asset Tag No.) is regenerated server-side by AssetItemService from
         // Plant/Equipment codes — it is never accepted as client input.
         var updates = new AssetItem
@@ -108,7 +106,6 @@ public class EditModel : PageModel
             GisRefNo = Input.GisRefNo,
             Title = Input.Title,
             AssetCode = Input.AssetCode,
-            EquipmentDescription = equipDesc,
             AssetOrder = Input.AssetOrder,
             Function = Input.Function,
             Material = Input.Material,

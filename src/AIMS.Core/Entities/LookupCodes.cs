@@ -68,9 +68,6 @@ public sealed class AssetCode
         new() { Code = "Z",  Description = "Water Treating Equipment" },
     ];
 
-    public static string? GetDescription(string code) =>
-        All.FirstOrDefault(e => e.Code == code)?.Description;
-
     public static AssetCode? Find(string code) =>
         All.FirstOrDefault(e => e.Code == code);
 }

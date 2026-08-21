@@ -89,7 +89,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
     /// </summary>
     private static void DropLegacyAssetItemColumns(IDbConnection conn)
     {
-        foreach (var column in new[] { "DESCRIPTION", "TYPE", "LOCATION", "PRIORITY", "QRCODE", "EQUIPMENTDESC", "CIVILASSETCODE", "CIVILASSETDESCRIPTION", "CIVILASSETDESC", "EQUIPMENTCODE", "CIVILASSETORDER" })
+        foreach (var column in new[] { "DESCRIPTION", "TYPE", "LOCATION", "PRIORITY", "QRCODE", "EQUIPMENTDESC", "CIVILASSETCODE", "CIVILASSETDESCRIPTION", "CIVILASSETDESC", "EQUIPMENTCODE", "CIVILASSETORDER", "EQUIPMENTDESCRIPTION" })
         {
             var exists = conn.ExecuteScalar<int>(
                 $"SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = '{column}'") > 0;
@@ -252,7 +252,6 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 AssetId             VARCHAR2(4000),
                 Title               NVARCHAR2(200),
                 AssetCode       NVARCHAR2(200),
-                EquipmentDescription NVARCHAR2(200),
                 AssetOrder     NVARCHAR2(200),
                 ""Function""        NVARCHAR2(200),
                 Material            NVARCHAR2(200),
@@ -282,7 +281,6 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         // Add new columns to existing AssetItems table (for upgrades)
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (GisRefNo NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (AssetCode NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
-        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (EquipmentDescription NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (AssetOrder NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (""Function"" NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
         @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Material NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",

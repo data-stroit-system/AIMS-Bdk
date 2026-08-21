@@ -34,7 +34,6 @@ public sealed class SqliteDapperContext : IDapperContext, IDisposable
                 AssetId TEXT NOT NULL DEFAULT '',
                 Title TEXT NULL,
                 AssetCode TEXT NULL,
-                EquipmentDescription TEXT NULL,
                 AssetOrder TEXT NULL,
                 "Function" TEXT NULL,
                 Material TEXT NULL,

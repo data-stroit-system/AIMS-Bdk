@@ -62,8 +62,6 @@ public class CreateModel : PageModel
             picturePath = await _fileUpload.SaveAssetPictureAsync(Input.Picture, _env.WebRootPath);
         }
 
-        var equipDesc = AssetCode.GetDescription(Input.AssetCode);
-
         // AssetId (Asset Tag No.) is generated server-side by AssetItemService from
         // Plant/Equipment codes — it is never accepted as client input.
         var item = new AssetItem
@@ -71,7 +69,6 @@ public class CreateModel : PageModel
             GisRefNo = Input.GisRefNo,
             Title = Input.Title,
             AssetCode = Input.AssetCode,
-            EquipmentDescription = equipDesc,
             AssetOrder = Input.AssetOrder,
             Function = Input.Function,
             Material = Input.Material,
