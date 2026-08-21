@@ -60,12 +60,17 @@
 
 <!-- Register Table -->
 <div class="sims-card">
-    <div class="sims-card-header">
+    <div class="sims-card-header sims-d-flex sims-align-center">
         <i class="fas fa-list"></i> Register
         @if (Model.AssetItems.Any())
         {
             <span class="sims-badge sims-badge-gray ms-2">@Model.AssetItems.Count result(s)</span>
         }
+        <a asp-page="Index" asp-page-handler="Export"
+           asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId"
+           class="sims-btn sims-btn-outline sims-btn-sm ms-auto" title="Download the filtered register as CSV">
+            <i class="fas fa-file-csv"></i> Download
+        </a>
     </div>
     <div class="sims-card-body" style="padding:0">
         @if (!Model.AssetItems.Any())

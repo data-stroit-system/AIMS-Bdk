@@ -38,6 +38,40 @@ public sealed class AssetItemService
     public async Task<(List<AssetItem> Items, int TotalCount)> GetPagedAsync(
         string? searchTerm, string? conditionFilter, int page, int pageSize, int? plantIdFilter = null)
     {
+        var (whereClause, p) = BuildFilter(searchTerm, conditionFilter, plantIdFilter);
+        p.Add("Offset", (page - 1) * pageSize);
+        p.Add("PageSize", pageSize);
+
+        using var conn = _context.CreateConnection();
+        var totalCount = await conn.QuerySingleAsync<int>(
+            $"SELECT COUNT(*) FROM AssetItems {whereClause}", p);
+
+        var items = (await conn.QueryAsync<AssetItem>(
+            _dialect.Paginate($"SELECT {AllColumns} FROM AssetItems {whereClause}", "Id DESC"),
+            p)).ToList();
+
+        return (items, totalCount);
+    }
+
+    /// <summary>
+    /// Returns every row matching the same filters as GetPagedAsync, unpaged — used
+    /// by the Asset Register CSV export. Keeps the page's Id DESC ordering.
+    /// </summary>
+    public async Task<List<AssetItem>> GetAllFilteredAsync(
+        string? searchTerm, string? conditionFilter, int? plantIdFilter = null)
+    {
+        var (whereClause, p) = BuildFilter(searchTerm, conditionFilter, plantIdFilter);
+
+        using var conn = _context.CreateConnection();
+        var items = await conn.QueryAsync<AssetItem>(
+            $"SELECT {AllColumns} FROM AssetItems {whereClause} ORDER BY Id DESC", p);
+
+        return items.ToList();
+    }
+
+    private (string WhereClause, DynamicParameters Parameters) BuildFilter(
+        string? searchTerm, string? conditionFilter, int? plantIdFilter)
+    {
         var where = new StringBuilder("WHERE 1=1");
         var p = new DynamicParameters();
 
@@ -59,19 +93,7 @@ public sealed class AssetItemService
             p.Add("PlantId", plantIdFilter.Value);
         }
 
-        var whereClause = where.ToString();
-        p.Add("Offset", (page - 1) * pageSize);
-        p.Add("PageSize", pageSize);
-
-        using var conn = _context.CreateConnection();
-        var totalCount = await conn.QuerySingleAsync<int>(
-            $"SELECT COUNT(*) FROM AssetItems {whereClause}", p);
-
-        var items = (await conn.QueryAsync<AssetItem>(
-            _dialect.Paginate($"SELECT {AllColumns} FROM AssetItems {whereClause}", "Id DESC"),
-            p)).ToList();
-
-        return (items, totalCount);
+        return (where.ToString(), p);
     }
 
     public async Task<AssetItem?> GetByIdAsync(int id)
