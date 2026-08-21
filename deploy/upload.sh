@@ -43,8 +43,9 @@ SSH_OPTS=(-p "$REMOTE_SSH_PORT" -o StrictHostKeyChecking=accept-new)
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 ZIP_NAME="aims-source-$(date -u +%Y%m%d%H%M%S).zip"
-ZIP_PATH="$REPO_ROOT/$ZIP_NAME"
-trap '[[ -f "$ZIP_PATH" ]] && rm -f "$ZIP_PATH"' ERR
+# Create the zip OUTSIDE the repo root: the walk below zips $REPO_ROOT, and a
+# zip created inside it gets added to itself -> runaway growth (hit 9.8G once).
+ZIP_PATH="$WORK_DIR/$ZIP_NAME"
 
 log "Zipping $REPO_ROOT -> $ZIP_PATH..."
 python3 - "$REPO_ROOT" "$ZIP_PATH" <<'PY'
@@ -54,10 +55,10 @@ import zipfile
 
 repo_root, zip_path = sys.argv[1], sys.argv[2]
 
-EXCLUDE_DIRS = {".git", "bin", "obj", ".vs", ".vscode", ".idea", "node_modules",
-                 "asset-documents"}
+EXCLUDE_DIRS = {".git", ".cloud", ".github", "bin", "obj", ".vs", ".vscode",
+                 ".idea", "node_modules", "asset-documents"}
 EXCLUDE_FILES = {"deploy.conf"}
-EXCLUDE_SUFFIXES = (".log",)
+EXCLUDE_SUFFIXES = (".log", ".zip")  # never zip zips, incl. any stray old ones in the tree
 
 count = 0
 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
