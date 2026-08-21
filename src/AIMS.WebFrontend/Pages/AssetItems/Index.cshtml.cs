@@ -51,7 +51,11 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public int? AssetId { get; set; }
 
-    public async Task OnGetAsync(int page = 1)
+    // [FromQuery] is required here: 'page' is a reserved Razor Pages route value
+    // (it names the page path), so plain parameter binding resolves the route
+    // value ("/AssetItems/Index") instead of the query string and always falls
+    // back to the default 1.
+    public async Task OnGetAsync([FromQuery] int page = 1)
     {
         CurrentPage = page < 1 ? 1 : page;
 
@@ -84,9 +88,18 @@ public class IndexModel : PageModel
         var (items, totalCount) = await _assetItemService.GetPagedAsync(
             SearchTerm, StatusFilter, CurrentPage, PageSize, PlantId);
 
-        AssetItems = items;
         TotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
         TotalPages = TotalPages < 1 ? 1 : TotalPages;
+
+        // A too-large ?page= must show the last page's rows, not an empty result.
+        if (CurrentPage > TotalPages)
+        {
+            CurrentPage = TotalPages;
+            (items, _) = await _assetItemService.GetPagedAsync(
+                SearchTerm, StatusFilter, CurrentPage, PageSize, PlantId);
+        }
+
+        AssetItems = items;
     }
 
     // Same WMS GetFeatureInfo proxy as MapDemo/Index — the Site Map partial

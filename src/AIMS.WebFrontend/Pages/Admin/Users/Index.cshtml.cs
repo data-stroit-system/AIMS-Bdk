@@ -37,7 +37,9 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string? RoleFilter { get; set; }
 
-    public async Task OnGetAsync(int page = 1)
+    // [FromQuery] is required: 'page' is a reserved Razor Pages route value,
+    // which otherwise shadows the query string during parameter binding.
+    public async Task OnGetAsync([FromQuery] int page = 1)
     {
         CurrentPage = page < 1 ? 1 : page;
         AvailableRoles = _roleManager.Roles.OrderBy(r => r.Name).ToList();

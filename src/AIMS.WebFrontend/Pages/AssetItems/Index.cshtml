@@ -341,34 +341,35 @@
 
             @if (Model.TotalPages > 1)
             {
+                // 'page' is a reserved Razor Pages route value, so asp-route-page
+                // cannot generate the ?page= query — build the href manually.
+                var filterQuery = "searchTerm=" + Uri.EscapeDataString(Model.SearchTerm ?? "")
+                    + "&statusFilter=" + Uri.EscapeDataString(Model.StatusFilter ?? "")
+                    + "&plantId=" + (Model.PlantId?.ToString() ?? "")
+                    + "&assetId=" + (Model.AssetId?.ToString() ?? "");
                 <div class="p-3 border-top sims-d-flex sims-align-center sims-justify-between">
                     <small class="sims-text-muted">Page @Model.CurrentPage of @Model.TotalPages</small>
                     <div class="sims-d-flex sims-gap-2">
                         @if (Model.CurrentPage > 1)
                         {
-                            <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="1"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=1&amp;@filterQuery">
                                 <i class="fas fa-angles-left"></i>
                             </a>
-                            <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="@(Model.CurrentPage - 1)"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=@(Model.CurrentPage - 1)&amp;@filterQuery">
                                 <i class="fas fa-angle-left"></i>
                             </a>
                         }
                         @for (int i = 1; i <= Model.TotalPages; i++)
                         {
                             <a class="sims-btn @(i == Model.CurrentPage ? "sims-btn-primary" : "sims-btn-outline") sims-btn-sm"
-                               asp-page="Index" asp-route-page="@i"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">@i</a>
+                               href="?page=@i&amp;@filterQuery">@i</a>
                         }
                         @if (Model.CurrentPage < Model.TotalPages)
                         {
-                            <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="@(Model.CurrentPage + 1)"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=@(Model.CurrentPage + 1)&amp;@filterQuery">
                                 <i class="fas fa-angle-right"></i>
                             </a>
-                            <a class="sims-btn sims-btn-outline sims-btn-sm" asp-page="Index" asp-route-page="@Model.TotalPages"
-                               asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId">
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=@Model.TotalPages&amp;@filterQuery">
                                 <i class="fas fa-angles-right"></i>
                             </a>
                         }
