@@ -103,6 +103,14 @@ public sealed class AssetItemService
             $"SELECT {AllColumns} FROM AssetItems WHERE Id = @Id", new { Id = id });
     }
 
+    public async Task<AssetItem?> GetByAssetIdAsync(string assetId)
+    {
+        using var conn = _context.CreateConnection();
+        return await conn.QuerySingleOrDefaultAsync<AssetItem>(
+            $"SELECT {AllColumns} FROM AssetItems WHERE UPPER(AssetId) = UPPER(@AssetId)",
+            new { AssetId = assetId });
+    }
+
     /// <summary>
     /// Asset Tag No. is always derived in C# from Plant/Equipment/Civil codes — never
     /// database-generated and never accepted from client input.
