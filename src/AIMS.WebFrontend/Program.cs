@@ -6,7 +6,9 @@ using AIMS.SharedKernel.Interfaces;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
+using System.Net;
 
 // Bootstrap logger: console-only, active only while the host is being built
 // (including InitializeDatabase()'s schema-init pass below, which runs before
@@ -54,9 +56,25 @@ try
     builder.Services.AddHttpClient();
     builder.Services.InitializeDatabase();
 
+    // nginx terminates TLS in production and forwards the scheme; trust its
+    // headers so Request.Scheme/IsHttps are https behind the proxy (which also
+    // makes cookie-auth cookies Secure over https via the default SameAsRequest
+    // policy). Trust loopback only — nginx is the sole reverse proxy.
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+        options.KnownProxies.Add(IPAddress.Loopback);
+    });
+
     var app = builder.Build();
 
     await app.Services.SeedRolesAndAdminUserAsync();
+
+    // Must run first so the rest of the pipeline (incl. request logging) sees
+    // the forwarded https scheme.
+    app.UseForwardedHeaders();
 
     app.UseSerilogRequestLogging();
 

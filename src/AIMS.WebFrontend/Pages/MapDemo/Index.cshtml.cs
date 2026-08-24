@@ -18,6 +18,11 @@ public class IndexModel(IHttpClientFactory httpClientFactory, IConfiguration con
         string layers, string bbox, int width, int height, int i, int j)
     {
         var serverUrl = configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
+        // In production ServerUrl is the same-origin path "/qgisserver" (proxied
+        // by nginx so WMS requests aren't mixed content on https) — HttpClient
+        // needs an absolute URL, so resolve it against the current request.
+        if (serverUrl.StartsWith('/'))
+            serverUrl = $"{Request.Scheme}://{Request.Host}{serverUrl}";
         var mapProject = configuration["QgisServer:MapProject"] ?? "/home/deli/OrthoProject1/OrthoProject1.qgs";
 
         var url = serverUrl

@@ -108,6 +108,11 @@ public class IndexModel : PageModel
         string layers, string bbox, int width, int height, int i, int j)
     {
         var serverUrl = _configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
+        // In production ServerUrl is the same-origin path "/qgisserver" (proxied
+        // by nginx so WMS requests aren't mixed content on https) — HttpClient
+        // needs an absolute URL, so resolve it against the current request.
+        if (serverUrl.StartsWith('/'))
+            serverUrl = $"{Request.Scheme}://{Request.Host}{serverUrl}";
         var mapProject = _configuration["QgisServer:MapProject"] ?? "/home/deli/ProjectPelatihan/Ortho Project_QGS.qgs";
 
         var url = serverUrl

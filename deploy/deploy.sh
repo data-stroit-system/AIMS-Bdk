@@ -53,6 +53,15 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 : "${QGIS_SERVER_URL:=http://192.168.0.8/qgisserver}"
 : "${QGIS_MAP_PROJECT:=/home/deli/OrthoProject1/OrthoProject1.qgs}"
 
+# --- TLS / Let's Encrypt (empty DOMAIN = current plain-HTTP behaviour) ---
+: "${DOMAIN:=}"                          # public hostname; A record -> server public IP
+: "${ACME_EMAIL:=}"                      # used for the one-time certbot issuance (expiry notices)
+: "${TLS_CERT_FILE:=/etc/letsencrypt/live/$DOMAIN/fullchain.pem}"
+: "${TLS_KEY_FILE:=/etc/letsencrypt/live/$DOMAIN/privkey.pem}"
+: "${NGINX_HTTP_PORT:=80}"               # HTTP port answering ACME challenges + redirecting to https
+: "${HSTS_MAX_AGE:=15552000}"            # Strict-Transport-Security max-age, seconds (6 months)
+: "${QGIS_PROXY_TARGET:=http://127.0.0.1:8081}"  # internal QGIS server after it vacates port 80
+
 command -v dotnet >/dev/null || die "dotnet SDK not found on this machine."
 [[ $EUID -ne 0 ]] || die "Run this as your normal login user (it uses sudo itself), not as root."
 
@@ -116,6 +125,26 @@ if ! command -v nginx >/dev/null; then
   sudo apt-get install -y -qq nginx
 else
   log "nginx already installed."
+fi
+
+if ! command -v certbot >/dev/null; then
+  log "Installing certbot (Let's Encrypt) ..."
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq certbot
+else
+  log "certbot already installed."
+fi
+
+if [[ -n "$DOMAIN" ]]; then
+  # Renewal deploy hook: certbot.timer runs `certbot renew` twice daily; after a
+  # successful renewal this reloads nginx so the new cert is picked up without a
+  # redeploy (the ssl_certificate paths in the site config are static).
+  sudo mkdir -p /var/www/letsencrypt /etc/letsencrypt/renewal-hooks/deploy
+  sudo tee /etc/letsencrypt/renewal-hooks/deploy/nginx-reload.sh >/dev/null <<'HOOK'
+#!/bin/sh
+systemctl reload nginx
+HOOK
+  sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/nginx-reload.sh
 fi
 
 if ! command -v jq >/dev/null; then
@@ -229,7 +258,82 @@ sudo systemctl restart "$SERVICE_NAME"
 # 8. nginx site
 # ---------------------------------------------------------------------------
 log "Writing nginx site for $SERVICE_NAME ..."
-sudo tee "/etc/nginx/sites-available/${SERVICE_NAME}" >/dev/null <<NGINX
+if [[ -n "$DOMAIN" ]]; then
+  # TLS mode: $NGINX_HTTP_PORT serves ACME challenges and redirects everything
+  # else to https; the legacy $NGINX_LISTEN_PORT redirects to https; 443 proxies
+  # to Kestrel (written only once a cert exists so `nginx -t` never fails on a
+  # fresh box) and serves QGIS same-origin as /qgisserver.
+  sudo tee "/etc/nginx/sites-available/${SERVICE_NAME}" >/dev/null <<NGINX
+server {
+    listen $NGINX_HTTP_PORT;
+    listen [::]:$NGINX_HTTP_PORT;
+    server_name $DOMAIN;
+
+    # Let's Encrypt HTTP-01 (certbot --webroot -w /var/www/letsencrypt)
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen $NGINX_LISTEN_PORT;
+    listen [::]:$NGINX_LISTEN_PORT;
+    server_name $DOMAIN;
+
+    return 301 https://$DOMAIN\$request_uri;
+}
+NGINX
+  if [[ -f "$TLS_CERT_FILE" && -f "$TLS_KEY_FILE" ]]; then
+    log "TLS cert found at $TLS_CERT_FILE — writing HTTPS server block."
+    sudo tee -a "/etc/nginx/sites-available/${SERVICE_NAME}" >/dev/null <<NGINX_SSL
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name $DOMAIN;
+
+    ssl_certificate $TLS_CERT_FILE;
+    ssl_certificate_key $TLS_KEY_FILE;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    client_max_body_size $NGINX_CLIENT_MAX_BODY_SIZE;
+
+    add_header Strict-Transport-Security "max-age=$HSTS_MAX_AGE" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:$APP_PORT;
+        # \$http_host (not \$host) — \$host strips the port from the Host
+        # header, so on a non-80 listen port the app's absolute redirects
+        # (e.g. the cookie-auth challenge to /Account/Login on first visit)
+        # come back port-less and the browser falls back to :80.
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # QGIS Server same-origin proxy: the map JS requests /qgisserver (set
+    # QGIS_SERVER_URL=/qgisserver in deploy.conf) so WMS tiles aren't mixed
+    # content on https. No URI part in proxy_pass — the full request path
+    # (/qgisserver?MAP=...) is passed through unchanged.
+    location /qgisserver {
+        proxy_pass $QGIS_PROXY_TARGET;
+        proxy_set_header Host \$http_host;
+    }
+}
+NGINX_SSL
+  else
+    log "No cert at $TLS_CERT_FILE yet — HTTP redirect only. Issue the cert, then re-run deploy.sh."
+  fi
+else
+  # Plain-HTTP mode (DOMAIN unset): single-server config as before.
+  sudo tee "/etc/nginx/sites-available/${SERVICE_NAME}" >/dev/null <<NGINX
 server {
     listen $NGINX_LISTEN_PORT;
     listen [::]:$NGINX_LISTEN_PORT;
@@ -250,6 +354,7 @@ server {
     }
 }
 NGINX
+fi
 sudo ln -sfn "/etc/nginx/sites-available/${SERVICE_NAME}" "/etc/nginx/sites-enabled/${SERVICE_NAME}"
 [[ -e /etc/nginx/sites-enabled/default ]] && sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
@@ -260,6 +365,10 @@ sudo systemctl reload nginx
 # ---------------------------------------------------------------------------
 if command -v ufw >/dev/null && sudo ufw status | grep -q "Status: active"; then
   sudo ufw allow "$NGINX_LISTEN_PORT/tcp" >/dev/null || true
+  if [[ -n "$DOMAIN" ]]; then
+    sudo ufw allow "$NGINX_HTTP_PORT/tcp" >/dev/null || true
+    sudo ufw allow 443/tcp >/dev/null || true
+  fi
 fi
 
 # ---------------------------------------------------------------------------
