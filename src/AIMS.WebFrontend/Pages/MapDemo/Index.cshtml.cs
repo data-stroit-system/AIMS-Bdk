@@ -7,11 +7,22 @@ public class IndexModel(IHttpClientFactory httpClientFactory, IConfiguration con
 {
     public string QgisServerUrl { get; private set; } = string.Empty;
     public string MapProject { get; private set; } = string.Empty;
+    // Browser-facing QGIS URL. Falls back to ServerUrl when BrowserUrl is
+    // unset (e.g. local `dotnet run` with no nginx in front → browser hits
+    // the upstream directly; that's fine because the dev page is also
+    // plain HTTP, no mixed-content blocking). In prod (deploy.sh sets
+    // QgisServer:BrowserUrl=/qgisserver) the browser talks same-origin to
+    // nginx, which proxies to the upstream QGIS box internally — avoiding
+    // mixed-content on the HTTPS deployment.
+    public string QgisBrowserUrl { get; private set; } = string.Empty;
 
     public void OnGet()
     {
         QgisServerUrl = configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
         MapProject = configuration["QgisServer:MapProject"] ?? "/home/deli/OrthoProject1/OrthoProject1.qgs";
+        QgisBrowserUrl = configuration["QgisServer:BrowserUrl"] ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(QgisBrowserUrl))
+            QgisBrowserUrl = QgisServerUrl;
     }
 
     public async Task<IActionResult> OnGetFeatureInfoAsync(

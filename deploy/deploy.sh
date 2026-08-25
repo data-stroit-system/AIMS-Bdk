@@ -45,13 +45,34 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 : "${SERVICE_NAME:=aims-webfrontend}"
 : "${APP_PORT:=5000}"           # Kestrel listens on 127.0.0.1:$APP_PORT, nginx proxies to it
 : "${DOTNET_CHANNEL:=10.0}"     # ASP.NET Core runtime channel to install
-: "${SERVER_NAME:=_}"           # nginx server_name; "_" = catch-all
-: "${NGINX_LISTEN_PORT:=80}"    # external port nginx listens on (site is deployed on 81 in prod — set this in deploy.conf, don't hand-edit the generated nginx site, it gets overwritten every deploy)
+: "${SERVER_NAME:=_}"            # nginx server_name; "_" = catch-all (use a hostname like dtp.devtim.my.id otherwise)
+: "${NGINX_LISTEN_PORT:=80}"    # external port nginx listens on when SSL is OFF (site is deployed on 81 in prod — set this in deploy.conf, don't hand-edit the generated nginx site, it gets overwritten every deploy)
 : "${NGINX_CLIENT_MAX_BODY_SIZE:=50m}"
+# --- TLS (optional) — set NGINX_ENABLE_SSL=true to terminate HTTPS on nginx.
+# Intended pairing with Cloudflare in Full (strict) mode using a free
+# Cloudflare Origin Certificate (https://dash.cloudflare.com → SSL/TLS →
+# Origin Server → Create Certificate). Drop the cert+key at the paths below
+# (chmod 600 the key) and deploy.sh will:
+#   - listen on 443 with the cert, proxy to Kestrel, forward X-Forwarded-Proto=https
+#   - also listen on 80 and 301-redirect to https (set NGINX_REDIRECT_HTTP_TO_HTTPS=false to drop the :80 block entirely)
+# Leave NGINX_ENABLE_SSL unset/false to keep the legacy plain-HTTP single-listener behaviour.
+: "${NGINX_ENABLE_SSL:=false}"
+: "${NGINX_SSL_CERT:=/etc/ssl/cloudflare/dtp.devtim.my.id.pem}"
+: "${NGINX_SSL_KEY:=/etc/ssl/cloudflare/dtp.devtim.my.id.key}"
+: "${NGINX_REDIRECT_HTTP_TO_HTTPS:=true}"
 : "${CSPROJ_PATH:=src/AIMS.WebFrontend/AIMS.WebFrontend.csproj}"
 : "${BUILD_CONFIGURATION:=Release}"
 : "${QGIS_SERVER_URL:=http://192.168.0.8/qgisserver}"
 : "${QGIS_MAP_PROJECT:=/home/deli/OrthoProject1/OrthoProject1.qgs}"
+# Browser-facing QGIS URL. When the app is served over HTTPS, browsers block
+# the WMS GetCapabilities + tile fetches as "mixed content" if QGIS_SERVER_URL
+# is plain http://. nginx proxies /qgisserver → $QGIS_SERVER_URL below, so
+# setting this to "/qgisserver" makes the browser talk same-origin HTTPS to
+# nginx, which forwards over plain HTTP to the upstream QGIS box internally.
+# Leave empty in dev (no nginx in front of `dotnet run` → the browser falls
+# back to QGIS_SERVER_URL directly, which is fine because the dev page is
+# also plain HTTP, no mixed-content blocking).
+: "${QGIS_BROWSER_URL:=/qgisserver}"
 
 command -v dotnet >/dev/null || die "dotnet SDK not found on this machine."
 [[ $EUID -ne 0 ]] || die "Run this as your normal login user (it uses sudo itself), not as root."
@@ -169,7 +190,8 @@ if command -v jq >/dev/null; then
   sudo cat "$SHARED_DIR/appsettings.Production.json" | jq \
     --arg url "$QGIS_SERVER_URL" \
     --arg project "$QGIS_MAP_PROJECT" \
-    '.QgisServer = {"ServerUrl": $url, "MapProject": $project}' \
+    --arg browser "$QGIS_BROWSER_URL" \
+    '.QgisServer = {"ServerUrl": $url, "MapProject": $project, "BrowserUrl": $browser}' \
     | sudo tee "$SHARED_DIR/appsettings.Production.json.tmp" >/dev/null
   sudo mv "$SHARED_DIR/appsettings.Production.json.tmp" "$SHARED_DIR/appsettings.Production.json"
   sudo chown "$APP_USER:$APP_USER" "$SHARED_DIR/appsettings.Production.json"
@@ -229,27 +251,102 @@ sudo systemctl restart "$SERVICE_NAME"
 # 8. nginx site
 # ---------------------------------------------------------------------------
 log "Writing nginx site for $SERVICE_NAME ..."
-sudo tee "/etc/nginx/sites-available/${SERVICE_NAME}" >/dev/null <<NGINX
-server {
-    listen $NGINX_LISTEN_PORT;
-    listen [::]:$NGINX_LISTEN_PORT;
-    server_name $SERVER_NAME;
 
+# Cloudflare Origin Certificates are valid for 15 years but only when
+# accessed *through* Cloudflare's proxy. For Full (strict) mode that's fine
+# — Cloudflare presents its own cert to visitors and validates the origin
+# cert only on the CF→origin hop, which is exactly this cert. If you ever
+# switch to direct visitor access (grey-cloud), get a public cert (Let's
+# Encrypt) and point NGINX_SSL_CERT/KEY at it instead.
+
+write_proxy_block() {
+    # body of a server block — shared by both the plain-HTTP and HTTPS
+    # server blocks. $http_host (not $host) keeps the port so the app's
+    # absolute redirects (e.g. the cookie auth challenge to /Account/Login)
+    # come back on the right port.
+    cat <<PROXY
     client_max_body_size $NGINX_CLIENT_MAX_BODY_SIZE;
 
-    location / {
-        proxy_pass http://127.0.0.1:$APP_PORT;
-        # \$http_host (not \$host) — \$host strips the port from the Host
-        # header, so on a non-80 listen port the app's absolute redirects
-        # (e.g. the cookie-auth challenge to /Account/Login on first visit)
-        # come back port-less and the browser falls back to :80.
+    # Proxy /qgisserver → upstream QGIS Server so the browser can talk to
+    # QGIS same-origin (HTTPS when NGINX_ENABLE_SSL=true, plain HTTP
+    # otherwise) instead of hitting http://<upstream> directly — which
+    # browsers block as "mixed content" on an HTTPS page. The upstream
+    # URL is substituted as a literal (no variable) so nginx resolves it
+    # at config-load, no resolver directive needed. Query string is
+    # preserved by default.
+    location /qgisserver {
+        proxy_pass $QGIS_SERVER_URL;
         proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
+
+    location / {
+        proxy_pass http://127.0.0.1:$APP_PORT;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        # \$scheme here is whatever THIS server block listens as — https
+        # for the :443 block, http for the plain :80 block — so the app's
+        # ForwardedHeaders middleware sees the real external scheme and
+        # UseHttpsRedirection/UseHsts do the right thing (no redirect loop,
+        # because the :80 block 301s at nginx before reaching the app).
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+PROXY
+}
+
+if [[ "$NGINX_ENABLE_SSL" == "true" ]]; then
+  [[ -f "$NGINX_SSL_CERT" ]] || die "NGINX_ENABLE_SSL=true but cert not found at $NGINX_SSL_CERT. Place the cert there (e.g. a Cloudflare Origin Certificate) and rerun."
+  [[ -f "$NGINX_SSL_KEY"  ]] || die "NGINX_ENABLE_SSL=true but key not found at $NGINX_SSL_KEY."
+
+  log "SSL enabled — cert: $NGINX_SSL_CERT"
+  # Generate the full site with both :80 (redirect) and :443 (proxy) blocks.
+  sudo tee "/etc/nginx/sites-available/${SERVICE_NAME}" >/dev/null <<NGINX
+$( if [[ "$NGINX_REDIRECT_HTTP_TO_HTTPS" == "true" ]]; then cat <<HTTP80
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $SERVER_NAME;
+
+    # Hand off any plain-HTTP request to HTTPS before it reaches the app,
+    # so UseHttpsRedirection never fires on a :80 request (it would
+    # otherwise 307 to https://... which works, but doing it here saves
+    # a round-trip through Kestrel).
+    return 301 https://\$host\$request_uri;
+}
+HTTP80
+fi )
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name $SERVER_NAME;
+
+    ssl_certificate     $NGINX_SSL_CERT;
+    ssl_certificate_key $NGINX_SSL_KEY;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    # HSTS at the nginx edge too — doubles up on the app-level UseHsts so
+    # even a static-file response (which bypasses the app middleware
+    # pipeline via nginx) carries the header.
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+$( write_proxy_block )
 }
 NGINX
+else
+  # Legacy plain-HTTP single-listener behaviour (current prod on :81).
+  sudo tee "/etc/nginx/sites-available/${SERVICE_NAME}" >/dev/null <<NGINX
+server {
+    listen $NGINX_LISTEN_PORT;
+    listen [::]:$NGINX_LISTEN_PORT;
+    server_name $SERVER_NAME;
+
+$( write_proxy_block )
+}
+NGINX
+fi
 sudo ln -sfn "/etc/nginx/sites-available/${SERVICE_NAME}" "/etc/nginx/sites-enabled/${SERVICE_NAME}"
 [[ -e /etc/nginx/sites-enabled/default ]] && sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
@@ -259,7 +356,15 @@ sudo systemctl reload nginx
 # 9. Firewall (best-effort, only if ufw is active)
 # ---------------------------------------------------------------------------
 if command -v ufw >/dev/null && sudo ufw status | grep -q "Status: active"; then
-  sudo ufw allow "$NGINX_LISTEN_PORT/tcp" >/dev/null || true
+  if [[ "$NGINX_ENABLE_SSL" == "true" ]]; then
+    # Cloudflare proxied traffic still arrives on 443 (and 80 for the
+    # redirect); open both. Cloudflare's source IPs are documented at
+    # https://www.cloudflare.com/ips/ if you want to lock this down further.
+    sudo ufw allow 443/tcp >/dev/null || true
+    [[ "$NGINX_REDIRECT_HTTP_TO_HTTPS" == "true" ]] && sudo ufw allow 80/tcp >/dev/null || true
+  else
+    sudo ufw allow "$NGINX_LISTEN_PORT/tcp" >/dev/null || true
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -278,13 +383,27 @@ done
 # 11. Health check
 # ---------------------------------------------------------------------------
 log "Health check ..."
+HEALTH_URL="http://127.0.0.1:$APP_PORT/Account/Login"
+if [[ "$NGINX_ENABLE_SSL" == "true" ]] && [[ "$SERVER_NAME" != "_" ]] && [[ "$SERVER_NAME" != "" ]]; then
+  # Also probe the public HTTPS endpoint to confirm the cert + proxy
+  # path end-to-end. Use --resolve so we hit 127.0.0.1 without DNS.
+  PUBLIC_URL="https://${SERVER_NAME}/Account/Login"
+fi
 for i in $(seq 1 10); do
-  if curl -fsS -o /dev/null "http://127.0.0.1:$APP_PORT/Account/Login"; then
-    log "Service is up. Deployed release $RELEASE_ID."
+  if curl -fsS -o /dev/null "$HEALTH_URL"; then
+    log "Service is up (local Kestrel)."
+    if [[ -n "${PUBLIC_URL:-}" ]]; then
+      if curl -fsS --resolve "${SERVER_NAME}:443:127.0.0.1" -o /dev/null "$PUBLIC_URL"; then
+        log "Public HTTPS endpoint OK — $PUBLIC_URL"
+      else
+        echo "WARNING: local Kestrel is up but $PUBLIC_URL did not respond 2xx (check nginx SSL cert / server_name)." >&2
+      fi
+    fi
+    log "Deployed release $RELEASE_ID."
     exit 0
   fi
   sleep 1
 done
-echo "WARNING: health check did not get a response from http://127.0.0.1:$APP_PORT/Account/Login" >&2
+echo "WARNING: health check did not get a response from $HEALTH_URL" >&2
 echo "Check: sudo systemctl status $SERVICE_NAME  &&  sudo journalctl -u $SERVICE_NAME -n 100 --no-pager" >&2
 exit 1

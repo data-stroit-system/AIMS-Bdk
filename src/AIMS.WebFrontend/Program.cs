@@ -5,8 +5,10 @@ using AIMS.Infrastructure.IdentityClass;
 using AIMS.SharedKernel.Interfaces;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Serilog;
+using System.Net;
 
 // Bootstrap logger: console-only, active only while the host is being built
 // (including InitializeDatabase()'s schema-init pass below, which runs before
@@ -60,6 +62,27 @@ try
 
     app.UseSerilogRequestLogging();
 
+    // ForwardedHeaders must run before anything that looks at the request
+    // scheme (UseHttpsRedirection, UseHsts, absolute-URL generation in the
+    // cookie-auth challenge). nginx is the only proxy in front of Kestrel
+    // and runs on this same box (loopback), so trust just it — an outside
+    // attacker can't spoof X-Forwarded-Proto. In the Cloudflare Full-strict
+    // setup (deploy.sh NGINX_ENABLE_SSL=true) nginx forwards $scheme=https
+    // here, so the app knows it's serving HTTPS and the redirect/HSTS
+    // below fire correctly without a loop. In the legacy plain-HTTP prod
+    // (NGINX_ENABLE_SSL=false) nginx forwards $scheme=http; with no
+    // HttpsRedirection:HttpsPort configured anywhere in appsettings*,
+    // UseHttpsRedirection stays a no-op (just logs a warning) and UseHsts
+    // over plain HTTP is ignored by browsers — so the existing prod-on-:81
+    // deploy keeps working unchanged.
+    var forwardedOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    };
+    forwardedOptions.KnownProxies.Add(IPAddress.Loopback);
+    forwardedOptions.KnownProxies.Add(IPAddress.IPv6Loopback);
+    app.UseForwardedHeaders(forwardedOptions);
+
     if (app.Environment.IsDevelopment())
     {
         app.UseDeveloperExceptionPage();
@@ -67,7 +90,12 @@ try
     else
     {
         app.UseExceptionHandler("/Error");
+        // HSTS only in non-Dev (once a browser pins it, it's sticky for a
+        // year — don't lock yourself out of http://localhost in Dev).
+        app.UseHsts();
     }
+
+    app.UseHttpsRedirection();
 
     app.UseStaticFiles();
 
