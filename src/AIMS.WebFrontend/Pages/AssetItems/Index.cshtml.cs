@@ -37,6 +37,8 @@ public class IndexModel : PageModel
 
     public string QgisServerUrl { get; private set; } = string.Empty;
     public string MapProject { get; private set; } = string.Empty;
+    // Browser-facing QGIS URL (falls back to ServerUrl — see MapDemo/IndexModel).
+    public string QgisBrowserUrl { get; private set; } = string.Empty;
     public string SearchTermsJson { get; private set; } = "[]";
 
     [BindProperty(SupportsGet = true)]
@@ -61,6 +63,9 @@ public class IndexModel : PageModel
 
         QgisServerUrl = _configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
         MapProject = _configuration["QgisServer:MapProject"] ?? "/home/deli/ProjectPelatihan/Ortho Project_QGS.qgs";
+        QgisBrowserUrl = _configuration["QgisServer:BrowserUrl"] ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(QgisBrowserUrl))
+            QgisBrowserUrl = QgisServerUrl;
 
         if (PlantId.HasValue)
             FilterPlant = await _plantService.GetByIdAsync(PlantId.Value);

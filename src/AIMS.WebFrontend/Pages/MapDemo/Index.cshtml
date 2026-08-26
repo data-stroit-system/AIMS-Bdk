@@ -38,7 +38,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const QGIS_SERVER = '@Model.QgisServerUrl';
+        const QGIS_SERVER = '@Model.QgisBrowserUrl';
         const MAP_PROJECT = '@Model.MapProject';
 
         const map = L.map('map', { maxZoom: 25 }).setView([-6.16526, 106.92418], 17);
