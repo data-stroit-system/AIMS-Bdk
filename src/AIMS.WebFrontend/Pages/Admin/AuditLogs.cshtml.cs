@@ -83,25 +83,26 @@ public class AuditLogsModel : PageModel
 
         if (!string.IsNullOrEmpty(UserNameFilter) && CanViewAllLogs)
         {
-            where.Append(" AND UserName LIKE @UserNameFilter");
-            p.Add("UserNameFilter", $"%{UserNameFilter}%");
+            where.Append(@" AND UserName LIKE @UserNameFilter ESCAPE '\'");
+            p.Add("UserNameFilter", $"%{_dialect.EscapeLike(UserNameFilter)}%");
         }
 
+        // Timestamps are stored in UTC; treat the filter inputs as UTC calendar days.
+        // (ToUniversalTime() here would treat them as server-local and shift the
+        // window by the server's UTC offset.)
         if (FromDate.HasValue)
         {
             where.Append(" AND Timestamp >= @FromDate");
-            p.Add("FromDate", FromDate.Value.ToUniversalTime());
+            p.Add("FromDate", DateTime.SpecifyKind(FromDate.Value.Date, DateTimeKind.Utc));
         }
 
         if (ToDate.HasValue)
         {
             where.Append(" AND Timestamp < @ToDate");
-            p.Add("ToDate", ToDate.Value.AddDays(1).ToUniversalTime());
+            p.Add("ToDate", DateTime.SpecifyKind(ToDate.Value.Date.AddDays(1), DateTimeKind.Utc));
         }
 
         var whereClause = where.ToString();
-        p.Add("Offset", (CurrentPage - 1) * PageSize);
-        p.Add("PageSize", PageSize);
 
         var totalCount = await conn.QuerySingleAsync<int>(
             $"SELECT COUNT(*) FROM AuditLogs {whereClause}", p);
@@ -110,10 +111,23 @@ public class AuditLogsModel : PageModel
         TotalPages = TotalPages < 1 ? 1 : TotalPages;
         CurrentPage = CurrentPage > TotalPages ? TotalPages : CurrentPage;
 
+        // Add the Offset only after CurrentPage is clamped to [1, TotalPages];
+        // computing it from the raw requested page would page past the end and
+        // return zero rows while the UI shows the (clamped) last page.
+        p.Add("Offset", (CurrentPage - 1) * PageSize);
+        p.Add("PageSize", PageSize);
+
         AuditLogs = (await conn.QueryAsync<AuditLog>(
             _dialect.Paginate($"SELECT * FROM AuditLogs {whereClause}", "Timestamp DESC"),
             p)).ToList();
     }
+
+    // Timestamps are stored/queried as UTC but Dapper hands them back with
+    // DateTimeKind.Unspecified. Stamp them Utc and emit ISO-8601 with the 'Z'
+    // suffix so the client-side script parses them as UTC and renders in each
+    // viewer's own browser timezone.
+    public static string ToIsoUtc(DateTime ts) =>
+        DateTime.SpecifyKind(ts, DateTimeKind.Utc).ToString("yyyy-MM-ddTHH:mm:ssZ");
 
     public string FormatJson(string? json)
     {

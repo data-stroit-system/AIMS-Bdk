@@ -1,4 +1,7 @@
+using AIMS.Core.Entities;
 using Dapper;
+using System.Data;
+using System.Linq;
 
 namespace AIMS.Infrastructure.Data;
 
@@ -15,6 +18,157 @@ public class DatabaseInitializer : ISchemaInitializer
     {
         using var conn = _context.CreateConnection();
         conn.Execute(Schema);
+        MigratePlantCodeToInt(conn);
+        BackfillPlantIdFromLegacyColumn(conn);
+        MigrateLegacyIntegrityStatus(conn);
+        MigrateAssetCodeAndOrder(conn);
+        MigrateAssetOrderToText(conn);
+        DropLegacyAssetItemColumns(conn);
+        RegenerateAssetIds(conn);
+        BackfillDocumentType(conn);
+    }
+
+    /// <summary>
+    /// Backfills DocumentType for rows uploaded before the column existed, inferring it from
+    /// the file extension (jpg/jpeg/png = Picture, everything else = Document). Safe to run
+    /// on every startup.
+    /// </summary>
+    private static void BackfillDocumentType(IDbConnection conn)
+    {
+        conn.Execute($@"
+            UPDATE AssetItemDocuments
+            SET DocumentType = CASE
+                WHEN LOWER(FilePath) LIKE '%.jpg' OR LOWER(FilePath) LIKE '%.jpeg' OR LOWER(FilePath) LIKE '%.png' THEN '{DocumentTypeCode.Picture}'
+                ELSE '{DocumentTypeCode.Document}'
+            END
+            WHERE DocumentType IS NULL");
+    }
+
+    /// <summary>
+    /// Backfills the renamed AssetCode and AssetOrder columns from their legacy
+    /// EquipmentCode / CivilAssetOrder predecessors, then drops the old columns.
+    /// Safe to run on every startup.
+    /// </summary>
+    private static void MigrateAssetCodeAndOrder(IDbConnection conn)
+    {
+        var hasEquipmentCode = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', 'EquipmentCode')") != null;
+        if (hasEquipmentCode)
+        {
+            conn.Execute("UPDATE AssetItems SET AssetCode = EquipmentCode WHERE AssetCode IS NULL AND EquipmentCode IS NOT NULL");
+        }
+
+        var hasCivilAssetOrder = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', 'CivilAssetOrder')") != null;
+        if (hasCivilAssetOrder)
+        {
+            conn.Execute("UPDATE AssetItems SET AssetOrder = CivilAssetOrder WHERE AssetOrder IS NULL AND CivilAssetOrder IS NOT NULL");
+        }
+    }
+
+    /// <summary>
+    /// Converts AssetItems.AssetOrder from its original int to nvarchar(200) so alphanumeric
+    /// order values are supported. No-op once already nvarchar. Safe to run on every startup.
+    /// </summary>
+    private static void MigrateAssetOrderToText(IDbConnection conn)
+    {
+        var currentType = conn.ExecuteScalar<string?>(
+            "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AssetItems' AND COLUMN_NAME = 'AssetOrder'");
+        if (currentType == null || currentType == "nvarchar") return;
+
+        conn.Execute("ALTER TABLE AssetItems ALTER COLUMN AssetOrder nvarchar(200) NULL");
+    }
+
+    /// <summary>
+    /// Drops the unused legacy Description/Type/Location/Priority/QrCode columns from AssetItems.
+    /// Safe to run on every startup.
+    /// </summary>
+    private static void DropLegacyAssetItemColumns(IDbConnection conn)
+    {
+        foreach (var column in new[] { "Description", "Type", "Location", "Priority", "QrCode", "EquipmentDesc", "CivilAssetCode", "CivilAssetDescription", "CivilAssetDesc", "EquipmentCode", "CivilAssetOrder", "EquipmentDescription" })
+        {
+            var exists = conn.ExecuteScalar<int?>($"SELECT COL_LENGTH('AssetItems', '{column}')") != null;
+            if (exists)
+                conn.Execute($"ALTER TABLE AssetItems DROP COLUMN {column}");
+        }
+    }
+
+    /// <summary>
+    /// Backfills Condition from the old IntegrityStatus enum column (1=Good, 2=Fair, 3=Poor)
+    /// for rows that never had Condition set, then drops the now-redundant column. Safe to
+    /// run on every startup.
+    /// </summary>
+    private static void MigrateLegacyIntegrityStatus(IDbConnection conn)
+    {
+        var hasIntegrityStatus = conn.ExecuteScalar<int?>("SELECT COL_LENGTH('AssetItems', 'IntegrityStatus')") != null;
+        if (!hasIntegrityStatus) return;
+
+        conn.Execute(@"
+            UPDATE AssetItems
+            SET Condition = CASE IntegrityStatus WHEN 1 THEN 'Good' WHEN 2 THEN 'Fair' WHEN 3 THEN 'Poor' END
+            WHERE Condition IS NULL AND IntegrityStatus IN (1, 2, 3)");
+
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN IntegrityStatus");
+    }
+
+    /// <summary>
+    /// Recomputes AssetId (Asset Tag No.) in C# for rows that have full Plant/Equipment/Civil
+    /// data, so it always matches AssetItemService's generation formula. Rows lacking that
+    /// structured data (legacy freeform tags) are left untouched. Safe to run on every startup.
+    /// </summary>
+    private static void RegenerateAssetIds(IDbConnection conn)
+    {
+        var plantCodes = conn.Query<(int Id, int? Code)>("SELECT Id, Code FROM Plants")
+            .ToDictionary(p => p.Id, p => p.Code);
+
+        var items = conn.Query<(int Id, int? PlantId, string? AssetCode, string? AssetOrder, string? AssetId, string? Category)>(
+            "SELECT Id, PlantId, AssetCode, AssetOrder, AssetId, Category FROM AssetItems " +
+            "WHERE PlantId IS NOT NULL AND AssetCode IS NOT NULL");
+
+        foreach (var item in items)
+        {
+            var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
+            var generated = AssetItem.GenerateAssetId(
+                plantCode, item.AssetCode ?? string.Empty,
+                item.AssetOrder, item.Category);
+
+            if (generated != item.AssetId)
+            {
+                conn.Execute("UPDATE AssetItems SET AssetId = @AssetId WHERE Id = @Id", new { AssetId = generated, Id = item.Id });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Converts Plants.Code from its original nvarchar(20) to int, nulling out any non-numeric
+    /// legacy values first so the ALTER can't fail on bad data. No-op once already int. Safe to
+    /// run on every startup.
+    /// </summary>
+    private static void MigratePlantCodeToInt(IDbConnection conn)
+    {
+        var currentType = conn.ExecuteScalar<string?>(
+            "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Plants' AND COLUMN_NAME = 'Code'");
+        if (currentType == null || currentType == "int") return;
+
+        conn.Execute("UPDATE Plants SET Code = NULL WHERE Code IS NOT NULL AND (LEN(Code) = 0 OR Code LIKE '%[^0-9]%')");
+        conn.Execute("ALTER TABLE Plants ALTER COLUMN Code int NULL");
+    }
+
+    /// <summary>
+    /// Backfills AssetItems.PlantId from any leftover legacy PlantCode text column (matched
+    /// against existing Plants rows by Code) and drops it. Safe to run on every startup.
+    /// </summary>
+    private static void BackfillPlantIdFromLegacyColumn(IDbConnection conn)
+    {
+        var hasPlantCode = conn.ExecuteScalar<int?>("SELECT COL_LENGTH('AssetItems', 'PlantCode')") != null;
+        if (!hasPlantCode) return;
+
+        conn.Execute(@"
+            UPDATE AssetItems
+            SET PlantId = (SELECT p.Id FROM Plants p WHERE p.Code = TRY_CAST(AssetItems.PlantCode AS int))
+            WHERE PlantId IS NULL AND PlantCode IS NOT NULL
+              AND EXISTS (SELECT 1 FROM Plants p WHERE p.Code = TRY_CAST(AssetItems.PlantCode AS int))");
+
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantCode");
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantDescription");
     }
 
     private const string Schema = @"
@@ -48,20 +202,91 @@ CREATE TABLE AspNetUsers (
     AccessFailedCount int NOT NULL DEFAULT 0
 );
 
+IF OBJECT_ID('Plants', 'U') IS NULL
+CREATE TABLE Plants (
+    Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    Code int NULL,
+    Name nvarchar(200) NULL,
+    Description nvarchar(200) NULL
+);
+
+IF OBJECT_ID('Plants', 'U') IS NOT NULL AND COL_LENGTH('Plants', 'Code') IS NULL
+ALTER TABLE Plants ADD Code int NULL;
+
 IF OBJECT_ID('AssetItems', 'U') IS NULL
 CREATE TABLE AssetItems (
     Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    Title nvarchar(150) NULL,
+    GisRefNo nvarchar(200) NULL,
     AssetId nvarchar(max) NULL,
-    Description nvarchar(250) NULL,
-    Type int NOT NULL DEFAULT 0,
-    Location nvarchar(250) NULL,
-    Priority int NOT NULL DEFAULT 0,
-    IntegrityStatus int NOT NULL DEFAULT 0,
+    Title nvarchar(200) NULL,
+    AssetCode nvarchar(200) NULL,
+    AssetOrder nvarchar(200) NULL,
+    [Function] nvarchar(200) NULL,
+    Material nvarchar(200) NULL,
+    YearInstalled int NULL,
+    [Owner] nvarchar(200) NULL,
+    Constrain nvarchar(200) NULL,
+    [Access] nvarchar(200) NULL,
+    CoordinateN nvarchar(200) NULL,
+    CoordinateE nvarchar(200) NULL,
+    Zone nvarchar(200) NULL,
+    Area nvarchar(200) NULL,
+    Train nvarchar(200) NULL,
+    DateOfInspection datetime2 NULL,
+    Inspector nvarchar(200) NULL,
+    Condition nvarchar(200) NULL,
+    Comment nvarchar(1000) NULL,
     PicturePath nvarchar(500) NULL,
     CreatedAt datetime2 NOT NULL DEFAULT GETUTCDATE(),
-    CreatedBy nvarchar(200) NULL
+    CreatedBy nvarchar(200) NULL,
+    PlantId int NULL,
+    CONSTRAINT FK_AssetItems_Plants_PlantId FOREIGN KEY (PlantId) REFERENCES Plants(Id)
 );
+
+-- Add new columns for existing tables (idempotent)
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'GisRefNo') IS NULL
+ALTER TABLE AssetItems ADD GisRefNo nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'AssetCode') IS NULL
+ALTER TABLE AssetItems ADD AssetCode nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'AssetOrder') IS NULL
+ALTER TABLE AssetItems ADD AssetOrder nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Function') IS NULL
+ALTER TABLE AssetItems ADD [Function] nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Material') IS NULL
+ALTER TABLE AssetItems ADD Material nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'YearInstalled') IS NULL
+ALTER TABLE AssetItems ADD YearInstalled int NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Owner') IS NULL
+ALTER TABLE AssetItems ADD [Owner] nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Constrain') IS NULL
+ALTER TABLE AssetItems ADD Constrain nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Access') IS NULL
+ALTER TABLE AssetItems ADD [Access] nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CoordinateN') IS NULL
+ALTER TABLE AssetItems ADD CoordinateN nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'CoordinateE') IS NULL
+ALTER TABLE AssetItems ADD CoordinateE nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Zone') IS NULL
+ALTER TABLE AssetItems ADD Zone nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Area') IS NULL
+ALTER TABLE AssetItems ADD Area nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Train') IS NULL
+ALTER TABLE AssetItems ADD Train nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Category') IS NULL
+ALTER TABLE AssetItems ADD Category nvarchar(250) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'DateOfInspection') IS NULL
+ALTER TABLE AssetItems ADD DateOfInspection datetime2 NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Inspector') IS NULL
+ALTER TABLE AssetItems ADD Inspector nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Condition') IS NULL
+ALTER TABLE AssetItems ADD Condition nvarchar(200) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'Comment') IS NULL
+ALTER TABLE AssetItems ADD Comment nvarchar(1000) NULL;
+IF OBJECT_ID('AssetItems', 'U') IS NOT NULL AND COL_LENGTH('AssetItems', 'PlantId') IS NULL
+BEGIN
+    ALTER TABLE AssetItems ADD PlantId int NULL;
+    EXEC('ALTER TABLE AssetItems ADD CONSTRAINT FK_AssetItems_Plants_PlantId FOREIGN KEY (PlantId) REFERENCES Plants(Id)');
+END;
 
 IF OBJECT_ID('AuditLogs', 'U') IS NULL
 CREATE TABLE AuditLogs (
@@ -143,11 +368,14 @@ CREATE TABLE AssetItemDocuments (
     Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
     DocumentTitle nvarchar(250) NULL,
     FilePath nvarchar(500) NULL,
+    DocumentType nvarchar(20) NULL,
     CreatedAt datetime2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedBy nvarchar(200) NULL,
     AssetItemId int NULL,
     CONSTRAINT FK_AssetItemDocuments_AssetItems_AssetItemId FOREIGN KEY (AssetItemId) REFERENCES AssetItems(Id)
 );
+IF OBJECT_ID('AssetItemDocuments', 'U') IS NOT NULL AND COL_LENGTH('AssetItemDocuments', 'DocumentType') IS NULL
+ALTER TABLE AssetItemDocuments ADD DocumentType nvarchar(20) NULL;
 
 IF OBJECT_ID('AssetRemarks', 'U') IS NULL
 CREATE TABLE AssetRemarks (

@@ -62,7 +62,7 @@ public class EditModel : PageModel
         user.FullName = Input.FullName;
         user.Email = Input.Email;
         user.UserName = Input.UserName;
-        user.JobTitle = Input.JobTitle;
+        user.JobTitle = Input.JobTitle ?? string.Empty;
         user.EmailConfirmed = Input.EmailConfirmed;
 
         var result = await _userManager.UpdateAsync(user);

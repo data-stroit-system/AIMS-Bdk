@@ -1,0 +1,42 @@
+@page "{id:int}"
+@model AIMS.WebFrontend.Pages.AssetItems.PrintTagModel
+@{
+    Layout = null;
+    var item = Model.AssetItem;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Print Tag &ndash; @item.AssetId</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        body { background: #eceff1; }
+        .sims-nameplate-card { margin: 32px auto; }
+        .tag-actions { max-width: 360px; margin: 0 auto 32px; text-align: center; }
+        @@media print {
+            body { background: #fff; }
+            .tag-actions { display: none; }
+            .sims-nameplate-card { margin: 0 auto; border: none; }
+        }
+    </style>
+</head>
+<body>
+    @{ await Html.RenderPartialAsync("_NameplateCard", item); }
+
+    <div class="tag-actions">
+        <button type="button" class="sims-btn sims-btn-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print
+        </button>
+        <a asp-page="Details" asp-route-id="@item.Id" class="sims-btn sims-btn-outline">
+            <i class="fas fa-arrow-left"></i> Back to Asset
+        </a>
+    </div>
+
+    <script>
+        // No tab to wait for here — load the QR code immediately.
+        document.getElementById('nameplateQr').src = document.getElementById('nameplateQr').dataset.src;
+    </script>
+</body>
+</html>

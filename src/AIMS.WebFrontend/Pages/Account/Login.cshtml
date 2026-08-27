@@ -5,32 +5,52 @@
     Layout = "_LoginLayout";
 }
 
-<div class="card shadow-lg border-0 rounded-lg mt-5">
-    <div class="card-header">
-        <h3 class="text-center font-weight-light my-4">
-            <i class="fas fa-lock me-2"></i> Login
-        </h3>
+<div class="sims-login-card">
+    <div class="sims-login-header">
+        <i class="fas fa-shield-halved fa-2x sims-mb-2" style="display:block"></i>
+        <h2>Structural Integrity Management System</h2>
+        <p>Sign in to start your session</p>
     </div>
     <form method="post">
-        <div class="card-body">
-            <div class="form-floating mb-3">
-                <input asp-for="LoginInput.UserName" class="form-control" placeholder="Username" />
-                <label asp-for="LoginInput.UserName">Username</label>
-                <span asp-validation-for="LoginInput.UserName" class="text-danger small"></span>
+        <div class="sims-login-body">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <div class="sims-form-group">
+                <label asp-for="LoginInput.UserName" class="sims-form-label">
+                    <i class="fas fa-user sims-me-2"></i>User Name
+                </label>
+                <input asp-for="LoginInput.UserName" class="sims-form-control" placeholder="Enter your username" autocomplete="username" />
+                <span asp-validation-for="LoginInput.UserName" class="d-block mt-1 text-danger"></span>
             </div>
-            <div class="form-floating mb-3">
-                <input asp-for="LoginInput.Password" class="form-control" type="password" placeholder="Password" />
-                <label asp-for="LoginInput.Password">Password</label>
-                <span asp-validation-for="LoginInput.Password" class="text-danger small"></span>
+
+            <div class="sims-form-group">
+                <label asp-for="LoginInput.Password" class="sims-form-label">
+                    <i class="fas fa-lock sims-me-2"></i>Password
+                </label>
+                <input asp-for="LoginInput.Password" type="password" class="sims-form-control" placeholder="Enter your password" autocomplete="current-password" />
+                <span asp-validation-for="LoginInput.Password" class="d-block mt-1 text-danger"></span>
             </div>
-            <div class="d-flex align-items-center justify-content-end mt-4 mb-0">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-sign-in-alt me-1"></i> Login
-                </button>
+
+            <div class="sims-form-group sims-d-flex sims-align-center sims-gap-2">
+                <input type="checkbox" id="rememberMe" style="accent-color:var(--sims-blue);">
+                <label for="rememberMe" class="sims-text-sm">Remember Me</label>
+            </div>
+
+            <button type="submit" class="sims-btn sims-btn-primary sims-btn-lg sims-w-100">
+                <i class="fas fa-sign-in-alt"></i> Sign in
+            </button>
+        
+            <div class="d-flex justify-content-center my-1">
+                <img src="~/asset-pictures/badak-lng.png" alt="badak-lng" class="img-thumbnail "/>
             </div>
         </div>
     </form>
-    <div class="card-footer text-center py-3">
-        <div class="small text-muted">Structural Integrity Management System</div>
+    <div class="sims-login-footer">
+        <i class="fas fa-shield-halved sims-me-1"></i> SIMS &middot; PT. Badak NGL &middot; Badak LNG Plant Site, Bontang
+        <br />&copy; 2024 Structural Integrity Management System
     </div>
 </div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

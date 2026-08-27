@@ -4,18 +4,33 @@
     ViewData["Title"] = "Map Demo";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-map-location-dot"></i> Map Demo</h1>
-    <small class="text-muted">QGIS Server &mdash; world.qgs</small>
-</div>
-
-<div class="card shadow-sm">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h6 class="mb-0"><i class="fas fa-map"></i> Interactive Map</h6>
-        <small id="map-status" class="text-muted">Loading layers&hellip;</small>
+<div class="d-flex flex-column h-100">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1><i class="fas fa-map-location-dot"></i> Map Demo</h1>
+        <small class="text-muted">QGIS Server &mdash; Ortho Project.qgz</small>
     </div>
-    <div class="card-body p-0">
-        <div id="map" style="height: 600px; width: 100%;"></div>
+
+    <div class="card shadow-sm flex-grow-1 d-flex flex-column" style="min-height: 0;">
+        <div class="card-header bg-light flex-shrink-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-map"></i> Interactive Map</h6>
+                <small id="map-status" class="text-muted">Loading layers&hellip;</small>
+            </div>
+            <div class="input-group input-group-sm mt-2" style="max-width: 360px;">
+                <input type="text" id="search-input" class="form-control" placeholder="Search feature in visible layers&hellip;"
+                       aria-label="Search features">
+                <button id="search-btn" class="btn btn-primary" type="button" title="Search">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button id="search-clear-btn" class="btn btn-outline-secondary" type="button" title="Clear search markers">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="search-status" class="text-muted small mt-1 d-none"></div>
+        </div>
+        <div class="card-body p-0 flex-grow-1" style="min-height: 0;">
+            <div id="map" style="height: 100%; width: 100%;"></div>
+        </div>
     </div>
 </div>
 
@@ -23,34 +38,66 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const QGIS_SERVER = 'http://159.223.33.82/qgisserver';
-        const MAP_PROJECT = '/home/qgis/projects/world.qgs';
+        const QGIS_SERVER = '@Model.QgisBrowserUrl';
+        const MAP_PROJECT = '@Model.MapProject';
 
-        const map = L.map('map').setView([0.131, 117.472], 14);
+        const map = L.map('map', { maxZoom: 25 }).setView([-6.16526, 106.92418], 17);
         const statusEl = document.getElementById('map-status');
 
-        const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
 
-        const baseLayers = { 'OpenStreetMap': osm };
-        let currentLayers = 'world';
 
-        function addWmsLayer(layers) {
+
+        let currentLayers = '';
+        // layer name → {minx, miny, maxx, maxy} from GetCapabilities BoundingBox
+        const layerExtents = {};
+
+        function addWmsLayers(layers) {
+            const baseLayerName = 'Pelatihan Bulan Juli 2026';
+            const baseLayerIdx = layers.indexOf(baseLayerName);
+            const overlayNames = baseLayerIdx !== -1
+                ? layers.filter((_, i) => i !== baseLayerIdx)
+                : layers;
+
+            // All layers for feature-info lookup
             currentLayers = layers;
-            const wms = L.tileLayer.wms(QGIS_SERVER, {
-                MAP: MAP_PROJECT,
-                layers: layers,
-                format: 'image/png',
-                transparent: true,
-                version: '1.3.0',
-                attribution: 'QGIS Server'
+
+            const baseLayers = {};
+            if (baseLayerIdx !== -1) {
+                baseLayers[baseLayerName] = L.tileLayer.wms(QGIS_SERVER, {
+                    MAP: MAP_PROJECT,
+                    layers: baseLayerName,
+                    format: 'image/png',
+                    transparent: false,
+                    version: '1.3.0',
+                    maxZoom: 25,
+                    attribution: 'QGIS Server'
+                }).addTo(map);
+            }
+
+            const overlays = {};
+            overlayNames.forEach((name, i) => {
+                overlays[name] = L.tileLayer.wms(QGIS_SERVER, {
+                    MAP: MAP_PROJECT,
+                    layers: name,
+                    format: 'image/png',
+                    transparent: true,
+                    version: '1.3.0',
+                    maxZoom: 25,
+                    attribution: 'QGIS Server',
+                    zIndex: overlayNames.length - i,
+                    opacity: name === 'Luas Area Pelatihan' ? 0.4 : 0.6
+                });
             });
 
-            L.control.layers(baseLayers, { 'QGIS WMS': wms }, { collapsed: false }).addTo(map);
+            const overlayKeys = Object.keys(overlays);
+            overlayKeys.forEach(name => overlays[name].addTo(map));
 
-            statusEl.textContent = 'Layers: ' + layers;
+            L.control.layers(baseLayers, overlays, { collapsed: false, autoZIndex: false }).addTo(map);
+
+            const allVisible = baseLayerIdx !== -1
+                ? [baseLayerName, ...overlayKeys]
+                : overlayKeys;
+            statusEl.textContent = 'Layers: ' + (allVisible.join(', ') || 'none');
             statusEl.classList.replace('text-muted', 'text-success');
         }
 
@@ -99,24 +146,107 @@
                 const seen = new Set();
                 const names = [];
                 for (const layer of layerEls) {
+                    let layerName = null;
+                    let bbox = null;
                     for (const child of layer.children) {
-                        if (child.localName === 'Name') {
-                            const name = child.textContent.trim();
-                            if (name && !seen.has(name)) {
-                                seen.add(name);
-                                names.push(name);
+                        if (child.localName === 'Name' && !layerName) {
+                            layerName = child.textContent.trim();
+                        }
+                        // WMS 1.3.0: BoundingBox, 1.1.1: LatLonBoundingBox
+                        if ((child.localName === 'BoundingBox' || child.localName === 'LatLonBoundingBox') && !bbox) {
+                            const minx = parseFloat(child.getAttribute('minx'));
+                            const miny = parseFloat(child.getAttribute('miny'));
+                            const maxx = parseFloat(child.getAttribute('maxx'));
+                            const maxy = parseFloat(child.getAttribute('maxy'));
+                            if (!isNaN(minx) && !isNaN(miny) && !isNaN(maxx) && !isNaN(maxy)) {
+                                bbox = { minx, miny, maxx, maxy };
                             }
-                            break;
                         }
                     }
+                    if (layerName && !seen.has(layerName)) {
+                        seen.add(layerName);
+                        names.push(layerName);
+                        if (bbox) layerExtents[layerName] = bbox;
+                    }
                 }
-
-                addWmsLayer(names.length ? names.join(',') : 'world');
+                console.log('Discovered WMS layers:', names, 'with extents:', Object.keys(layerExtents));
+                addWmsLayers(names);
             })
             .catch(() => {
-                addWmsLayer('world');
+                addWmsLayers(['world']);
                 statusEl.textContent = 'Auto-discovery unavailable, using default layer';
                 statusEl.classList.replace('text-muted', 'text-warning');
             });
+
+        // ── Layer Search ──────────────────────────────────────────────────────
+        const searchInput = document.getElementById('search-input');
+        const searchBtn = document.getElementById('search-btn');
+        const searchClearBtn = document.getElementById('search-clear-btn');
+        const searchStatus = document.getElementById('search-status');
+
+        function doSearch() {
+            const query = searchInput.value.trim().toLowerCase();
+            if (!query) {
+                searchStatus.textContent = 'Please enter a search term.';
+                searchStatus.classList.remove('d-none');
+                return;
+            }
+
+            // Match layer name (case-insensitive substring) and zoom to its extent
+            const match = currentLayers.find(function (name) {
+                return name.toLowerCase().indexOf(query) !== -1;
+            });
+
+            if (!match) {
+                searchStatus.textContent = 'No layer matched "' + query + '".';
+                searchStatus.classList.remove('d-none', 'text-success');
+                searchStatus.classList.add('text-warning');
+                return;
+            }
+
+            // Zoom 2× at current center, then open feature info popup
+            const center = map.getCenter();
+            const targetZoom = Math.min(map.getZoom() + 2, map.getMaxZoom());
+            map.setView(center, targetZoom, { animate: true });
+            searchStatus.textContent = 'Found layer "' + match + '" — zooming in.';
+            searchStatus.classList.remove('d-none', 'text-warning', 'text-danger');
+            searchStatus.classList.add('text-success');
+
+            // After zoom animation completes, query feature info at center
+            map.once('moveend', function () {
+                const popup = L.popup().setLatLng(center).setContent('<em>Loading&hellip;</em>').openOn(map);
+                const size = map.getSize();
+                const bounds = map.getBounds();
+                const sw = bounds.getSouthWest();
+                const ne = bounds.getNorthEast();
+                const bbox = `${sw.lat},${sw.lng},${ne.lat},${ne.lng}`;
+
+                const url = `?handler=FeatureInfo`
+                    + `&layers=${encodeURIComponent(match)}`
+                    + `&bbox=${encodeURIComponent(bbox)}`
+                    + `&width=${size.x}&height=${size.y}`
+                    + `&i=${Math.round(size.x / 2)}&j=${Math.round(size.y / 2)}`;
+
+                fetch(url)
+                    .then(r => r.text())
+                    .then(text => {
+                        const trimmed = text.trim();
+                        popup.setContent(trimmed
+                            ? `<pre style="max-height:200px;overflow:auto;margin:0;font-size:11px;white-space:pre-wrap">${trimmed}</pre>`
+                            : '<em>No feature info at this location.</em>');
+                    })
+                    .catch(() => popup.setContent('<em>Feature info unavailable.</em>'));
+            });
+            searchBtn.disabled = false;
+        }
+
+        searchBtn.addEventListener('click', doSearch);
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+        });
+        searchClearBtn.addEventListener('click', function () {
+            searchInput.value = '';
+            searchStatus.classList.add('d-none');
+        });
     </script>
 }

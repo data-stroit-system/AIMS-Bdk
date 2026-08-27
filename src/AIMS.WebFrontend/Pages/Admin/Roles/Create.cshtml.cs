@@ -45,7 +45,7 @@ public class CreateModel : PageModel
         var role = new ApplicationRole
         {
             Name = Input.Name,
-            Description = Input.Description
+            Description = Input.Description ?? string.Empty
         };
 
         var result = await _roleManager.CreateAsync(role);

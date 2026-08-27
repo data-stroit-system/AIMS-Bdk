@@ -18,16 +18,3 @@ public class ToDoItem : BaseEntity
         Events.Add(new ToDoItemCompletedEvent(this));
     }
 }
-public enum AssetPriority
-{
-    Low = 1,
-    Medium = 2,
-    High = 3
-}
-public enum AssetType
-{
-    Pipe = 1,
-    PSV = 2,
-    PressureTank = 3,
-    Other = 4
-}

@@ -28,9 +28,11 @@ public class DeleteModel : PageModel
         var (asset, docs) = await _assetItemService.DeleteAsync(id);
         if (asset == null) return NotFound();
 
-        _fileUpload.DeleteFile(asset.PicturePath, _env.WebRootPath);
+        if (!string.IsNullOrEmpty(asset.PicturePath))
+            _fileUpload.DeleteFile(asset.PicturePath, _env.WebRootPath);
         foreach (var doc in docs)
-            _fileUpload.DeleteFile(doc.FilePath, _env.WebRootPath);
+            if (!string.IsNullOrEmpty(doc.FilePath))
+                _fileUpload.DeleteFile(doc.FilePath, _env.WebRootPath);
 
         await _activityLogger.LogActivityAsync(
             "AssetItemDeleted",

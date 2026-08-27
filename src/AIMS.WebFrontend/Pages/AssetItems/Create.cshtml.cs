@@ -13,13 +13,15 @@ namespace AIMS.WebFrontend.Pages.AssetItems;
 public class CreateModel : PageModel
 {
     private readonly AssetItemService _assetItemService;
+    private readonly PlantService _plantService;
     private readonly IActivityLogger _activityLogger;
     private readonly IWebHostEnvironment _env;
     private readonly FileUploadHelper _fileUpload;
 
-    public CreateModel(AssetItemService assetItemService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
+    public CreateModel(AssetItemService assetItemService, PlantService plantService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
     {
         _assetItemService = assetItemService;
+        _plantService = plantService;
         _activityLogger = activityLogger;
         _env = env;
         _fileUpload = fileUpload;
@@ -28,12 +30,24 @@ public class CreateModel : PageModel
     [BindProperty]
     public CreateAssetItemInput Input { get; set; } = new();
 
-    public void OnGet() { }
+    public List<AssetCode> AssetCodes => AssetCode.All.ToList();
+    public List<Plant> Plants { get; set; } = new();
+
+    public async Task OnGetAsync(int? plantId)
+    {
+        Plants = await _plantService.ListAsync();
+        if (plantId.HasValue)
+            Input.PlantId = plantId;
+    }
 
     public async Task<IActionResult> OnPostAsync()
     {
+        Plants = await _plantService.ListAsync();
+
         if (!ModelState.IsValid)
+        {
             return Page();
+        }
 
         string? picturePath = null;
 
@@ -45,25 +59,53 @@ public class CreateModel : PageModel
                 ModelState.AddModelError("Input.Picture", error);
                 return Page();
             }
-
             picturePath = await _fileUpload.SaveAssetPictureAsync(Input.Picture, _env.WebRootPath);
         }
 
+        // AssetId (Asset Tag No.) is generated server-side by AssetItemService from
+        // Plant/Equipment codes — it is never accepted as client input.
         var item = new AssetItem
         {
+            GisRefNo = Input.GisRefNo,
             Title = Input.Title,
-            AssetId = Input.AssetId,
-            Description = Input.Description,
-            Type = Input.Type,
-            Location = Input.Location,
-            Priority = Input.Priority,
-            IntegrityStatus = Input.IntegrityStatus,
+            AssetCode = Input.AssetCode,
+            AssetOrder = Input.AssetOrder,
+            Function = Input.Function,
+            Material = Input.Material,
+            YearInstalled = Input.YearInstalled,
+            Owner = Input.Owner,
+            Constrain = Input.Constrain,
+            Access = Input.Access,
+            CoordinateN = Input.CoordinateN,
+            CoordinateE = Input.CoordinateE,
+            Zone = Input.Zone,
+            Area = Input.Area,
+            Train = Input.Train,
+            Category = Input.Category,
+            DateOfInspection = Input.DateOfInspection,
+            Inspector = Input.Inspector,
+            Condition = Input.Condition,
+            Comment = Input.Comment,
             PicturePath = picturePath,
             CreatedAt = DateTime.UtcNow,
-            CreatedBy = User.Identity?.Name ?? "Unknown"
+            CreatedBy = User.Identity?.Name ?? "Unknown",
+            PlantId = Input.PlantId
         };
 
-        var newId = await _assetItemService.CreateAsync(item);
+        var newId = 0;
+        try
+        {
+            newId = await _assetItemService.CreateAsync(item);
+        }
+        catch (DuplicateAssetIdException ex)
+        {
+            // The tag already belongs to another asset — discard the picture that was
+            // staged for this never-created asset before re-rendering the form.
+            if (!string.IsNullOrEmpty(picturePath))
+                _fileUpload.DeleteFile(picturePath, _env.WebRootPath);
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return Page();
+        }
 
         await _activityLogger.LogActivityAsync(
             "AssetItemCreated",
@@ -76,28 +118,37 @@ public class CreateModel : PageModel
 
     public class CreateAssetItemInput
     {
-        [Required]
-        [StringLength(150)]
-        public string Title { get; set; } = string.Empty;
+        [Display(Name = "Plant")]
+        public int? PlantId { get; set; }
 
-        [Required]
-        [StringLength(50)]
-        public string AssetId { get; set; } = string.Empty;
+        [StringLength(200)] public string? GisRefNo { get; set; }
 
-        [StringLength(250)]
-        public string? Description { get; set; }
+        [Required, StringLength(200)] public string Title { get; set; } = string.Empty;
 
-        [Required]
-        public AssetType Type { get; set; }
+        [Required, StringLength(200)] public string AssetCode { get; set; } = string.Empty;
 
-        [StringLength(250)]
-        public string? Location { get; set; }
+        [StringLength(200)] public string? AssetOrder { get; set; }
 
-        [Required]
-        public AssetPriority Priority { get; set; }
+        [StringLength(200)] public string? Function { get; set; }
+        [StringLength(200)] public string? Material { get; set; }
+        public int? YearInstalled { get; set; }
 
-        [Required]
-        public IntegrityStatus IntegrityStatus { get; set; }
+        [StringLength(200)] public string? Owner { get; set; }
+        [StringLength(200)] public string? Constrain { get; set; }
+        [StringLength(200)] public string? Access { get; set; }
+
+        [StringLength(200)] public string? CoordinateN { get; set; }
+        [StringLength(200)] public string? CoordinateE { get; set; }
+
+        [StringLength(200)] public string? Zone { get; set; }
+        [StringLength(200)] public string? Area { get; set; }
+        [StringLength(200)] public string? Train { get; set; }
+        [StringLength(250)] public string? Category { get; set; }
+
+        public DateTime? DateOfInspection { get; set; }
+        [StringLength(200)] public string? Inspector { get; set; }
+        [StringLength(200)] public string? Condition { get; set; }
+        [StringLength(1000)] public string? Comment { get; set; }
 
         public IFormFile? Picture { get; set; }
     }

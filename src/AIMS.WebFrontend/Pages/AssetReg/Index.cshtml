@@ -1,0 +1,199 @@
+@page
+@model AIMS.WebFrontend.Pages.AssetReg.IndexModel
+@{
+    ViewData["Title"] = "Asset Register";
+}
+
+<div class="sims-d-flex sims-align-center sims-justify-between sims-mb-4">
+    <div>
+        <h3 style="margin:0"><i class="fas fa-table-list sims-me-2"></i>Asset Register</h3>
+        <span class="sims-text-sm sims-text-muted">Full register of all structural integrity assets</span>
+    </div>
+</div>
+
+<!-- Search & Filter -->
+<div class="sims-card sims-mb-4">
+    <div class="sims-card-header">
+        <i class="fas fa-filter"></i> Search & Filter
+    </div>
+    <div class="sims-card-body">
+        <form method="get" id="filterForm">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label for="searchTerm" class="sims-form-label">Search</label>
+                    <input type="text" id="searchTerm" name="searchTerm" class="sims-form-control"
+                           placeholder="Search by Asset ID or Title..."
+                           value="@Model.SearchTerm" autocomplete="off">
+                </div>
+                <div class="col-md-3">
+                    <label for="statusFilter" class="sims-form-label">Condition</label>
+                    <select id="statusFilter" name="statusFilter" class="sims-form-control sims-form-select">
+                        <option value="">All Conditions</option>
+                        @foreach (var status in new[] { "Good", "Fair", "Poor" })
+                        {
+                            <option value="@status" selected="@(Model.StatusFilter == status)">@status</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="plantId" class="sims-form-label">Plant</label>
+                    <select id="plantId" name="plantId" class="sims-form-control sims-form-select">
+                        <option value="">All Plants</option>
+                        @foreach (var plant in Model.Plants)
+                        {
+                            <option value="@plant.Id" selected="@(Model.PlantId == plant.Id)">@plant.Code - @plant.Description</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="sims-d-flex sims-gap-2 sims-mt-3">
+                <button type="submit" class="sims-btn sims-btn-primary">
+                    <i class="fas fa-magnifying-glass"></i> Apply Filters
+                </button>
+                <a asp-page="Index" class="sims-btn sims-btn-outline">
+                    <i class="fas fa-rotate-left"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Register Table -->
+<div class="sims-card">
+    <div class="sims-card-header sims-d-flex sims-align-center">
+        <i class="fas fa-list"></i> Register
+        @if (Model.AssetItems.Any())
+        {
+            <span class="sims-badge sims-badge-gray ms-2">@Model.AssetItems.Count result(s)</span>
+        }
+        <a asp-page="Index" asp-page-handler="Export"
+           asp-route-searchTerm="@Model.SearchTerm" asp-route-statusFilter="@Model.StatusFilter" asp-route-plantId="@Model.PlantId"
+           class="sims-btn sims-btn-outline sims-btn-sm ms-auto" title="Download the filtered register as CSV">
+            <i class="fas fa-file-csv"></i> Download
+        </a>
+    </div>
+    <div class="sims-card-body" style="padding:0">
+        @if (!Model.AssetItems.Any())
+        {
+            <div class="p-4 sims-text-muted">
+                <i class="fas fa-circle-info"></i> No asset items found.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="sims-table">
+                    <thead>
+                        <tr>
+                            <th>Reg No.</th>
+                            <th>GIS Ref. No.</th>
+                            <th>Asset Tag No.</th>
+                            <th>Asset Description</th>
+                            <th>Plant</th>
+                            <th>Zone</th>
+                            <th>Area</th>
+                            <th>Train</th>
+                            <th>Coordinate</th>
+                            <th>Function</th>
+                            <th>Material</th>
+                            <th>Installed</th>
+                            <th>Age (yr)</th>
+                            <th>Insp. Date</th>
+                            <th>Condition (GVI)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.AssetItems)
+                        {
+                            var plant = item.PlantId.HasValue ? Model.PlantsById.GetValueOrDefault(item.PlantId.Value) : null;
+                            var condBadge = "sims-badge-gray";
+                            if (!string.IsNullOrEmpty(item.Condition))
+                            {
+                                condBadge = item.Condition.Equals("Good", StringComparison.OrdinalIgnoreCase) ? "sims-badge-green"
+                                    : item.Condition.Equals("Fair", StringComparison.OrdinalIgnoreCase) ? "sims-badge-amber"
+                                    : item.Condition.Equals("Poor", StringComparison.OrdinalIgnoreCase) ? "sims-badge-red" : "sims-badge-gray";
+                            }
+                            <tr>
+                                <td class="sims-text-sm">@item.Id</td>
+                                <td class="sims-text-sm">@(item.GisRefNo ?? "-")</td>
+                                <td><a asp-page="/AssetItems/Details" asp-route-id="@item.Id"><code>@item.AssetId</code></a></td>
+                                <td>@item.Title</td>
+                                <td class="sims-text-sm">
+                                    @if (plant != null)
+                                    {
+                                        <span class="sims-badge sims-badge-sky">@plant.Code</span> @plant.Description
+                                    }
+                                    else
+                                    {
+                                        <span>-</span>
+                                    }
+                                </td>
+                                <td class="sims-text-sm">@(item.Zone ?? "-")</td>
+                                <td class="sims-text-sm">@(item.Area ?? "-")</td>
+                                <td class="sims-text-sm">@(item.Train ?? "-")</td>
+                                <td class="sims-text-sm">@(item.CoordinateN ?? "-") N, @(item.CoordinateE ?? "-") E</td>
+                                <td class="sims-text-sm">@(item.Function ?? "-")</td>
+                                <td class="sims-text-sm">@(item.Material ?? "-")</td>
+                                <td class="sims-text-sm">@(item.YearInstalled?.ToString() ?? "-")</td>
+                                <td class="sims-text-sm">@(item.YearInstalled.HasValue ? (DateTime.Now.Year - item.YearInstalled).ToString() : "-")</td>
+                                <td class="sims-text-sm">@(item.DateOfInspection?.ToString("dd/MMM/yyyy") ?? "-")</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.Condition))
+                                    {
+                                        <span class="sims-badge @condBadge">@item.Condition</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="sims-text-xs sims-text-muted">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="sims-d-flex sims-gap-2">
+                                        <a asp-page="/AssetItems/Details" asp-route-id="@item.Id" class="sims-btn sims-btn-outline sims-btn-sm" title="Details">
+                                            <i class="fas fa-circle-info"></i>
+                                        </a>
+                                        <a asp-page="/AssetItems/PrintTag" asp-route-id="@item.Id" class="sims-btn sims-btn-outline sims-btn-sm" title="Print Tag" target="_blank">
+                                            <i class="fas fa-qrcode"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                // 'page' is a reserved Razor Pages route value, so asp-route-page
+                // cannot generate the ?page= query — build the href manually.
+                var filterQuery = "searchTerm=" + Uri.EscapeDataString(Model.SearchTerm ?? "")
+                    + "&statusFilter=" + Uri.EscapeDataString(Model.StatusFilter ?? "")
+                    + "&plantId=" + (Model.PlantId?.ToString() ?? "");
+                <div class="p-3 border-top sims-d-flex sims-align-center sims-justify-between">
+                    <small class="sims-text-muted">Page @Model.CurrentPage of @Model.TotalPages</small>
+                    <div class="sims-d-flex sims-gap-2">
+                        @if (Model.CurrentPage > 1)
+                        {
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=@(Model.CurrentPage - 1)&amp;@filterQuery">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        }
+                        @for (int i = 1; i <= Model.TotalPages; i++)
+                        {
+                            <a class="sims-btn @(i == Model.CurrentPage ? "sims-btn-primary" : "sims-btn-outline") sims-btn-sm"
+                               href="?page=@i&amp;@filterQuery">@i</a>
+                        }
+                        @if (Model.CurrentPage < Model.TotalPages)
+                        {
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=@(Model.CurrentPage + 1)&amp;@filterQuery">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>

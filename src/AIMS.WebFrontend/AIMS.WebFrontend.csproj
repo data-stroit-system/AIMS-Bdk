@@ -11,14 +11,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\AIMS.Infrastructure\AIMS.Infrastructure.csproj" />
 	</ItemGroup>
 	<ItemGroup>
 	  <Folder Include="Data\Migrations\" />
-	  <Folder Include="Pages\AssetReg\" />
 	</ItemGroup>
 
 </Project>

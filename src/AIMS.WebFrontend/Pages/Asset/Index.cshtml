@@ -1,0 +1,27 @@
+@page "/asset/{*tag}"
+@model AIMS.WebFrontend.Pages.Asset.IndexModel
+@using AIMS.WebFrontend.Models
+@{
+    ViewData["Title"] = "Asset Details";
+}
+
+<div style="max-width:480px;margin:0 auto;padding:24px;">
+    @if (Model.AssetNotFound)
+    {
+        <div class="sims-card">
+            <div class="sims-card-header">
+                <i class="fas fa-triangle-exclamation"></i> Asset Not Found
+            </div>
+            <div class="sims-card-body">
+                <p class="sims-text-muted">No asset found for tag <code>@Model.Tag</code>.</p>
+                <a asp-page="/Scanner" class="sims-btn sims-btn-outline">
+                    <i class="fas fa-qrcode"></i> Back to Scanner
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        await Html.RenderPartialAsync("_AssetSummary", new AssetSummaryViewModel { Asset = Model.Asset!, Plant = Model.Plant, ShowActions = false });
+    }
+</div>

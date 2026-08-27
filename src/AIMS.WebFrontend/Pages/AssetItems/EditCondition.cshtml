@@ -1,0 +1,215 @@
+@page "{id:int}"
+@model AIMS.WebFrontend.Pages.AssetItems.EditConditionModel
+@{
+    ViewData["Title"] = "Edit Condition (GVI)";
+}
+
+<a asp-page="Details" asp-route-id="@Model.AssetItem.Id" asp-route-tab="condition" class="sims-btn sims-btn-outline sims-mb-3">
+    <i class="fas fa-arrow-left"></i> Back to Asset
+</a>
+
+<div class="sims-d-flex sims-align-center sims-justify-between sims-mb-3">
+    <div>
+        <h3 style="margin:0"><i class="fas fa-clipboard-check sims-me-2"></i>Edit Condition (GVI)</h3>
+        <span class="sims-text-sm sims-text-muted"><code>@Model.AssetItem.AssetId</code> &middot; @Model.AssetItem.Title</span>
+    </div>
+</div>
+
+<div class="sims-card">
+    <div class="sims-card-body">
+        <form method="post" enctype="multipart/form-data" id="conditionForm">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.DateOfInspection" class="sims-form-label">Date of Inspection</label>
+                        <input asp-for="Input.DateOfInspection" type="date" class="sims-form-control" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Inspector" class="sims-form-label">Inspector</label>
+                        <input asp-for="Input.Inspector" class="sims-form-control" placeholder="<Text>" />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Condition" class="sims-form-label">Condition</label>
+                        <select asp-for="Input.Condition" class="sims-form-control sims-form-select">
+                            <option value="">&lt;Condition Selection&gt;</option>
+                            <option value="Good">Good</option>
+                            <option value="Fair">Fair</option>
+                            <option value="Poor">Poor</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="sims-form-group">
+                        <label asp-for="Input.Comment" class="sims-form-label">Comment</label>
+                        <input asp-for="Input.Comment" class="sims-form-control" placeholder="<Text>" />
+                    </div>
+                </div>
+            </div>
+
+            <hr class="sims-mt-3" />
+
+            @if (Model.ExistingFiles.Any())
+            {
+                <h6 class="sims-text-sm sims-text-muted sims-mb-3">
+                    <i class="fas fa-images sims-me-2"></i>Existing Pictures
+                </h6>
+                <div class="sims-d-flex sims-gap-3 sims-mb-3" style="flex-wrap:wrap;">
+                    @foreach (var doc in Model.ExistingFiles)
+                    {
+                        <div style="width:140px;">
+                            <img src="@doc.FilePath" alt="@doc.DocumentTitle"
+                                 style="width:140px;height:140px;object-fit:cover;border:1px solid var(--sims-border);border-radius:8px;background:#f9fafb;" />
+                            <div class="sims-text-xs sims-text-muted sims-mt-1" style="word-break:break-word;">@doc.DocumentTitle</div>
+                            <button type="submit" form="deleteFile-@doc.Id" class="sims-btn sims-btn-danger sims-btn-sm sims-mt-1 w-100"
+                                    onclick="return confirm('Delete this picture?');">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+
+            <h6 class="sims-text-sm sims-text-muted sims-mb-3">
+                <i class="fas fa-image sims-me-2"></i>Add Pictures (JPEG/PNG only &mdash; uploaded when you click Save)
+            </h6>
+            <table class="sims-table sims-mb-3" style="border:1px solid var(--sims-border);border-radius:8px;">
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>File</th>
+                        <th style="width:60px"></th>
+                    </tr>
+                </thead>
+                <tbody id="pendingFilesBody">
+                    <tr id="pendingFilesEmptyRow">
+                        <td colspan="3" class="sims-text-muted">No pictures added yet.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="row g-2 sims-mb-3">
+                <div class="col-md-5">
+                    <input id="newFileDescription" class="sims-form-control" placeholder="<Text>" />
+                </div>
+                <div class="col-md-5">
+                    <input id="newFilePicker" type="file" class="sims-form-control" accept="image/jpeg,image/png,.jpg,.jpeg,.png" />
+                </div>
+                <div class="col-md-2">
+                    <button type="button" id="addFileBtn" class="sims-btn sims-btn-outline sims-btn-sm w-100">
+                        <i class="fas fa-paperclip"></i> Add File
+                    </button>
+                </div>
+            </div>
+            <div id="fileInputsContainer"></div>
+
+            <div class="sims-d-flex sims-gap-2 sims-mt-3">
+                <button type="submit" class="sims-btn sims-btn-primary"><i class="fas fa-save"></i> Save</button>
+                <a asp-page="Details" asp-route-id="@Model.AssetItem.Id" asp-route-tab="condition" class="sims-btn sims-btn-outline">Cancel</a>
+            </div>
+        </form>
+
+        @foreach (var doc in Model.ExistingFiles)
+        {
+            <form id="deleteFile-@doc.Id" method="post" asp-page-handler="DeleteFile"
+                  asp-route-id="@Model.AssetItem.Id" asp-route-documentId="@doc.Id" style="display:none"></form>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+    <script>
+        (function () {
+            var pending = [];
+            var allowedTypes = ['image/jpeg', 'image/png'];
+            var allowedExt = ['.jpg', '.jpeg', '.png'];
+
+            var descriptionInput = document.getElementById('newFileDescription');
+            var pickerInput = document.getElementById('newFilePicker');
+            var addBtn = document.getElementById('addFileBtn');
+            var tbody = document.getElementById('pendingFilesBody');
+            var emptyRow = document.getElementById('pendingFilesEmptyRow');
+            var hiddenContainer = document.getElementById('fileInputsContainer');
+
+            function extOf(name) {
+                var i = name.lastIndexOf('.');
+                return i >= 0 ? name.slice(i).toLowerCase() : '';
+            }
+
+            addBtn.addEventListener('click', function () {
+                var file = pickerInput.files[0];
+                if (!file) {
+                    alert('Please choose a picture file.');
+                    return;
+                }
+                var ext = extOf(file.name);
+                if (allowedTypes.indexOf(file.type) === -1 && allowedExt.indexOf(ext) === -1) {
+                    alert('Only JPEG or PNG pictures are allowed.');
+                    return;
+                }
+
+                pending.push({ file: file, description: descriptionInput.value.trim() });
+                pickerInput.value = '';
+                descriptionInput.value = '';
+                render();
+            });
+
+            function render() {
+                tbody.innerHTML = '';
+                hiddenContainer.innerHTML = '';
+
+                if (pending.length === 0) {
+                    tbody.appendChild(emptyRow);
+                    return;
+                }
+
+                pending.forEach(function (item, index) {
+                    var row = document.createElement('tr');
+
+                    var descCell = document.createElement('td');
+                    descCell.textContent = item.description || '(no description)';
+                    row.appendChild(descCell);
+
+                    var fileCell = document.createElement('td');
+                    fileCell.textContent = item.file.name;
+                    row.appendChild(fileCell);
+
+                    var actionCell = document.createElement('td');
+                    var removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'sims-btn sims-btn-danger sims-btn-sm';
+                    removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                    removeBtn.addEventListener('click', function () {
+                        pending.splice(index, 1);
+                        render();
+                    });
+                    actionCell.appendChild(removeBtn);
+                    row.appendChild(actionCell);
+
+                    tbody.appendChild(row);
+
+                    var descHidden = document.createElement('input');
+                    descHidden.type = 'hidden';
+                    descHidden.name = 'Files[' + index + '].Description';
+                    descHidden.value = item.description;
+                    hiddenContainer.appendChild(descHidden);
+
+                    var fileHidden = document.createElement('input');
+                    fileHidden.type = 'file';
+                    fileHidden.name = 'Files[' + index + '].File';
+                    fileHidden.style.display = 'none';
+                    var dt = new DataTransfer();
+                    dt.items.add(item.file);
+                    fileHidden.files = dt.files;
+                    hiddenContainer.appendChild(fileHidden);
+                });
+            }
+        })();
+    </script>
+}

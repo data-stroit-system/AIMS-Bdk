@@ -48,7 +48,7 @@ public class CreateModel : PageModel
             UserName = Input.UserName,
             Email = Input.Email,
             FullName = Input.FullName,
-            JobTitle = Input.JobTitle,
+            JobTitle = Input.JobTitle ?? string.Empty,
             EmailConfirmed = Input.EmailConfirmed
         };
 

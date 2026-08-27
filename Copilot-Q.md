@@ -38,3 +38,27 @@ await _activityLogger.LogActivityAsync(
 
 10. Create new entity AssetItemDocuments with fields : DocumentTitle, FilePath, CreatedAt, CreatedBy. this entity is to store uploaded documents related to AssetItem.
 11. database is updated, now modify asset item Details page to allow Documents upload. adjust the UI to use tabs : tab 1 is for adding remarks and tab 2 is for uploading documents
+
+12. Plant entity
+    Just added Plant entity. 
+    1. create the dbinitialization script for both Oracle and SQL Server database.
+    2. create a crud pages for this
+    3. added Plant selection on AssetItem pages
+    4. create a Treelist on sidemenu for Plant and AssetTag as subtree menu link .
+    5. When Plant tree menu is clicked, show a table of assetitems.
+    6. When AssetTag subtree menu clicked, show AssetItem details page.     
+
+13. analyze SIMS Dashboard Rev A 20260701.pptx change the Plant sidemenu tree to design at slide 4
+14. change dashboard, 1. move "priority breakdown" to Summary right panel.
+15. change dashboard, add Plant Summary section with design from slide 3 of "SIMS Dashboard Rev A 20260701.pptx." This section should display condition of assetitems in each Plant.
+ 
+16. change dashboard, add map as in MapDemo page. same map should swap  "Asset Type", "Recenly Added Assets" sections.  
+
+17. change dashboard, move "Plant Summary" to right panel.
+18.  change dashboard, right panel Priority Breakdown should changed to AssetItem Condition breakdown for All Plant
+19.  change dashboard, remove 4 boxes above site map section
+
+20. remove Plant Code and Description from AssetItem to Plant entity. Add PlantId as foreign key in AssetItem entity. Update the database accordingly.
+ 
+21.  change asset tag to automatically generate based on <Plant Code> <Equipment Code> - <Equipment order> / <Civil Asset Code> - <Civil Asset Order> format. do not use database function, instead put it in C# code upon assetitem creation and update. asset item page should display the generated asset tag in a read-only field. Update the database accordingly.
+  

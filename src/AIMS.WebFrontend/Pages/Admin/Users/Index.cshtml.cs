@@ -37,7 +37,9 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string? RoleFilter { get; set; }
 
-    public async Task OnGetAsync(int page = 1)
+    // [FromQuery] is required: 'page' is a reserved Razor Pages route value,
+    // which otherwise shadows the query string during parameter binding.
+    public async Task OnGetAsync([FromQuery] int page = 1)
     {
         CurrentPage = page < 1 ? 1 : page;
         AvailableRoles = _roleManager.Roles.OrderBy(r => r.Name).ToList();
@@ -100,6 +102,24 @@ public class IndexModel : PageModel
             {
                 TempData["Error"] = "You cannot delete your own account.";
                 return RedirectToPage();
+            }
+
+            if (string.Equals(user.UserName, "admin", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "The built-in 'admin' account cannot be deleted.";
+                return RedirectToPage();
+            }
+
+            // Never delete the last remaining Admin — that would lock everyone
+            // out of user/role management.
+            if (await _userManager.IsInRoleAsync(user, "Admin"))
+            {
+                var admins = await _userManager.GetUsersInRoleAsync("Admin");
+                if (admins.Count <= 1)
+                {
+                    TempData["Error"] = "Cannot delete the last user with the Admin role.";
+                    return RedirectToPage();
+                }
             }
 
             var userName = user.UserName;

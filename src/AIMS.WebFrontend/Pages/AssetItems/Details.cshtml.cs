@@ -1,4 +1,5 @@
 using AIMS.Core.Entities;
+using AIMS.Core.Services.Calculations;
 using AIMS.Infrastructure.FileTransfer;
 using AIMS.Infrastructure.Services;
 using AIMS.SharedKernel.Interfaces;
@@ -13,25 +14,27 @@ namespace AIMS.WebFrontend.Pages.AssetItems;
 public class DetailsModel : PageModel
 {
     private readonly AssetItemService _assetItemService;
+    private readonly PlantService _plantService;
     private readonly IActivityLogger _activityLogger;
     private readonly IWebHostEnvironment _env;
     private readonly FileUploadHelper _fileUpload;
+    private readonly IAssetCalculationResolver _calculationResolver;
 
-    public DetailsModel(AssetItemService assetItemService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload)
+    public DetailsModel(AssetItemService assetItemService, PlantService plantService, IActivityLogger activityLogger, IWebHostEnvironment env, FileUploadHelper fileUpload, IAssetCalculationResolver calculationResolver)
     {
         _assetItemService = assetItemService;
+        _plantService = plantService;
         _activityLogger = activityLogger;
         _env = env;
         _fileUpload = fileUpload;
+        _calculationResolver = calculationResolver;
     }
 
     public AssetItem AssetItem { get; set; } = null!;
-    public List<AssetItemRemarks> Remarks { get; set; } = new();
+    public Plant? Plant { get; set; }
     public List<AssetItemDocuments> Documents { get; set; } = new();
-    public string ActiveTab { get; set; } = "remarks";
-
-    [BindProperty]
-    public AddRemarkInput Input { get; set; } = new();
+    public AssetCalculationResult? Calculation { get; set; }
+    public string ActiveTab { get; set; } = "register";
 
     [BindProperty]
     public AddDocumentInput DocumentInput { get; set; } = new();
@@ -42,41 +45,13 @@ public class DetailsModel : PageModel
         if (assetItem == null) return NotFound();
 
         AssetItem = assetItem;
-        Remarks = await _assetItemService.GetRemarksAsync(id);
+        if (assetItem.PlantId.HasValue)
+            Plant = await _plantService.GetByIdAsync(assetItem.PlantId.Value);
         Documents = await _assetItemService.GetDocumentsAsync(id);
-        ActiveTab = Request.Query["tab"].ToString() == "documents" ? "documents" : "remarks";
+        Calculation = _calculationResolver.Calculate(assetItem);
+        var tab = Request.Query["tab"].ToString();
+        ActiveTab = tab == "documents" || tab == "condition" || tab == "inspection" ? tab : "register";
         return Page();
-    }
-
-    public async Task<IActionResult> OnPostAsync(int id)
-    {
-        if (!User.IsInRole("Admin") && !User.IsInRole("Manager") && !User.IsInRole("User"))
-            return Forbid();
-
-        ModelState.Remove("DocumentInput.DocumentTitle");
-        ModelState.Remove("DocumentInput.DocumentFile");
-        ModelState.Remove("DocumentTitle");
-        ModelState.Remove("DocumentFile");
-
-        if (!ModelState.IsValid)
-        {
-            ActiveTab = "remarks";
-            await LoadDetailsAsync(id);
-            return Page();
-        }
-
-        var assetItem = await _assetItemService.GetByIdAsync(id);
-        if (assetItem == null) return NotFound();
-
-        await _assetItemService.AddRemarkAsync(id, Input.Description, User.Identity?.Name ?? "Unknown");
-
-        await _activityLogger.LogActivityAsync(
-            "AssetItemRemarkAdded",
-            $"Remark added to asset item '{assetItem.Title}'",
-            "AssetItem",
-            id.ToString());
-
-        return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostUploadDocumentAsync(int id)
@@ -121,7 +96,9 @@ public class DetailsModel : PageModel
         var fileName = _fileUpload.GetFileName(file.FileName, buildUniqueName: true);
         await _fileUpload.SaveFileAsync(file.OpenReadStream(), dir, fileName);
 
-        await _assetItemService.AddDocumentAsync(id, DocumentInput.DocumentTitle, $"/asset-documents/{fileName}", User.Identity?.Name ?? "Unknown");
+        var pictureExtensions = new[] { ".jpg", ".jpeg", ".png" };
+        var documentType = pictureExtensions.Contains(ext) ? DocumentTypeCode.Picture : DocumentTypeCode.Document;
+        await _assetItemService.AddDocumentAsync(id, DocumentInput.DocumentTitle, $"/asset-documents/{fileName}", User.Identity?.Name ?? "Unknown", documentType);
 
         await _activityLogger.LogActivityAsync(
             "AssetItemDocumentUploaded",
@@ -159,9 +136,11 @@ public class DetailsModel : PageModel
         var (asset, docs) = await _assetItemService.DeleteAsync(id);
         if (asset == null) return NotFound();
 
-        _fileUpload.DeleteFile(asset.PicturePath, _env.WebRootPath);
+        if (!string.IsNullOrEmpty(asset.PicturePath))
+            _fileUpload.DeleteFile(asset.PicturePath, _env.WebRootPath);
         foreach (var doc in docs)
-            _fileUpload.DeleteFile(doc.FilePath, _env.WebRootPath);
+            if (!string.IsNullOrEmpty(doc.FilePath))
+                _fileUpload.DeleteFile(doc.FilePath, _env.WebRootPath);
 
         await _activityLogger.LogActivityAsync(
             "AssetItemDeleted",
@@ -175,16 +154,10 @@ public class DetailsModel : PageModel
     private async Task LoadDetailsAsync(int id)
     {
         AssetItem = (await _assetItemService.GetByIdAsync(id))!;
-        Remarks = await _assetItemService.GetRemarksAsync(id);
+        if (AssetItem.PlantId.HasValue)
+            Plant = await _plantService.GetByIdAsync(AssetItem.PlantId.Value);
         Documents = await _assetItemService.GetDocumentsAsync(id);
-    }
-
-    public class AddRemarkInput
-    {
-        [Required]
-        [StringLength(250, MinimumLength = 1)]
-        [Display(Name = "Remark")]
-        public string Description { get; set; } = string.Empty;
+        Calculation = _calculationResolver.Calculate(AssetItem);
     }
 
     public class AddDocumentInput

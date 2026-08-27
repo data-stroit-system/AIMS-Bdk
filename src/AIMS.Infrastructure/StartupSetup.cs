@@ -38,6 +38,7 @@ namespace AIMS.Infrastructure
             services.AddScoped<IActivityLogger, ActivityLogger>();
             services.AddScoped<FileUploadHelper>();
             services.AddScoped<AssetItemService>();
+            services.AddScoped<PlantService>();
         }
 
         public static void InitializeDatabase(this IServiceCollection services)
@@ -65,7 +66,7 @@ namespace AIMS.Infrastructure
                             "Admin" => "Full system access to all features including user management, role management, and audit trails",
                             "Manager" => "Can manage users and view audit trails",
                             "User" => "Can view their own data and audit trails",
-                            _ => null
+                            _ => string.Empty
                         }
                     };
                     await roleManager.CreateAsync(role);

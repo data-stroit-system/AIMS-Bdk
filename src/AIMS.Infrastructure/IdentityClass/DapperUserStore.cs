@@ -1,3 +1,4 @@
+#nullable disable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,6 +45,10 @@ public class DapperUserStore :
         get
         {
             using var conn = _context.CreateConnection();
+            // Safe only because Query defaults to buffered: true — the full result set
+            // is materialized before the connection is disposed, and the IQueryable is
+            // LINQ-to-Objects over that list. Never pass buffered: false here: the lazy
+            // iterator would outlive the connection and throw on first enumeration.
             return conn.Query<ApplicationUser>("SELECT * FROM AspNetUsers").AsQueryable();
         }
     }

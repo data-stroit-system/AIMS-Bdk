@@ -9,7 +9,7 @@
 *.user
 *.userosscache
 *.sln.docstates
-
+*.zip
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -231,7 +231,7 @@ orleans.codegen.cs
 # Since there are multiple workflows, uncomment next line to ignore bower_components
 # (https://github.com/github/gitignore/pull/1529#issuecomment-104372622)
 #bower_components/
-
+.pptx*/
 # RIA/Silverlight projects
 Generated_Code/
 
@@ -338,3 +338,6 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+
+# Local deployment config (contains a real SSH host/paths)
+deploy/deploy.conf

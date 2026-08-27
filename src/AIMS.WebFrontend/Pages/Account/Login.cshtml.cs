@@ -4,6 +4,7 @@ using AIMS.SharedKernel.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.ComponentModel.DataAnnotations;
 
 namespace AIMS.WebFrontend.Pages.Account
 {
@@ -12,24 +13,35 @@ namespace AIMS.WebFrontend.Pages.Account
         private readonly SignInManager<ApplicationUser> _singInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IActivityLogger _activityLogger;
+        private readonly ILogger<LoginModel> _logger;
 
         public LoginModel(
             SignInManager<ApplicationUser> singInManager,
             UserManager<ApplicationUser> userManager,
-            IActivityLogger activityLogger)
+            IActivityLogger activityLogger,
+            ILogger<LoginModel> logger)
         {
             _singInManager = singInManager;
             _userManager = userManager;
             _activityLogger = activityLogger;
+            _logger = logger;
         }
 
         public void OnGet() { }
 
         public async Task<IActionResult> OnPost()
         {
+            if (!ModelState.IsValid)
+            {
+                ModelState.AddModelError("Default", "Invalid username or password");
+                return Page();
+            }
+
             try
             {
-                var user = _userManager.Users.FirstOrDefault(x => x.UserName == LoginInput.UserName);
+                // Indexed lookup via NormalizedUserName — case-insensitive, and doesn't
+                // materialize the whole AspNetUsers table like _userManager.Users does.
+                var user = await _userManager.FindByNameAsync(LoginInput.UserName);
                 if (user == null)
                 {
                     await _activityLogger.LogSecurityActivityAsync(
@@ -70,7 +82,7 @@ namespace AIMS.WebFrontend.Pages.Account
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e, "Unhandled exception during login for user {UserName}", LoginInput.UserName);
                 throw;
             }
         }
@@ -81,7 +93,13 @@ namespace AIMS.WebFrontend.Pages.Account
 
     public class LoginViewModel
     {
+        // Caps match the AspNetUsers schema (UserName nvarchar(256)); unbounded input
+        // previously overflowed the AuditLogs.Description nvarchar(500) column on the
+        // failed-login logging path and turned into an HTTP 500.
+        [StringLength(256)]
         public string UserName { get; set; } = string.Empty;
+
+        [StringLength(128)]
         public string Password { get; set; } = string.Empty;
     }
 }

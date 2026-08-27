@@ -18,11 +18,16 @@
     <PackageReference Include="FluentFTP" Version="51.0.0" />
 <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.1" />
     <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.7.0" />
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.7" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AIMS.Core\AIMS.Core.csproj" />
     <ProjectReference Include="..\AIMS.SharedKernel\AIMS.SharedKernel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AIMS.WebFrontend.Tests" />
   </ItemGroup>
 </Project>

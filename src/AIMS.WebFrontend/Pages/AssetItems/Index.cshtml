@@ -1,191 +1,147 @@
 @page
 @model AIMS.WebFrontend.Pages.AssetItems.IndexModel
 @using AIMS.Core.Entities
+@using AIMS.WebFrontend.Models
 @{
     ViewData["Title"] = "Asset Items";
 }
 
-<style>
-    .filter-card {
-        border-radius: 0.375rem;
-        transition: box-shadow 0.3s ease;
-    }
-
-    .filter-card:hover {
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-    }
-
-    .search-input-group .input-group-text {
-        border-color: #dee2e6;
-    }
-
-    .badge-filter {
-        display: inline-block;
-        padding: 0.5rem 0.75rem;
-        margin-right: 0.5rem;
-        margin-bottom: 0.5rem;
-        border-radius: 0.25rem;
-    }
-
-    .asset-type-pipe {
-        background-color: #e7f3ff;
-        color: #004085;
-    }
-
-    .asset-type-psv {
-        background-color: #fff3cd;
-        color: #856404;
-    }
-
-    .table-actions {
-        white-space: nowrap;
-    }
-
-    .btn-group-sm .btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-    }
-</style>
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="fas fa-boxes-stacked"></i> Asset Items</h1>
+<div class="@(Model.FilterPlant != null ? "d-flex flex-column h-100" : "")">
+<div class="sims-d-flex sims-align-center sims-justify-between sims-mb-4">
+    <div>
+        <h3 style="margin:0"><i class="fas fa-boxes-stacked sims-me-2"></i>Asset Items</h3>
+        @if (Model.FilterPlant != null)
+        {
+            <span class="sims-text-sm sims-text-muted">
+                Plant: <span class="sims-badge sims-badge-sky">@Model.FilterPlant.Name</span>
+                <a asp-page="Index" class="ms-1" title="Show all assets">&times;</a>
+            </span>
+        }
+        else
+        {
+            <span class="sims-text-sm sims-text-muted">Manage structural integrity assets</span>
+        }
+    </div>
     @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
     {
-        <a asp-page="Create" class="btn btn-primary btn-lg">
-            <i class="fas fa-circle-plus"></i> Add New Asset Item
+        <a asp-page="Create" class="sims-btn sims-btn-primary sims-btn-lg">
+            <i class="fas fa-circle-plus"></i> Add New Asset
         </a>
     }
 </div>
 
-<!-- Search and Filter Section -->
-<div class="card mb-4 shadow-sm filter-card">
-    <div class="card-header bg-light">
-        <h5 class="mb-0">
-            <i class="fas fa-filter"></i> Search & Filter
-        </h5>
+@if (Model.FilterPlant != null)
+{
+    <!-- Plant Map -->
+    <div class="sims-card sims-mb-4 flex-grow-1 d-flex flex-column" style="min-height: 0;">
+        <div class="sims-card-header flex-shrink-0">
+            <i class="fas fa-map-location-dot"></i> Site Map
+            <small id="map-status" class="sims-text-sm sims-text-muted ms-auto">Loading layers&hellip;</small>
+        </div>
+        <div class="sims-card-body flex-grow-1" style="padding:0; min-height: 0;">
+            <div id="map" style="height: 100%; width: 100%;"
+                 data-qgis-server="@Model.QgisBrowserUrl"
+                 data-map-project="@Model.MapProject"
+                 data-feature-info="true"
+                 data-base-layer="Pelatihan Bulan Juli 2026"
+                 data-init-lat="-6.16526" data-init-lng="106.92418" data-init-zoom="17"
+                 data-search-terms="@Model.SearchTermsJson"></div>
+        </div>
     </div>
-    <div class="card-body">
+}
+</div>
+
+@section RightPanel {
+    @if (Model.SelectedAsset != null)
+    {
+        await Html.RenderPartialAsync("_AssetSummary", new AssetSummaryViewModel { Asset = Model.SelectedAsset, Plant = Model.FilterPlant });
+    }
+    else if (Model.FilterPlant != null)
+    {
+        <div class="sims-panel-resizer" id="rightPanelResizer" title="Drag to resize"></div>
+        <aside class="sims-panel-right" id="rightPanel">
+            <div class="sims-panel-right-header">
+                <i class="fas fa-circle-info sims-me-2"></i> Plant Info
+            </div>
+            <div class="sims-panel-right-scroll">
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Plant Code</div>
+                    <div class="sims-fw-bold">@Model.FilterPlant.Code</div>
+                </div>
+                <div>
+                    <div class="sims-text-xs sims-text-muted">Plant Desc.</div>
+                    <div class="sims-fw-bold">@Model.FilterPlant.Description</div>
+                </div>
+            </div>
+        </aside>
+    }
+}
+
+
+@if (!Model.PlantId.HasValue && !Model.AssetId.HasValue)
+{
+    <!-- Search & Filter -->
+    <div class="sims-card">
+    <div class="sims-card-header">
+        <i class="fas fa-filter"></i> Search & Filter
+    </div>
+    <div class="sims-card-body">
         <form method="get" id="filterForm">
-            <div class="row g-3 mb-3">
-                <!-- Primary Search Box -->
-                <div class="col-md-12">
-                    <label for="searchTerm" class="form-label"><strong>Search</strong></label>
-                    <div class="input-group input-group-lg search-input-group">
-                        <span class="input-group-text bg-light border-end-0">
-                            <i class="fas fa-magnifying-glass"></i>
-                        </span>
-                        <input type="text" id="searchTerm" name="searchTerm" class="form-control border-start-0" 
-                               placeholder="Search by Asset ID, Title, Description, or Location..." 
-                               value="@Model.SearchTerm"
-                               autocomplete="off">
-                    </div>
-                    <small class="form-text text-muted mt-1">
-                        Searches across Asset ID, Title, Description, and Location fields
-                    </small>
-                </div>
-            </div>
-
-            <!-- Filter Controls -->
+            @if (Model.PlantId.HasValue)
+            {
+                <input type="hidden" name="plantId" value="@Model.PlantId" />
+            }
             <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="typeFilter" class="form-label"><strong>Asset Type</strong></label>
-                    <select id="typeFilter" name="typeFilter" class="form-select">
-                        <option value="">All Types</option>
-                        @foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
-                        {
-                            <option value="@type" selected="@(Model.TypeFilter == type.ToString())">@type</option>
-                        }
-                    </select>
+                <div class="col-md-12">
+                    <label for="searchTerm" class="sims-form-label">Search</label>
+                    <div class="sims-d-flex sims-gap-2">
+                        <input type="text" id="searchTerm" name="searchTerm" class="sims-form-control"
+                               placeholder="Search by Asset ID or Title..."
+                               value="@Model.SearchTerm" autocomplete="off">
+                    </div>
                 </div>
-
                 <div class="col-md-4">
-                    <label for="priorityFilter" class="form-label"><strong>Priority</strong></label>
-                    <select id="priorityFilter" name="priorityFilter" class="form-select">
-                        <option value="">All Priorities</option>
-                        @foreach (AssetPriority priority in Enum.GetValues(typeof(AssetPriority)))
+                    <label for="statusFilter" class="sims-form-label">Condition</label>
+                    <select id="statusFilter" name="statusFilter" class="sims-form-control sims-form-select">
+                        <option value="">All Conditions</option>
+                        @foreach (var status in new[] { "Good", "Fair", "Poor" })
                         {
-                            <option value="@priority" selected="@(Model.PriorityFilter == priority.ToString())">@priority</option>
-                        }
-                    </select>
-                </div>
-
-                <div class="col-md-4">
-                    <label for="statusFilter" class="form-label"><strong>Integrity Status</strong></label>
-                    <select id="statusFilter" name="statusFilter" class="form-select">
-                        <option value="">All Status</option>
-                        @foreach (IntegrityStatus status in Enum.GetValues(typeof(IntegrityStatus)))
-                        {
-                            <option value="@status" selected="@(Model.StatusFilter == status.ToString())">@status</option>
+                            <option value="@status" selected="@(Model.StatusFilter == status)">@status</option>
                         }
                     </select>
                 </div>
             </div>
-
-            <!-- Action Buttons -->
-            <div class="row g-2 mt-3">
-                <div class="col-auto">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-magnifying-glass"></i> Apply Filters
-                    </button>
-                </div>
-                <div class="col-auto">
-                    <a asp-page="Index" class="btn btn-outline-secondary">
-                        <i class="fas fa-rotate-left"></i> Clear Filters
-                    </a>
-                </div>
+            <div class="sims-d-flex sims-gap-2 sims-mt-3">
+                <button type="submit" class="sims-btn sims-btn-primary">
+                    <i class="fas fa-magnifying-glass"></i> Apply Filters
+                </button>
+                <a asp-page="Index" class="sims-btn sims-btn-outline">
+                    <i class="fas fa-rotate-left"></i> Clear
+                </a>
             </div>
         </form>
 
-        <!-- Active Filters Display -->
         @{
-            var hasActiveFilters = !string.IsNullOrEmpty(Model.SearchTerm) || 
-                                 !string.IsNullOrEmpty(Model.TypeFilter) || 
-                                 !string.IsNullOrEmpty(Model.PriorityFilter) || 
+            var hasActiveFilters = !string.IsNullOrEmpty(Model.SearchTerm) ||
                                  !string.IsNullOrEmpty(Model.StatusFilter);
         }
         @if (hasActiveFilters)
         {
-            <div class="mt-3 pt-3 border-top">
-                <small class="text-muted"><strong>Active Filters:</strong></small>
-                <div class="mt-2">
+            <div class="sims-mt-3 pt-3 border-top">
+                <small class="sims-fw-bold sims-text-muted">Active Filters:</small>
+                <div class="sims-mt-2 sims-d-flex sims-gap-2 flex-wrap">
                     @if (!string.IsNullOrEmpty(Model.SearchTerm))
                     {
-                        <span class="badge bg-info text-dark">
-                            Search: <strong>@Model.SearchTerm</strong>
-                            <a href="@Url.Page("Index", new { typeFilter = Model.TypeFilter, priorityFilter = Model.PriorityFilter, statusFilter = Model.StatusFilter })" 
-                               title="Remove search filter" style="margin-left: 5px; cursor: pointer;">
-                                &times;
-                            </a>
-                        </span>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.TypeFilter))
-                    {
-                        <span class="badge bg-info text-dark ms-1">
-                            Type: <strong>@Model.TypeFilter</strong>
-                            <a href="@Url.Page("Index", new { searchTerm = Model.SearchTerm, priorityFilter = Model.PriorityFilter, statusFilter = Model.StatusFilter })" 
-                               title="Remove type filter" style="margin-left: 5px; cursor: pointer;">
-                                &times;
-                            </a>
-                        </span>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.PriorityFilter))
-                    {
-                        <span class="badge bg-info text-dark ms-1">
-                            Priority: <strong>@Model.PriorityFilter</strong>
-                            <a href="@Url.Page("Index", new { searchTerm = Model.SearchTerm, typeFilter = Model.TypeFilter, statusFilter = Model.StatusFilter })" 
-                               title="Remove priority filter" style="margin-left: 5px; cursor: pointer;">
-                                &times;
-                            </a>
+                        <span class="sims-badge sims-badge-blue">
+                            Search: @Model.SearchTerm
+                            <a href="@Url.Page("Index", new { statusFilter = Model.StatusFilter })" class="ms-1">&times;</a>
                         </span>
                     }
                     @if (!string.IsNullOrEmpty(Model.StatusFilter))
                     {
-                        <span class="badge bg-info text-dark ms-1">
-                            Status: <strong>@Model.StatusFilter</strong>
-                            <a href="@Url.Page("Index", new { searchTerm = Model.SearchTerm, typeFilter = Model.TypeFilter, priorityFilter = Model.PriorityFilter })" 
-                               title="Remove status filter" style="margin-left: 5px; cursor: pointer;">
-                                &times;
-                            </a>
+                        <span class="sims-badge sims-badge-blue">
+                            Status: @Model.StatusFilter
+                            <a href="@Url.Page("Index", new { searchTerm = Model.SearchTerm })" class="ms-1">&times;</a>
                         </span>
                     }
                 </div>
@@ -194,43 +150,39 @@
     </div>
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-header bg-light">
-        <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="fas fa-list"></i> Asset Items List
-                @if (Model.AssetItems.Any())
-                {
-                    <span class="badge bg-secondary">@Model.AssetItems.Count result(s)</span>
-                }
-            </h5>
-        </div>
+    <!-- Asset List -->
+    <div class="sims-card">
+    <div class="sims-card-header">
+        <i class="fas fa-list"></i> Asset Items List
+        @if (Model.AssetItems.Any())
+        {
+            <span class="sims-badge sims-badge-gray ms-2">@Model.AssetItems.Count result(s)</span>
+        }
     </div>
-    <div class="card-body">
+    <div class="sims-card-body" style="padding:0">
         @if (!Model.AssetItems.Any())
         {
-            <div class="alert alert-info" role="alert">
+            <div class="p-4 sims-text-muted">
                 <i class="fas fa-circle-info"></i> No asset items found.
                 @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                 {
-                    <a asp-page="Create" class="alert-link">Create one now</a>
+                    <a asp-page="Create">Create one now</a>
                 }
             </div>
         }
         else
         {
             <div class="table-responsive">
-                <table class="table table-striped table-hover table-sm">
-                    <thead class="table-dark">
+                <table class="sims-table">
+                    <thead>
                         <tr>
-                            <th></th>
-                            <th>Asset ID</th>
+                            <th style="width:48px"></th>
+                            <th>Asset Tag No.</th>
                             <th>Title</th>
-                            <th>Type</th>
-                            <th>Priority</th>
-                            <th>Location</th>
-                            <th>Integrity Status</th>
-                            <th>Description</th>
+                            <th>Plant</th>
+                            <th>Asset Code</th>
+                            <th>Condition</th>
+                            <th>Area</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -238,74 +190,58 @@
                         @foreach (var item in Model.AssetItems)
                         {
                             <tr>
-                                <td style="width:48px;">
+                                <td>
                                     @if (!string.IsNullOrEmpty(item.PicturePath))
                                     {
                                         <a asp-page="Details" asp-route-id="@item.Id">
-                                            <img src="@item.PicturePath" alt="@item.Title" class="rounded" style="width:40px;height:40px;object-fit:cover;" />
+                                            <img src="@item.PicturePath" alt="@item.Title" style="width:36px;height:36px;object-fit:cover;border-radius:4px;" />
                                         </a>
                                     }
                                 </td>
-                                <td>
-                                    <a asp-page="Details" asp-route-id="@item.Id" class="text-decoration-none">
-                                        <code>@item.AssetId</code>
-                                    </a>
+                                <td><a asp-page="Details" asp-route-id="@item.Id"><code>@item.AssetId</code></a></td>
+                                <td><a asp-page="Details" asp-route-id="@item.Id">@item.Title</a></td>
+                                <td class="sims-text-sm">
+                                    @{ var itemPlant = item.PlantId.HasValue ? Model.PlantsById.GetValueOrDefault(item.PlantId.Value) : null; }
+                                    <span class="sims-badge sims-badge-sky">@itemPlant?.Code</span>
+                                    @itemPlant?.Description
+                                </td>
+                                <td class="sims-text-sm">
+                                    <span class="sims-badge sims-badge-gray">@item.AssetCode</span>
                                 </td>
                                 <td>
-                                    <a asp-page="Details" asp-route-id="@item.Id" class="text-decoration-none">@item.Title</a>
+                                    @{
+                                        var condBadge = "sims-badge-gray";
+                                        if (!string.IsNullOrEmpty(item.Condition))
+                                        {
+                                            condBadge = item.Condition.Equals("Good", StringComparison.OrdinalIgnoreCase) ? "sims-badge-green"
+                                                : item.Condition.Equals("Fair", StringComparison.OrdinalIgnoreCase) ? "sims-badge-amber"
+                                                : item.Condition.Equals("Poor", StringComparison.OrdinalIgnoreCase) ? "sims-badge-red" : "sims-badge-gray";
+                                            <span class="sims-badge @condBadge">@item.Condition</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="sims-text-xs sims-text-muted">-</span>
+                                        }
+                                    }
                                 </td>
+                                <td class="sims-text-sm">@item.Area</td>
                                 <td>
-                                    <span class="badge bg-info">@item.Type</span>
-                                </td>
-                                <td>
-                                    @if (item.Priority == AssetPriority.High)
-                                    {
-                                        <span class="badge bg-danger">@item.Priority</span>
-                                    }
-                                    else if (item.Priority == AssetPriority.Medium)
-                                    {
-                                        <span class="badge bg-warning text-dark">@item.Priority</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-success">@item.Priority</span>
-                                    }
-                                </td>
-                                <td>@item.Location</td>
-                                <td>
-                                    @if (item.IntegrityStatus == IntegrityStatus.Good)
-                                    {
-                                        <span class="badge bg-success">@item.IntegrityStatus</span>
-                                    }
-                                    else if (item.IntegrityStatus == IntegrityStatus.Fair)
-                                    {
-                                        <span class="badge bg-warning text-dark">@item.IntegrityStatus</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-danger">@item.IntegrityStatus</span>
-                                    }
-                                </td>
-                                <td>
-                                    <small>@(string.IsNullOrEmpty(item.Description) ? "-" : item.Description.Length > 50 ? item.Description.Substring(0, 50) + "..." : item.Description)</small>
-                                </td>
-                                <td class="table-actions">
-                                    <div class="btn-group btn-group-sm">
+                                    <div class="sims-d-flex sims-gap-2">
                                         @if (User.IsInRole("Admin") || User.IsInRole("Manager"))
                                         {
-                                            <a asp-page="Edit" asp-route-id="@item.Id" class="btn btn-outline-primary" title="Edit">
-                                                <i class="fas fa-pencil"></i> Edit
+                                            <a asp-page="Edit" asp-route-id="@item.Id" class="sims-btn sims-btn-outline sims-btn-sm" title="Edit">
+                                                <i class="fas fa-pencil"></i>
                                             </a>
-                                            <button type="button" class="btn btn-outline-danger" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#deleteModal-@item.Id.ToString().Replace("-", "")"
+                                            <button type="button" class="sims-btn sims-btn-danger sims-btn-sm"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#deleteModal-@item.Id.ToString().Replace("-","")"
                                                     title="Delete">
-                                                <i class="fas fa-trash"></i> Delete
+                                                <i class="fas fa-trash"></i>
                                             </button>
                                         }
                                         else
                                         {
-                                            <span class="text-muted">View only</span>
+                                            <span class="sims-text-xs sims-text-muted">View only</span>
                                         }
                                     </div>
                                 </td>
@@ -315,77 +251,78 @@
                 </table>
             </div>
 
-            <!-- Pagination -->
             @if (Model.TotalPages > 1)
             {
-                <nav aria-label="Page navigation" class="mt-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <small class="text-muted">
-                            Showing page @Model.CurrentPage of @Model.TotalPages
-                        </small>
-                    </div>
-                    <ul class="pagination justify-content-center">
+                // 'page' is a reserved Razor Pages route value, so asp-route-page
+                // cannot generate the ?page= query — build the href manually.
+                var filterQuery = "searchTerm=" + Uri.EscapeDataString(Model.SearchTerm ?? "")
+                    + "&statusFilter=" + Uri.EscapeDataString(Model.StatusFilter ?? "")
+                    + "&plantId=" + (Model.PlantId?.ToString() ?? "")
+                    + "&assetId=" + (Model.AssetId?.ToString() ?? "");
+                <div class="p-3 border-top sims-d-flex sims-align-center sims-justify-between">
+                    <small class="sims-text-muted">Page @Model.CurrentPage of @Model.TotalPages</small>
+                    <div class="sims-d-flex sims-gap-2">
                         @if (Model.CurrentPage > 1)
                         {
-                            <li class="page-item">
-                                <a class="page-link" asp-page="Index" asp-route-page="1" asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter" asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">
-                                    <i class="fas fa-angles-left"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" asp-page="Index" asp-route-page="@(Model.CurrentPage - 1)" asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter" asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">
-                                    <i class="fas fa-angle-left"></i>
-                                </a>
-                            </li>
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=1&amp;@filterQuery">
+                                <i class="fas fa-angles-left"></i>
+                            </a>
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=@(Model.CurrentPage - 1)&amp;@filterQuery">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
                         }
                         @for (int i = 1; i <= Model.TotalPages; i++)
                         {
-                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                <a class="page-link" asp-page="Index" asp-route-page="@i" asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter" asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">@i</a>
-                            </li>
+                            <a class="sims-btn @(i == Model.CurrentPage ? "sims-btn-primary" : "sims-btn-outline") sims-btn-sm"
+                               href="?page=@i&amp;@filterQuery">@i</a>
                         }
                         @if (Model.CurrentPage < Model.TotalPages)
                         {
-                            <li class="page-item">
-                                <a class="page-link" asp-page="Index" asp-route-page="@(Model.CurrentPage + 1)" asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter" asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">
-                                    <i class="fas fa-angle-right"></i>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link" asp-page="Index" asp-route-page="@Model.TotalPages" asp-route-searchTerm="@Model.SearchTerm" asp-route-typeFilter="@Model.TypeFilter" asp-route-priorityFilter="@Model.PriorityFilter" asp-route-statusFilter="@Model.StatusFilter">
-                                    <i class="fas fa-angles-right"></i>
-                                </a>
-                            </li>
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=@(Model.CurrentPage + 1)&amp;@filterQuery">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                            <a class="sims-btn sims-btn-outline sims-btn-sm" href="?page=@Model.TotalPages&amp;@filterQuery">
+                                <i class="fas fa-angles-right"></i>
+                            </a>
                         }
-                    </ul>
-                </nav>
+                    </div>
+                </div>
             }
         }
     </div>
-</div>
+    </div>
 
-<!-- Delete Modals -->
-@foreach (var item in Model.AssetItems)
-{
-    <div class="modal fade" id="deleteModal-@item.Id.ToString().Replace("-", "")" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    Are you sure you want to delete the asset item "<strong>@item.Title</strong>" (ID: @item.AssetId)?
-                    <br />
-                    <span class="text-danger">This action cannot be undone.</span>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <form method="post" asp-page="Delete" asp-route-id="@item.Id" style="display:inline;">
-                        <button type="submit" class="btn btn-danger">Delete</button>
-                    </form>
+    <!-- Delete Modals -->
+    @foreach (var item in Model.AssetItems)
+    {
+        <div class="modal fade" id="deleteModal-@item.Id.ToString().Replace("-","")" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        Delete asset <strong>@item.Title</strong> (ID: @item.AssetId)?
+                        <br /><span class="sims-text-sm sims-badge sims-badge-red sims-mt-2">This cannot be undone.</span>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="sims-btn sims-btn-outline" data-bs-dismiss="modal">Cancel</button>
+                        <form method="post" asp-page="Delete" asp-route-id="@item.Id" style="display:inline">
+                            <button type="submit" class="sims-btn sims-btn-danger">Delete</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    }
+}
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+
+    @if (Model.FilterPlant != null)
+    {
+        await Html.RenderPartialAsync("_SiteMapScripts");
+    }
 }

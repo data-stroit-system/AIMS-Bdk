@@ -1,4 +1,7 @@
+using AIMS.Core.Entities;
 using Dapper;
+using System.Data;
+using System.Linq;
 
 namespace AIMS.Infrastructure.Data;
 
@@ -17,6 +20,167 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         conn.Open();
         foreach (var stmt in SchemaStatements)
             conn.Execute(stmt);
+
+        MigratePlantCodeToInt(conn);
+        BackfillPlantIdFromLegacyColumn(conn);
+        MigrateLegacyIntegrityStatus(conn);
+        MigrateAssetCodeAndOrder(conn);
+        MigrateAssetOrderToText(conn);
+        DropLegacyAssetItemColumns(conn);
+        RegenerateAssetIds(conn);
+        BackfillDocumentType(conn);
+    }
+
+    /// <summary>
+    /// Backfills DocumentType for rows uploaded before the column existed, inferring it from
+    /// the file extension (jpg/jpeg/png = Picture, everything else = Document). Safe to run
+    /// on every startup.
+    /// </summary>
+    private static void BackfillDocumentType(IDbConnection conn)
+    {
+        conn.Execute($@"
+            UPDATE AssetItemDocuments
+            SET DocumentType = CASE
+                WHEN LOWER(FilePath) LIKE '%.jpg' OR LOWER(FilePath) LIKE '%.jpeg' OR LOWER(FilePath) LIKE '%.png' THEN '{DocumentTypeCode.Picture}'
+                ELSE '{DocumentTypeCode.Document}'
+            END
+            WHERE DocumentType IS NULL");
+    }
+
+    /// <summary>
+    /// Backfills the renamed AssetCode and AssetOrder columns from their legacy
+    /// EquipmentCode / CivilAssetOrder predecessors, then drops the old columns.
+    /// Safe to run on every startup.
+    /// </summary>
+    private static void MigrateAssetCodeAndOrder(IDbConnection conn)
+    {
+        var hasEquipmentCode = conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'EQUIPMENTCODE'") > 0;
+        if (hasEquipmentCode)
+        {
+            conn.Execute("UPDATE AssetItems SET AssetCode = EquipmentCode WHERE AssetCode IS NULL AND EquipmentCode IS NOT NULL");
+        }
+
+        var hasCivilAssetOrder = conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'CIVILASSETORDER'") > 0;
+        if (hasCivilAssetOrder)
+        {
+            conn.Execute("UPDATE AssetItems SET AssetOrder = CivilAssetOrder WHERE AssetOrder IS NULL AND CivilAssetOrder IS NOT NULL");
+        }
+    }
+
+    /// <summary>
+    /// Converts AssetItems.AssetOrder from its original NUMBER to NVARCHAR2(200) so alphanumeric
+    /// order values are supported. Oracle permits this MODIFY for a NUMBER column holding data
+    /// (implicit conversion to text). No-op once already NVARCHAR2. Safe to run on every startup.
+    /// </summary>
+    private static void MigrateAssetOrderToText(IDbConnection conn)
+    {
+        var dataType = conn.ExecuteScalar<string?>(
+            "SELECT DATA_TYPE FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'ASSETORDER'");
+        if (dataType == null || dataType == "NVARCHAR2") return;
+
+        conn.Execute("ALTER TABLE AssetItems MODIFY (AssetOrder NVARCHAR2(200))");
+    }
+
+    /// <summary>
+    /// Drops the unused legacy Description/Type/Location/Priority/QrCode columns from AssetItems.
+    /// Safe to run on every startup.
+    /// </summary>
+    private static void DropLegacyAssetItemColumns(IDbConnection conn)
+    {
+        foreach (var column in new[] { "DESCRIPTION", "TYPE", "LOCATION", "PRIORITY", "QRCODE", "EQUIPMENTDESC", "CIVILASSETCODE", "CIVILASSETDESCRIPTION", "CIVILASSETDESC", "EQUIPMENTCODE", "CIVILASSETORDER", "EQUIPMENTDESCRIPTION" })
+        {
+            var exists = conn.ExecuteScalar<int>(
+                $"SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = '{column}'") > 0;
+            if (exists)
+                conn.Execute($"ALTER TABLE AssetItems DROP COLUMN {column}");
+        }
+    }
+
+    /// <summary>
+    /// Backfills Condition from the old IntegrityStatus enum column (1=Good, 2=Fair, 3=Poor)
+    /// for rows that never had Condition set, then drops the now-redundant column. Safe to
+    /// run on every startup.
+    /// </summary>
+    private static void MigrateLegacyIntegrityStatus(IDbConnection conn)
+    {
+        var hasIntegrityStatus = conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'INTEGRITYSTATUS'") > 0;
+        if (!hasIntegrityStatus) return;
+
+        conn.Execute(@"
+            UPDATE AssetItems
+            SET ""Condition"" = CASE IntegrityStatus WHEN 1 THEN 'Good' WHEN 2 THEN 'Fair' WHEN 3 THEN 'Poor' END
+            WHERE ""Condition"" IS NULL AND IntegrityStatus IN (1, 2, 3)");
+
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN IntegrityStatus");
+    }
+
+    /// <summary>
+    /// Recomputes AssetId (Asset Tag No.) in C# for rows that have full Plant/Equipment/Civil
+    /// data, so it always matches AssetItemService's generation formula. Rows lacking that
+    /// structured data (legacy freeform tags) are left untouched. Safe to run on every startup.
+    /// </summary>
+    private static void RegenerateAssetIds(IDbConnection conn)
+    {
+        var plantCodes = conn.Query<(int Id, int? Code)>("SELECT Id, Code FROM Plants")
+            .ToDictionary(p => p.Id, p => p.Code);
+
+        var items = conn.Query<(int Id, int? PlantId, string? AssetCode, string? AssetOrder, string? AssetId, string? Category)>(
+            "SELECT Id, PlantId, AssetCode, AssetOrder, AssetId, Category FROM AssetItems " +
+            "WHERE PlantId IS NOT NULL AND AssetCode IS NOT NULL");
+
+        foreach (var item in items)
+        {
+            var plantCode = item.PlantId.HasValue && plantCodes.TryGetValue(item.PlantId.Value, out var code) ? code : null;
+            var generated = AssetItem.GenerateAssetId(
+                plantCode, item.AssetCode ?? string.Empty,
+                item.AssetOrder, item.Category);
+
+            if (generated != item.AssetId)
+            {
+                conn.Execute("UPDATE AssetItems SET AssetId = @AssetId WHERE Id = @Id", new { AssetId = generated, Id = item.Id });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Converts Plants.Code from its original NVARCHAR2(20) to NUMBER. Oracle can't MODIFY a
+    /// column's datatype while it holds data, so this adds a new numeric column, backfills it
+    /// from any cleanly-numeric legacy values, then drops the old column and renames the new
+    /// one into place. No-op once already NUMBER. Safe to run on every startup.
+    /// </summary>
+    private static void MigratePlantCodeToInt(IDbConnection conn)
+    {
+        var dataType = conn.ExecuteScalar<string?>(
+            "SELECT DATA_TYPE FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'PLANTS' AND COLUMN_NAME = 'CODE'");
+        if (dataType == null || dataType == "NUMBER") return;
+
+        conn.Execute("ALTER TABLE Plants ADD (Code_New NUMBER(10,0))");
+        conn.Execute("UPDATE Plants SET Code_New = TO_NUMBER(Code) WHERE Code IS NOT NULL AND REGEXP_LIKE(Code, '^[0-9]+$')");
+        conn.Execute("ALTER TABLE Plants DROP COLUMN Code");
+        conn.Execute("ALTER TABLE Plants RENAME COLUMN Code_New TO Code");
+    }
+
+    /// <summary>
+    /// Backfills AssetItems.PlantId from any leftover legacy PlantCode text column (matched
+    /// against existing Plants rows by Code) and drops it. Safe to run on every startup.
+    /// </summary>
+    private static void BackfillPlantIdFromLegacyColumn(IDbConnection conn)
+    {
+        var hasPlantCode = conn.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'ASSETITEMS' AND COLUMN_NAME = 'PLANTCODE'") > 0;
+        if (!hasPlantCode) return;
+
+        conn.Execute(@"
+            UPDATE AssetItems
+            SET PlantId = (SELECT p.Id FROM Plants p WHERE TO_CHAR(p.Code) = AssetItems.PlantCode)
+            WHERE PlantId IS NULL AND PlantCode IS NOT NULL
+              AND EXISTS (SELECT 1 FROM Plants p WHERE TO_CHAR(p.Code) = AssetItems.PlantCode)");
+
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantCode");
+        conn.Execute("ALTER TABLE AssetItems DROP COLUMN PlantDescription");
     }
 
     // ORA-00955 = name already used by an existing object (table/index exists)
@@ -57,21 +221,86 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
 
         @"BEGIN EXECUTE IMMEDIATE '
-            CREATE TABLE AssetItems (
-                Id              NUMBER(10,0) NOT NULL,
-                Title           NVARCHAR2(150),
-                AssetId         VARCHAR2(4000),
-                Description     NVARCHAR2(250),
-                Type            NUMBER(10,0) DEFAULT 0 NOT NULL,
-                Location        NVARCHAR2(250),
-                Priority        NUMBER(10,0) DEFAULT 0 NOT NULL,
-                IntegrityStatus NUMBER(10,0) DEFAULT 0 NOT NULL,
-                PicturePath     NVARCHAR2(500),
-                CreatedAt       TIMESTAMP DEFAULT SYS_EXTRACT_UTC(SYSTIMESTAMP) NOT NULL,
-                CreatedBy       NVARCHAR2(200),
-                CONSTRAINT PK_AssetItems PRIMARY KEY (Id)
+            CREATE TABLE Plants (
+                Id          NUMBER(10,0) NOT NULL,
+                Code        NUMBER(10,0),
+                Name        NVARCHAR2(200),
+                Description NVARCHAR2(200),
+                CONSTRAINT PK_Plants PRIMARY KEY (Id)
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE Plants ADD (Code NUMBER(10,0))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE Plants_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE '
+            CREATE OR REPLACE TRIGGER TRG_Plants_BI
+            BEFORE INSERT ON Plants
+            FOR EACH ROW
+            WHEN (new.Id IS NULL)
+            BEGIN
+                SELECT Plants_SEQ.NEXTVAL INTO :new.Id FROM dual;
+            END;';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE '
+            CREATE TABLE AssetItems (
+                Id                  NUMBER(10,0) NOT NULL,
+                GisRefNo            NVARCHAR2(200),
+                AssetId             VARCHAR2(4000),
+                Title               NVARCHAR2(200),
+                AssetCode       NVARCHAR2(200),
+                AssetOrder     NVARCHAR2(200),
+                ""Function""        NVARCHAR2(200),
+                Material            NVARCHAR2(200),
+                YearInstalled       NUMBER(10,0),
+                ""Owner""           NVARCHAR2(200),
+                Constrain           NVARCHAR2(200),
+                ""Access""          NVARCHAR2(200),
+                CoordinateN         NVARCHAR2(200),
+                CoordinateE         NVARCHAR2(200),
+                Zone                NVARCHAR2(200),
+                Area                NVARCHAR2(200),
+                Train               NVARCHAR2(200),
+                DateOfInspection    TIMESTAMP,
+                Inspector           NVARCHAR2(200),
+                ""Condition""       NVARCHAR2(200),
+                ""Comment""         NVARCHAR2(1000),
+                PicturePath         NVARCHAR2(500),
+                CreatedAt           TIMESTAMP DEFAULT SYS_EXTRACT_UTC(SYSTIMESTAMP) NOT NULL,
+                CreatedBy           NVARCHAR2(200),
+                PlantId             NUMBER(10,0),
+                CONSTRAINT PK_AssetItems PRIMARY KEY (Id),
+                CONSTRAINT FK_AssetItems_Plants
+                    FOREIGN KEY (PlantId) REFERENCES Plants(Id)
+            )';
+        EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        // Add new columns to existing AssetItems table (for upgrades)
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (GisRefNo NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (AssetCode NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (AssetOrder NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (""Function"" NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Material NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (YearInstalled NUMBER(10,0))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (""Owner"" NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Constrain NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (""Access"" NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (CoordinateN NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (CoordinateE NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Zone NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Area NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Train NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Category NVARCHAR2(250))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (DateOfInspection TIMESTAMP)'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (Inspector NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (""Condition"" NVARCHAR2(200))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (""Comment"" NVARCHAR2(1000))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD (PlantId NUMBER(10,0))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
+        // ORA-02275 = such a referential constraint already exists in the table
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItems ADD CONSTRAINT FK_AssetItems_Plants FOREIGN KEY (PlantId) REFERENCES Plants(Id)'; EXCEPTION WHEN OTHERS THEN IF SQLCODE NOT IN (-2275, -2264) THEN RAISE; END IF; END;",
 
         @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE AssetItems_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
@@ -235,6 +464,7 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                 Id             NUMBER(10,0) NOT NULL,
                 DocumentTitle  NVARCHAR2(250),
                 FilePath       NVARCHAR2(500),
+                DocumentType   NVARCHAR2(20),
                 CreatedAt      TIMESTAMP DEFAULT SYS_EXTRACT_UTC(SYSTIMESTAMP) NOT NULL,
                 CreatedBy      NVARCHAR2(200),
                 AssetItemId    NUMBER(10,0),
@@ -243,6 +473,8 @@ internal sealed class OracleSchemaInitializer : ISchemaInitializer
                     FOREIGN KEY (AssetItemId) REFERENCES AssetItems(Id)
             )';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",
+
+        @"BEGIN EXECUTE IMMEDIATE 'ALTER TABLE AssetItemDocuments ADD (DocumentType NVARCHAR2(20))'; EXCEPTION WHEN OTHERS THEN IF SQLCODE != -1430 THEN RAISE; END IF; END;",
 
         @"BEGIN EXECUTE IMMEDIATE 'CREATE SEQUENCE AssetItemDocuments_SEQ START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE';
         EXCEPTION WHEN OTHERS THEN IF SQLCODE != -955 THEN RAISE; END IF; END;",

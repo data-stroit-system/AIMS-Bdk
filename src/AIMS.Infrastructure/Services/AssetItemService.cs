@@ -2,6 +2,7 @@ using AIMS.Core.Entities;
 using AIMS.Infrastructure.Data;
 using Dapper;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,35 +20,25 @@ public sealed class AssetItemService
         _dialect = dialect;
     }
 
+    private string Fn => "Function";
+    private string Ow => "Owner";
+    private string Ac => "Access";
+    private string Cn => "Condition";
+    private string Cm => "Comment";
+
+    private string AllColumns => $@"
+        Id, GisRefNo, AssetId, Title,
+        AssetCode, AssetOrder,
+        {_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)},
+        CoordinateN, CoordinateE, Zone, Area, Train,
+        DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)},
+        Category, PicturePath,
+        CreatedAt, CreatedBy, PlantId";
+
     public async Task<(List<AssetItem> Items, int TotalCount)> GetPagedAsync(
-        string? searchTerm, AssetType? typeFilter, AssetPriority? priorityFilter,
-        IntegrityStatus? statusFilter, int page, int pageSize)
+        string? searchTerm, string? conditionFilter, int page, int pageSize, int? plantIdFilter = null)
     {
-        var where = new StringBuilder("WHERE 1=1");
-        var p = new DynamicParameters();
-
-        if (!string.IsNullOrEmpty(searchTerm))
-        {
-            where.Append(" AND (Title LIKE @Search OR AssetId LIKE @Search OR Description LIKE @Search OR Location LIKE @Search)");
-            p.Add("Search", $"%{searchTerm}%");
-        }
-        if (typeFilter.HasValue)
-        {
-            where.Append(" AND Type = @Type");
-            p.Add("Type", (int)typeFilter.Value);
-        }
-        if (priorityFilter.HasValue)
-        {
-            where.Append(" AND Priority = @Priority");
-            p.Add("Priority", (int)priorityFilter.Value);
-        }
-        if (statusFilter.HasValue)
-        {
-            where.Append(" AND IntegrityStatus = @IntegrityStatus");
-            p.Add("IntegrityStatus", (int)statusFilter.Value);
-        }
-
-        var whereClause = where.ToString();
+        var (whereClause, p) = BuildFilter(searchTerm, conditionFilter, plantIdFilter);
         p.Add("Offset", (page - 1) * pageSize);
         p.Add("PageSize", pageSize);
 
@@ -56,70 +47,205 @@ public sealed class AssetItemService
             $"SELECT COUNT(*) FROM AssetItems {whereClause}", p);
 
         var items = (await conn.QueryAsync<AssetItem>(
-            _dialect.Paginate($"SELECT * FROM AssetItems {whereClause}", "Id DESC"),
+            _dialect.Paginate($"SELECT {AllColumns} FROM AssetItems {whereClause}", "Id DESC"),
             p)).ToList();
 
         return (items, totalCount);
+    }
+
+    /// <summary>
+    /// Returns every row matching the same filters as GetPagedAsync, unpaged — used
+    /// by the Asset Register CSV export. Keeps the page's Id DESC ordering.
+    /// </summary>
+    public async Task<List<AssetItem>> GetAllFilteredAsync(
+        string? searchTerm, string? conditionFilter, int? plantIdFilter = null)
+    {
+        var (whereClause, p) = BuildFilter(searchTerm, conditionFilter, plantIdFilter);
+
+        using var conn = _context.CreateConnection();
+        var items = await conn.QueryAsync<AssetItem>(
+            $"SELECT {AllColumns} FROM AssetItems {whereClause} ORDER BY Id DESC", p);
+
+        return items.ToList();
+    }
+
+    private (string WhereClause, DynamicParameters Parameters) BuildFilter(
+        string? searchTerm, string? conditionFilter, int? plantIdFilter)
+    {
+        var where = new StringBuilder("WHERE 1=1");
+        var p = new DynamicParameters();
+
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            // UPPER() on both sides makes the search case-insensitive on every
+            // provider — Oracle compares LIKE case-sensitively by default.
+            where.Append(@" AND (UPPER(Title) LIKE UPPER(@Search) ESCAPE '\' OR UPPER(AssetId) LIKE UPPER(@Search) ESCAPE '\')");
+            p.Add("Search", $"%{_dialect.EscapeLike(searchTerm)}%");
+        }
+        if (!string.IsNullOrEmpty(conditionFilter))
+        {
+            where.Append($" AND {_dialect.Quote(Cn)} = @Condition");
+            p.Add("Condition", conditionFilter);
+        }
+        if (plantIdFilter.HasValue)
+        {
+            where.Append(" AND PlantId = @PlantId");
+            p.Add("PlantId", plantIdFilter.Value);
+        }
+
+        return (where.ToString(), p);
     }
 
     public async Task<AssetItem?> GetByIdAsync(int id)
     {
         using var conn = _context.CreateConnection();
         return await conn.QuerySingleOrDefaultAsync<AssetItem>(
-            "SELECT * FROM AssetItems WHERE Id = @Id", new { Id = id });
+            $"SELECT {AllColumns} FROM AssetItems WHERE Id = @Id", new { Id = id });
     }
 
-    public Task<int> CreateAsync(AssetItem item)
+    public async Task<AssetItem?> GetByAssetIdAsync(string assetId)
     {
         using var conn = _context.CreateConnection();
+        return await conn.QuerySingleOrDefaultAsync<AssetItem>(
+            $"SELECT {AllColumns} FROM AssetItems WHERE UPPER(AssetId) = UPPER(@AssetId)",
+            new { AssetId = assetId });
+    }
+
+    /// <summary>
+    /// Asset Tag No. is always derived in C# from Plant/Equipment/Civil codes — never
+    /// database-generated and never accepted from client input.
+    /// </summary>
+    private async Task<string> GenerateAssetIdAsync(IDbConnection conn, AssetItem item)
+    {
+        int? plantCode = null;
+        if (item.PlantId.HasValue)
+        {
+            plantCode = await conn.QuerySingleOrDefaultAsync<int?>(
+                "SELECT Code FROM Plants WHERE Id = @PlantId", new { PlantId = item.PlantId.Value });
+        }
+
+        return AssetItem.GenerateAssetId(
+            plantCode, item.AssetCode ?? string.Empty,
+            item.AssetOrder, item.Category);
+    }
+
+    private async Task EnsureAssetIdUniqueAsync(IDbConnection conn, string assetId, int? excludeId = null)
+    {
+        var exists = await conn.QuerySingleAsync<int>(
+            "SELECT COUNT(*) FROM AssetItems WHERE UPPER(AssetId) = UPPER(@AssetId)" +
+            (excludeId.HasValue ? " AND Id <> @ExcludeId" : string.Empty),
+            new { AssetId = assetId, ExcludeId = excludeId });
+
+        if (exists > 0)
+            throw new DuplicateAssetIdException(assetId);
+    }
+
+    public async Task<int> CreateAsync(AssetItem item)
+    {
+        using var conn = _context.CreateConnection();
+        item.AssetId = await GenerateAssetIdAsync(conn, item);
+        await EnsureAssetIdUniqueAsync(conn, item.AssetId);
+
+        // Table name is created unquoted (uppercase on Oracle) — quoting it makes Oracle
+        // look up a case-sensitive "AssetItems" and fail with ORA-00942.
         var id = _dialect.InsertAndGetId(conn,
-            _dialect.Quote("AssetItems"),
-            "Title, AssetId, Description, Type, Location, Priority, IntegrityStatus, PicturePath, CreatedAt, CreatedBy",
-            "@Title, @AssetId, @Description, @Type, @Location, @Priority, @IntegrityStatus, @PicturePath, @CreatedAt, @CreatedBy",
+            "AssetItems",
+            $"GisRefNo, AssetId, Title, " +
+            "AssetCode, AssetOrder, " +
+            $"{_dialect.Quote(Fn)}, Material, YearInstalled, {_dialect.Quote(Ow)}, Constrain, {_dialect.Quote(Ac)}, " +
+            "CoordinateN, CoordinateE, Zone, Area, Train, " +
+            $"DateOfInspection, Inspector, {_dialect.Quote(Cn)}, {_dialect.Quote(Cm)}, " +
+            $"Category, PicturePath, CreatedAt, CreatedBy, PlantId",
+            "@GisRefNo, @AssetId, @Title, " +
+            "@AssetCode, @AssetOrder, " +
+            "@Function, @Material, @YearInstalled, @Owner, @Constrain, @Access, " +
+            "@CoordinateN, @CoordinateE, @Zone, @Area, @Train, " +
+            "@DateOfInspection, @Inspector, @Condition, @Comment, " +
+            "@Category, @PicturePath, @CreatedAt, @CreatedBy, @PlantId",
             new
             {
-                item.Title, item.AssetId, item.Description,
-                Type = (int)item.Type, item.Location,
-                Priority = (int)item.Priority,
-                IntegrityStatus = (int)item.IntegrityStatus,
-                item.PicturePath, item.CreatedAt, item.CreatedBy
+                item.GisRefNo, item.AssetId, item.Title,
+                item.AssetCode, item.AssetOrder,
+                item.Function, item.Material, item.YearInstalled, item.Owner, item.Constrain, item.Access,
+                item.CoordinateN, item.CoordinateE, item.Zone, item.Area, item.Train,
+                item.DateOfInspection, item.Inspector, item.Condition, item.Comment,
+                item.Category, item.PicturePath, item.CreatedAt, item.CreatedBy, item.PlantId
             });
-        return Task.FromResult(id);
+        return id;
     }
 
     public async Task UpdateAsync(int id, AssetItem updates)
     {
         using var conn = _context.CreateConnection();
-        await conn.ExecuteAsync(@"
+        updates.AssetId = await GenerateAssetIdAsync(conn, updates);
+        await EnsureAssetIdUniqueAsync(conn, updates.AssetId, id);
+
+        var sql = $@"
             UPDATE AssetItems
-            SET Title = @Title, AssetId = @AssetId, Description = @Description,
-                Type = @Type, Location = @Location, Priority = @Priority,
-                IntegrityStatus = @IntegrityStatus, PicturePath = @PicturePath
-            WHERE Id = @Id",
-            new
-            {
-                updates.Title, updates.AssetId, updates.Description,
-                Type = (int)updates.Type, updates.Location,
-                Priority = (int)updates.Priority,
-                IntegrityStatus = (int)updates.IntegrityStatus,
-                PicturePath = updates.PicturePath,
-                Id = id
-            });
+            SET GisRefNo = @GisRefNo, AssetId = @AssetId, Title = @Title,
+                AssetCode = @AssetCode,
+                AssetOrder = @AssetOrder,
+                {_dialect.Quote(Fn)} = @Function, Material = @Material, YearInstalled = @YearInstalled,
+                {_dialect.Quote(Ow)} = @Owner, Constrain = @Constrain, {_dialect.Quote(Ac)} = @Access,
+                CoordinateN = @CoordinateN, CoordinateE = @CoordinateE,
+                Zone = @Zone, Area = @Area, Train = @Train,
+                DateOfInspection = @DateOfInspection, Inspector = @Inspector,
+                {_dialect.Quote(Cn)} = @Condition, {_dialect.Quote(Cm)} = @Comment,
+                Category = @Category, PicturePath = @PicturePath, PlantId = @PlantId
+            WHERE Id = @Id";
+
+        var parameters = new Dictionary<string, object?>
+        {
+            { "GisRefNo", updates.GisRefNo },
+            { "AssetId", updates.AssetId },
+            { "Title", updates.Title },
+            { "AssetCode", updates.AssetCode },
+            { "AssetOrder", updates.AssetOrder },
+            { "Function", updates.Function },
+            { "Material", updates.Material },
+            { "YearInstalled", updates.YearInstalled },
+            { "Owner", updates.Owner },
+            { "Constrain", updates.Constrain },
+            { "Access", updates.Access },
+            { "CoordinateN", updates.CoordinateN },
+            { "CoordinateE", updates.CoordinateE },
+            { "Zone", updates.Zone },
+            { "Area", updates.Area },
+            { "Train", updates.Train },
+            { "DateOfInspection", updates.DateOfInspection },
+            { "Inspector", updates.Inspector },
+            { "Condition", updates.Condition },
+            { "Comment", updates.Comment },
+            { "Category", updates.Category },
+            { "PicturePath", updates.PicturePath },
+            { "PlantId", updates.PlantId },
+            { "Id", id }
+        };
+
+        await _dialect.ExecuteUpdateAsync(conn, sql, parameters);
     }
 
     public async Task<(AssetItem? Asset, List<AssetItemDocuments> Documents)> DeleteAsync(int id)
     {
         using var conn = _context.CreateConnection();
+        if (conn.State != ConnectionState.Open)
+            conn.Open();
+
         var asset = await conn.QuerySingleOrDefaultAsync<AssetItem>(
-            "SELECT * FROM AssetItems WHERE Id = @Id", new { Id = id });
+            $"SELECT {AllColumns} FROM AssetItems WHERE Id = @Id", new { Id = id });
         if (asset == null) return (null, new List<AssetItemDocuments>());
 
         var docs = (await conn.QueryAsync<AssetItemDocuments>(
             "SELECT * FROM AssetItemDocuments WHERE AssetItemId = @Id", new { Id = id })).ToList();
 
-        await conn.ExecuteAsync("DELETE FROM AssetItemDocuments WHERE AssetItemId = @Id", new { Id = id });
-        await conn.ExecuteAsync("DELETE FROM AssetRemarks WHERE AssetItemId = @Id", new { Id = id });
-        await conn.ExecuteAsync("DELETE FROM AssetItems WHERE Id = @Id", new { Id = id });
+        // The three deletes must land together: a failure mid-way (dropped connection,
+        // or an FK violation from a document uploaded concurrently) would otherwise
+        // leave the asset row alive with its documents/remarks already gone.
+        using var tx = conn.BeginTransaction();
+        await conn.ExecuteAsync("DELETE FROM AssetItemDocuments WHERE AssetItemId = @Id", new { Id = id }, tx);
+        await conn.ExecuteAsync("DELETE FROM AssetRemarks WHERE AssetItemId = @Id", new { Id = id }, tx);
+        await conn.ExecuteAsync("DELETE FROM AssetItems WHERE Id = @Id", new { Id = id }, tx);
+        tx.Commit();
 
         return (asset, docs);
     }
@@ -149,22 +275,15 @@ public sealed class AssetItemService
             new { Id = id })).ToList();
     }
 
-    public async Task<AssetItemDocuments?> GetDocumentByIdAsync(int documentId)
-    {
-        using var conn = _context.CreateConnection();
-        return await conn.QuerySingleOrDefaultAsync<AssetItemDocuments>(
-            "SELECT * FROM AssetItemDocuments WHERE Id = @Id", new { Id = documentId });
-    }
-
-    public async Task AddDocumentAsync(int assetItemId, string documentTitle, string filePath, string createdBy)
+    public async Task AddDocumentAsync(int assetItemId, string documentTitle, string filePath, string createdBy, string documentType = DocumentTypeCode.Document)
     {
         using var conn = _context.CreateConnection();
         await conn.ExecuteAsync(@"
-            INSERT INTO AssetItemDocuments (DocumentTitle, FilePath, CreatedAt, CreatedBy, AssetItemId)
-            VALUES (@DocumentTitle, @FilePath, @CreatedAt, @CreatedBy, @AssetItemId)",
+            INSERT INTO AssetItemDocuments (DocumentTitle, FilePath, DocumentType, CreatedAt, CreatedBy, AssetItemId)
+            VALUES (@DocumentTitle, @FilePath, @DocumentType, @CreatedAt, @CreatedBy, @AssetItemId)",
             new
             {
-                DocumentTitle = documentTitle, FilePath = filePath,
+                DocumentTitle = documentTitle, FilePath = filePath, DocumentType = documentType,
                 CreatedAt = DateTime.UtcNow, CreatedBy = createdBy, AssetItemId = assetItemId
             });
     }

@@ -48,7 +48,7 @@ public class ActivityLogger : IActivityLogger
                 EntityName = entityName ?? activityType,
                 EntityId = entityId ?? string.Empty,
                 Action = activityType,
-                Description = description,
+                Description = Truncate(description, 500),
                 UserId = userId ?? _auditUserProvider.GetUserId(),
                 UserName = userName ?? _auditUserProvider.GetUserName(),
                 IpAddress = _auditUserProvider.GetIpAddress(),
@@ -81,7 +81,7 @@ public class ActivityLogger : IActivityLogger
                 EntityName = "Security",
                 EntityId = string.Empty,
                 Action = activityType,
-                Description = description,
+                Description = Truncate(description, 500),
                 UserId = userId ?? _auditUserProvider.GetUserId(),
                 UserName = userName ?? _auditUserProvider.GetUserName(),
                 IpAddress = _auditUserProvider.GetIpAddress(),
@@ -91,6 +91,12 @@ public class ActivityLogger : IActivityLogger
                 Timestamp = DateTime.UtcNow
             });
     }
+
+    // AuditLogs.Description is nvarchar(500)/NVARCHAR2(500); descriptions can embed
+    // user-supplied text (e.g. the attempted username on a failed login), so clamp
+    // rather than let the INSERT throw.
+    private static string? Truncate(string? value, int maxLength) =>
+        value != null && value.Length > maxLength ? value[..maxLength] : value;
 
     private static string? GetUserAgent(HttpContext? httpContext)
     {

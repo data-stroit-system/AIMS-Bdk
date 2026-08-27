@@ -1,3 +1,4 @@
+#nullable enable
 namespace AIMS.SharedKernel.Interfaces;
 
 /// <summary>

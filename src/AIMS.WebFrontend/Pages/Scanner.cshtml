@@ -1,0 +1,188 @@
+@page
+@model AIMS.WebFrontend.Pages.ScannerModel
+@{
+    ViewData["Title"] = "Asset Tag Scanner";
+}
+
+<div style="max-width:480px;margin:0 auto;padding:24px;">
+    <div class="sims-nameplate-logos" style="margin-bottom:16px;">
+        <img src="~/asset-pictures/badak-lng-small.png" alt="Badak LNG" />
+        <img src="~/asset-pictures/dtp-small.png" alt="DTP" />
+    </div>
+    <div class="sims-card">
+        <div class="sims-card-header">
+            <i class="fas fa-qrcode"></i> Asset Tag Scanner
+        </div>
+        <div class="sims-card-body">
+            <p class="sims-text-sm sims-text-muted">Point the camera at an asset tag QR code.</p>
+            <video id="scannerVideo" autoplay playsinline muted
+                   style="width:100%;max-height:280px;background:#000;border-radius:6px;"></video>
+            <canvas id="scannerCanvas" style="display:none;width:100%;max-height:280px;background:#000;border-radius:6px;"></canvas>
+            <div id="scannerStatus" class="sims-text-sm sims-text-muted sims-mb-3">Starting camera&hellip;</div>
+            <div id="decodedRow" class="sims-mb-3" style="display:none;">
+                <div class="sims-text-xs sims-text-muted">Scanned Asset Tag No.</div>
+                <div>
+                    <code id="decodedTag" class="sims-fw-bold"></code>
+                    <button type="button" id="rescanLink" class="sims-btn sims-btn-outline sims-btn-sm" style="margin-left:8px;">
+                        <i class="fa-solid fa-arrow-rotate-right"></i> Rescan
+                    </button>
+                </div>
+            </div>
+            <button id="viewAssetBtn" class="sims-btn sims-btn-primary" style="width:100%;justify-content:center" disabled>
+                Scan to view Asset
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/jsqr/dist/jsQR.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var video = document.getElementById('scannerVideo');
+            var canvas = document.getElementById('scannerCanvas');
+            var ctx = canvas.getContext('2d');
+            var statusEl = document.getElementById('scannerStatus');
+            var decodedRow = document.getElementById('decodedRow');
+            var decodedTag = document.getElementById('decodedTag');
+            var viewBtn = document.getElementById('viewAssetBtn');
+            var rescanLink = document.getElementById('rescanLink');
+
+            var stream = null;
+            var rafId = null;
+            var currentTag = null;
+
+            // The camera requires a secure context (HTTPS or localhost): on the plain-HTTP
+            // production host browsers block getUserMedia, so manual entry is the fallback.
+            function startCamera() {
+                statusEl.textContent = 'Starting camera…';
+                // Phones hitting the page over plain HTTP (LAN IP, production host) are an
+                // insecure context: the camera APIs are absent or blocked there by design.
+                if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    statusEl.textContent = 'Camera requires HTTPS or localhost — this page is plain HTTP. Use manual entry below.';
+                    return;
+                }
+                // 'ideal' prefers the rear camera on phones but degrades to any camera,
+                // unlike a hard 'environment' constraint which rejects with
+                // OverconstrainedError on desktops that only have a user-facing webcam.
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+                    .then(attachStream)
+                    .catch(function (err) {
+                        if (err && err.name === 'OverconstrainedError') {
+                            // No camera matched the facing hint at all — retry with any camera.
+                            navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                                .then(attachStream)
+                                .catch(showCameraUnavailable);
+                        } else {
+                            showCameraUnavailable();
+                        }
+                    });
+            }
+
+            function attachStream(s) {
+                stream = s;
+                // Mobile Safari quirks: muted/playsinline must be set as element
+                // PROPERTIES, not just HTML attributes, and play() can fail until
+                // loadedmetadata fires — retry it there.
+                video.muted = true;
+                video.setAttribute('muted', '');
+                video.playsInline = true;
+                video.setAttribute('playsinline', '');
+                video.srcObject = s;
+                video.onloadedmetadata = function () {
+                    video.play().catch(function () {
+                        statusEl.textContent = 'Video playback failed — use manual entry below.';
+                    });
+                };
+                video.play().catch(function () { /* retried via onloadedmetadata */ });
+                statusEl.textContent = 'Scanning…';
+                rafId = requestAnimationFrame(scanFrame);
+            }
+
+            function showCameraUnavailable() {
+                statusEl.textContent = 'Camera unavailable (blocked or insecure context) — use manual entry below.';
+            }
+
+            function stopCamera() {
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
+                }
+                if (stream) {
+                    stream.getTracks().forEach(function (t) { t.stop(); });
+                    stream = null;
+                }
+                video.srcObject = null;
+            }
+
+            // Background scan loop: draw the video frame into an offscreen canvas and
+            // decode a QR code from the pixels. Stops on the first successful decode.
+            function scanFrame() {
+                rafId = requestAnimationFrame(scanFrame);
+                if (video.readyState !== video.HAVE_ENOUGH_DATA || !video.videoWidth) return;
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                var code = jsQR(img.data, img.width, img.height);
+                if (code && code.data) onTag(normalizeTag(code.data));
+            }
+
+            // Trim; if the scan is a URL, take its last path segment. Do NOT split bare
+            // tags on '/' — legacy tags legitimately contain slashes (e.g. 17D/4-2).
+            function normalizeTag(raw) {
+                var text = (raw || '').trim();
+                if (/^https?:\/\//i.test(text)) {
+                    var segments = text.replace(/[?#].*$/, '').split('/').filter(Boolean);
+                    if (segments.length) text = segments[segments.length - 1];
+                }
+                return text;
+            }
+
+            function onTag(tag) {
+                if (!tag) return;
+                // Freeze the last video frame onto the canvas before stopping the
+                // camera — otherwise clearing srcObject leaves the video box black.
+                if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    video.style.display = 'none';
+                    canvas.style.display = '';
+                }
+                stopCamera();
+                currentTag = tag;
+                decodedTag.textContent = tag;
+                decodedRow.style.display = '';
+                viewBtn.disabled = false;
+                viewBtn.textContent = 'View Asset';
+                statusEl.textContent = 'Asset tag scanned.';
+            }
+
+            function reset() {
+                currentTag = null;
+                decodedRow.style.display = 'none';
+                decodedTag.textContent = '';
+                viewBtn.disabled = true;
+                viewBtn.textContent = 'Scan to view Asset';
+                // Restore the live video feed for the next scan.
+                canvas.style.display = 'none';
+                video.style.display = '';
+                startCamera();
+            }
+
+            viewBtn.addEventListener('click', function () {
+                if (currentTag) {
+                    window.open('/asset/' + encodeURIComponent(currentTag), '_blank', 'noopener');
+                }
+            });
+
+            rescanLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                reset();
+            });
+
+            startCamera();
+        })();
+    </script>
+}
