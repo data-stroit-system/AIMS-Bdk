@@ -37,17 +37,19 @@
         <div class="sims-panel-right-scroll" id="rightPanelContent">
             <div class="sims-card-header" style="padding-left:0">
                 <i class="fas fa-chart-pie"></i> Plant Summary
-                @if (Model.TotalAssets > 0)
-                {
-                    <select id="plantFilter" class="sims-form-control sims-form-select ms-auto" style="width:auto">
+            </div>
+            @if (Model.TotalAssets > 0)
+            {
+                <div class="sims-mb-2">
+                    <select id="plantFilter" class="sims-form-control sims-form-select" style="width:100%">
                         <option value="all">All Plant</option>
                         @for (var i = 1; i < Model.PlantConditionSummaries.Count; i++)
                         {
                             <option value="@i">@Model.PlantConditionSummaries[i].PlantName</option>
                         }
                     </select>
-                }
-            </div>
+                </div>
+            }
             @if (Model.TotalAssets == 0)
             {
                 <p class="sims-text-muted">No assets recorded.</p>
