@@ -109,7 +109,7 @@
             <div id="fileInputsContainer"></div>
 
             <div class="sims-d-flex sims-gap-2 sims-mt-3">
-                <button type="submit" class="sims-btn sims-btn-primary"><i class="fas fa-save"></i> Save</button>
+                <button type="submit" id="submitConditionBtn" class="sims-btn sims-btn-primary"><i class="fas fa-save"></i> Save</button>
                 <a asp-page="Details" asp-route-id="@Model.AssetItem.Id" asp-route-tab="condition" class="sims-btn sims-btn-outline">Cancel</a>
             </div>
         </form>
@@ -136,6 +136,16 @@
             var tbody = document.getElementById('pendingFilesBody');
             var emptyRow = document.getElementById('pendingFilesEmptyRow');
             var hiddenContainer = document.getElementById('fileInputsContainer');
+            var saveBtn = document.getElementById('submitConditionBtn');
+
+            var hasPendingFiles = function () { return pending.length > 0; };
+
+            saveBtn.addEventListener('click', function (e) {
+                // If the user has not added any new picture, ask for confirmation before saving.
+                if (!hasPendingFiles() && !confirm('No new picture uploaded. Save anyway?')) {
+                    e.preventDefault();
+                }
+            });
 
             function extOf(name) {
                 var i = name.lastIndexOf('.');
