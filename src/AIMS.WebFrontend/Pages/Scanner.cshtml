@@ -5,6 +5,10 @@
 }
 
 <div style="max-width:480px;margin:0 auto;padding:24px;">
+    <div class="sims-nameplate-logos" style="margin-bottom:16px;">
+        <img src="~/asset-pictures/badak-lng-small.png" alt="Badak LNG" />
+        <img src="~/asset-pictures/dtp-small.png" alt="DTP" />
+    </div>
     <div class="sims-card">
         <div class="sims-card-header">
             <i class="fas fa-qrcode"></i> Asset Tag Scanner
@@ -13,18 +17,16 @@
             <p class="sims-text-sm sims-text-muted">Point the camera at an asset tag QR code.</p>
             <video id="scannerVideo" autoplay playsinline muted
                    style="width:100%;max-height:280px;background:#000;border-radius:6px;"></video>
-            <canvas id="scannerCanvas" style="display:none;"></canvas>
+            <canvas id="scannerCanvas" style="display:none;width:100%;max-height:280px;background:#000;border-radius:6px;"></canvas>
             <div id="scannerStatus" class="sims-text-sm sims-text-muted sims-mb-3">Starting camera&hellip;</div>
             <div id="decodedRow" class="sims-mb-3" style="display:none;">
                 <div class="sims-text-xs sims-text-muted">Scanned Asset Tag No.</div>
                 <div>
                     <code id="decodedTag" class="sims-fw-bold"></code>
-                    <a href="#" id="rescanLink" class="sims-text-sm" style="margin-left:8px;">Rescan</a>
+                    <button type="button" id="rescanLink" class="sims-btn sims-btn-outline sims-btn-sm" style="margin-left:8px;">
+                        <i class="fa-solid fa-arrow-rotate-right"></i> Rescan
+                    </button>
                 </div>
-            </div>
-            <div class="sims-mb-3">
-                <div class="sims-text-xs sims-text-muted">Or enter the tag manually</div>
-                <input type="text" id="tagInput" class="form-control" placeholder="e.g. 17D-1-Q" autocomplete="off" />
             </div>
             <button id="viewAssetBtn" class="sims-btn sims-btn-primary" style="width:100%;justify-content:center" disabled>
                 Scan to view Asset
@@ -43,7 +45,6 @@
             var statusEl = document.getElementById('scannerStatus');
             var decodedRow = document.getElementById('decodedRow');
             var decodedTag = document.getElementById('decodedTag');
-            var tagInput = document.getElementById('tagInput');
             var viewBtn = document.getElementById('viewAssetBtn');
             var rescanLink = document.getElementById('rescanLink');
 
@@ -140,6 +141,15 @@
 
             function onTag(tag) {
                 if (!tag) return;
+                // Freeze the last video frame onto the canvas before stopping the
+                // camera — otherwise clearing srcObject leaves the video box black.
+                if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    video.style.display = 'none';
+                    canvas.style.display = '';
+                }
                 stopCamera();
                 currentTag = tag;
                 decodedTag.textContent = tag;
@@ -155,6 +165,9 @@
                 decodedTag.textContent = '';
                 viewBtn.disabled = true;
                 viewBtn.textContent = 'Scan to view Asset';
+                // Restore the live video feed for the next scan.
+                canvas.style.display = 'none';
+                video.style.display = '';
                 startCamera();
             }
 
@@ -164,13 +177,8 @@
                 }
             });
 
-            tagInput.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter') onTag(normalizeTag(tagInput.value));
-            });
-
             rescanLink.addEventListener('click', function (e) {
                 e.preventDefault();
-                tagInput.value = '';
                 reset();
             });
 
