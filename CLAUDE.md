@@ -49,6 +49,12 @@ Two scripts, run in order, share one gitignored `deploy/deploy.conf` (copy from 
 
 ### Database backup/restore
 
+To pull the server's backup files down into the local gitignored `./.db_backups/` folder (run from the repo root):
+
+```bash
+scp root@159.223.33.82:/opt/aims/backups/* ./.db_backups/
+```
+
 `deploy/db_backup.sh` (`backup` / `restore <file> [--yes]` / `list` subcommands) runs on the same server, reusing `deploy/deploy.conf`. It reads the live Oracle connection string straight out of `$APPSETTINGS_FILE` (default `$BASE_DIR/shared/appsettings.Production.json`, overridable in deploy.conf) and does a schema-level Data Pump export/import (`expdp`/`impdp`) of the app's DB user, writing timestamped `.dmp`/`.log` files to `$BASE_DIR/backups` (pruned to `KEEP_BACKUPS`, default 7). `restore` is destructive (`table_exists_action=replace`) and requires typing `yes` unless `--yes` is passed.
 
 Creating the Data Pump `DIRECTORY` object needs a DBA connection, which the script gets via OS authentication (`sqlplus / as sysdba`) rather than a documented SYS/SYSTEM password — it auto-detects whether Oracle is the `setup_oracle_xe.sh` podman container (by container name, overridable via `ORACLE_CONTAINER_NAME`) and runs everything through `podman exec --user oracle` + `podman cp`, or otherwise assumes a native install and runs as the OS user that owns it (`ORACLE_OS_USER`, default `oracle`) via `sudo -u <user> env ORACLE_HOME=... ORACLE_SID=...` — the env is exported explicitly rather than relying on a login shell/`oraenv`, so the account needs no home directory or profile (fixed 2026-08-17). The DB password is deliberately kept out of any command line (visible via `ps` otherwise) — it only ever goes into a Data Pump parameter file written with tightened permissions and deleted immediately after use.

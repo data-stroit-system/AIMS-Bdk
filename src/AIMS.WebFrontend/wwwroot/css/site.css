@@ -615,6 +615,16 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
     }
     .sims-panel-left.mobile-show { transform: translateX(0); }
     .sims-hamburger { display: inline-block; }
+    /* Top bar: the nowrap brand text + pill labels overflow a phone width,
+       squeezing the grid's 1fr columns to 0 and pushing the nav off-screen.
+       Shrink the brand text and collapse nav pills to icons. */
+    .sims-topbar-brand { font-size: 11px; gap: 6px; }
+    .sims-topbar-brand img { height: 30px; }
+    .sims-topbar-username { display: none; }
+    .sims-nav-label { display: none; }
+    .sims-topbar-nav { gap: 4px; }
+    .sims-topbar-nav-btn { padding: 6px 10px; }
+    .sims-topbar-right { gap: 6px; }
 }
 
 @media (max-width: 767px) {

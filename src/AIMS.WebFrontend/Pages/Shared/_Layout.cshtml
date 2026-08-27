@@ -31,16 +31,16 @@
                 {
                     <nav class="sims-topbar-nav">
                         <a class="sims-topbar-nav-btn @(Context.Request.Path.StartsWithSegments("/AssetReg") ? "active" : "")" asp-page="/AssetReg/Index">
-                            <i class="fas fa-table-list"></i> Asset Register
+                            <i class="fas fa-table-list"></i> <span class="sims-nav-label">Asset Register</span>
                         </a>
                         <a class="sims-topbar-nav-btn @(Context.Request.Path.StartsWithSegments("/MapDemo") ? "active" : "")" asp-page="/MapDemo/Index">
-                            <i class="fas fa-map-location-dot"></i> Map Demo
+                            <i class="fas fa-map-location-dot"></i> <span class="sims-nav-label">Map Demo</span>
                         </a>
                         @if (User.IsInRole("Admin"))
                         {
                             <div class="dropdown">
                                 <button class="sims-topbar-nav-btn dropdown-toggle" data-bs-toggle="dropdown">
-                                    <i class="fas fa-user-shield"></i> System
+                                    <i class="fas fa-user-shield"></i> <span class="sims-nav-label">System</span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
                                     <li><a class="dropdown-item" asp-page="/Admin/Users/Index">User Management</a></li>
@@ -52,7 +52,7 @@
                         {
                             <div class="dropdown">
                                 <button class="sims-topbar-nav-btn dropdown-toggle" data-bs-toggle="dropdown">
-                                    <i class="fas fa-users-gear"></i> Management
+                                    <i class="fas fa-users-gear"></i> <span class="sims-nav-label">Management</span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end">
                                     <li><a class="dropdown-item" asp-page="/Admin/Users/Index">View Users</a></li>
@@ -63,12 +63,12 @@
                         else if (User.IsInRole("User"))
                         {
                             <a class="sims-topbar-nav-btn @(Context.Request.Path.StartsWithSegments("/Admin/AuditLogs") ? "active" : "")" asp-page="/Admin/AuditLogs">
-                                <i class="fas fa-clipboard-list"></i> My Audit Trail
+                                <i class="fas fa-clipboard-list"></i> <span class="sims-nav-label">My Audit Trail</span>
                             </a>
                         }
                     </nav>
                 }
-                <span class="sims-text-sm sims-text-muted">@User.Identity?.Name</span>
+                <span class="sims-text-sm sims-text-muted sims-topbar-username">@User.Identity?.Name</span>
                 <div class="dropdown">
                     <button class="btn btn-link dropdown-toggle sims-text-sm" data-bs-toggle="dropdown">
                         <i class="fas fa-user-circle"></i>
