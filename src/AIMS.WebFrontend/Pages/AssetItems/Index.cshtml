@@ -43,8 +43,11 @@
                  data-qgis-server="@Model.QgisBrowserUrl"
                  data-map-project="@Model.MapProject"
                  data-feature-info="true"
-                 data-base-layer="Pelatihan Bulan Juli 2026"
-                 data-init-lat="-6.16526" data-init-lng="106.92418" data-init-zoom="17"
+                 data-base-layer="Citra Satelite"
+                 data-init-lat="0.08744" data-init-lng="117.48562" data-init-zoom="16"
+                 data-asset-tag="@Model.SelectedAsset?.AssetId"
+                 data-plant-code="@Model.FilterPlant?.Code"
+                 data-plant-name="@Model.FilterPlant?.Name"
                  data-search-terms="@Model.SearchTermsJson"></div>
         </div>
     </div>
