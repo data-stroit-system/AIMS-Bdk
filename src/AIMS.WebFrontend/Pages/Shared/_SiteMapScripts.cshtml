@@ -23,6 +23,11 @@
         } catch (e) {
             searchTerms = null;
         }
+        // Asset tag for the live point lookup (server-side WFS query by tag).
+        // Plant code/name let the server resolve the plant group's point layer.
+        const assetTag = mapEl.dataset.assetTag || null;
+        const plantCode = mapEl.dataset.plantCode || null;
+        const plantName = mapEl.dataset.plantName || null;
 
         const map = L.map('map', { maxZoom: 25 }).setView([initLat, initLng], initZoom);
         const statusEl = document.getElementById('map-status');
@@ -72,14 +77,27 @@
                 .catch(() => popup.setContent('<em>Feature info unavailable.</em>'));
         }
 
-        function addWmsLayers(layers) {
-            const baseLayerIdx = baseLayerName ? layers.indexOf(baseLayerName) : -1;
-            const overlayNames = baseLayerIdx !== -1
-                ? layers.filter((_, i) => i !== baseLayerIdx)
-                : layers;
+        function addWmsLayers(layerNames) {
+            // Overlay list = every layer except the base layer and its group's
+            // children (requesting a group as base already renders them).
+            let overlayNames = layerNames.map(l => l.name);
+            let baseLayerIdx = -1;
+            if (baseLayerName) {
+                for (let i = 0; i < layerNames.length; i++) {
+                    if (layerNames[i].name === baseLayerName) {
+                        baseLayerIdx = i;
+                        const baseDepth = layerNames[i].depth;
+                        let j = i + 1;
+                        while (j < layerNames.length && layerNames[j].depth > baseDepth) j++;
+                        overlayNames = layerNames.slice(0, i).map(l => l.name)
+                            .concat(layerNames.slice(j).map(l => l.name));
+                        break;
+                    }
+                }
+            }
 
             // All layers for feature-info lookup
-            currentLayers = layers;
+            currentLayers = layerNames.map(l => l.name);
 
             if (baseLayerIdx !== -1) {
                 controlBaseLayers[baseLayerName] = L.tileLayer.wms(QGIS_SERVER, {
@@ -136,6 +154,34 @@
                     showFeatureInfo(center, match);
                 });
             }
+        }
+
+        // Live-lookup of the asset's center point: the page resolves the asset
+        // tag to a point on the QGIS point layer (WFS, server-side). On a hit,
+        // drop a marker and zoom to it; otherwise fall back to layer search.
+        function locateAssetPoint(tag, fallbackTerms) {
+            let url = '?handler=AssetPoint&tag=' + encodeURIComponent(tag);
+            if (plantCode) url += '&plantCode=' + encodeURIComponent(plantCode);
+            if (plantName) url += '&plantName=' + encodeURIComponent(plantName);
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.found && !isNaN(data.lat) && !isNaN(data.lng)) {
+                        const latlng = L.latLng(data.lat, data.lng);
+                        L.marker(latlng).addTo(map)
+                            .bindPopup('<strong>' + (data.name || tag) + '</strong>')
+                            .openPopup();
+                        map.setView(latlng, 18, { animate: true });
+                        setStatus('Asset point: ' + (data.name || tag), 'text-success');
+                    } else if (fallbackTerms && fallbackTerms.length) {
+                        doSearch(fallbackTerms);
+                    } else {
+                        setStatus('No point found for asset "' + tag + '"', 'text-warning');
+                    }
+                })
+                .catch(() => {
+                    if (fallbackTerms && fallbackTerms.length) doSearch(fallbackTerms);
+                });
         }
 
         // First candidate term that substring-matches a layer name wins.
@@ -198,14 +244,20 @@
                     }
                     if (layerName && !seen.has(layerName)) {
                         seen.add(layerName);
-                        names.push(layerName);
+                        let depth = 0;
+                        for (let p = layer.parentElement; p; p = p.parentElement) {
+                            if (p.localName === 'Layer') depth++;
+                        }
+                        names.push({ name: layerName, depth });
                         if (bbox) layerExtents[layerName] = bbox;
                     }
                 }
-                console.log('Discovered WMS layers:', names, 'with extents:', Object.keys(layerExtents));
+                console.log('Discovered WMS layers:', names.map(l => l.name), 'with extents:', Object.keys(layerExtents));
                 addWmsLayers(names);
 
-                if (searchTerms && searchTerms.length) {
+                if (assetTag) {
+                    locateAssetPoint(assetTag, searchTerms);
+                } else if (searchTerms && searchTerms.length) {
                     doSearch(searchTerms);
                 }
             })

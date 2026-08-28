@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Xml;
 using AIMS.Core.Entities;
 using AIMS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -141,5 +143,167 @@ public class IndexModel : PageModel
         {
             return Content(string.Empty, "text/plain");
         }
+    }
+
+    // Live-lookup of an asset's center point. The QGIS project holds one asset
+    // point layer inside each plant group (e.g. "Point Aset Plant 17" under
+    // group "Plan 17"), so the layer is resolved dynamically from the plant
+    // code/name via WMS GetCapabilities — never hardcoded. WFS GetFeature on
+    // that layer is then filtered by the asset tag; the layer's NAME field
+    // carries the tag with a sequence prefix ("(04) 17D-4-Q"), so match by
+    // suffix (which also covers an exact match). Returns
+    // {found, lat, lng, name, layer} as JSON.
+    public async Task<IActionResult> OnGetAssetPointAsync(string tag, string? plantCode, string? plantName)
+    {
+        var serverUrl = _configuration["QgisServer:ServerUrl"] ?? "http://192.168.0.8/qgisserver";
+        if (serverUrl.StartsWith('/'))
+            serverUrl = $"{Request.Scheme}://{Request.Host}{serverUrl}";
+        var mapProject = _configuration["QgisServer:MapProject"] ?? "/home/deli/Sample Citra/Project Sample format qgs.qgs";
+
+        string? layer = null;
+        try
+        {
+            var capsXml = await GetWmsCapabilitiesAsync(serverUrl, mapProject);
+            layer = ResolveAssetPointLayer(capsXml, plantCode, plantName);
+            if (layer == null)
+                return new JsonResult(new { found = false, layer = (string?)null });
+
+            // QGIS Server names WFS feature types by the layer name with
+            // spaces turned into underscores ("Point Aset Plant 17" →
+            // "Point_Aset_Plant_17"), and this server build ignores
+            // CQL_FILTER — use the OGC XML FILTER instead. The NAME field
+            // carries the tag with a sequence prefix ("(04) 17D-4-Q"), so
+            // match by suffix with PropertyIsLike.
+            var typeName = layer.Replace(' ', '_');
+            var filterXml = "<ogc:Filter xmlns:ogc=\"http://www.opengis.net/ogc\">"
+                + "<ogc:PropertyIsLike wildCard=\"*\" singleChar=\".\" escapeChar=\"!\">"
+                + "<ogc:PropertyName>NAME</ogc:PropertyName>"
+                + $"<ogc:Literal>*{System.Security.SecurityElement.Escape(tag)}</ogc:Literal>"
+                + "</ogc:PropertyIsLike></ogc:Filter>";
+            var url = serverUrl
+                + $"?MAP={Uri.EscapeDataString(mapProject)}"
+                + "&SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature"
+                + $"&TYPENAME={Uri.EscapeDataString(typeName)}"
+                + "&OUTPUTFORMAT=application/vnd.geo+json"
+                + $"&FILTER={Uri.EscapeDataString(filterXml)}";
+
+            var client = _httpClientFactory.CreateClient();
+            var json = await client.GetStringAsync(url);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("features", out var features)
+                || features.ValueKind != JsonValueKind.Array)
+                return new JsonResult(new { found = false, layer });
+
+            foreach (var feature in features.EnumerateArray())
+            {
+                if (!feature.TryGetProperty("geometry", out var geom)
+                    || geom.ValueKind != JsonValueKind.Object
+                    || !geom.TryGetProperty("coordinates", out var coords)
+                    || coords.ValueKind != JsonValueKind.Array
+                    || coords.GetArrayLength() < 2)
+                    continue;
+
+                var lng = coords[0].GetDouble();
+                var lat = coords[1].GetDouble();
+                var name = tag;
+                if (feature.TryGetProperty("properties", out var props)
+                    && props.ValueKind == JsonValueKind.Object
+                    && props.TryGetProperty("NAME", out var nameEl)
+                    && nameEl.ValueKind == JsonValueKind.String)
+                    name = nameEl.GetString() ?? tag;
+
+                return new JsonResult(new { found = true, lat, lng, name, layer });
+            }
+
+            return new JsonResult(new { found = false, layer });
+        }
+        catch
+        {
+            // WFS may be unpublished on the QGIS project (GetFeature then
+            // returns a ServiceException XML) or the server unreachable —
+            // report not-found so the client falls back to layer search.
+            return new JsonResult(new { found = false, layer });
+        }
+    }
+
+    // WMS GetCapabilities, cached briefly — every point lookup needs it to
+    // resolve the plant group's point layer, and the layer tree changes rarely.
+    private static readonly object CapsCacheLock = new();
+    private static string? CapsCacheXml;
+    private static DateTime CapsCacheFetchedUtc = DateTime.MinValue;
+    private static readonly TimeSpan CapsCacheTtl = TimeSpan.FromSeconds(60);
+
+    private async Task<string> GetWmsCapabilitiesAsync(string serverUrl, string mapProject)
+    {
+        lock (CapsCacheLock)
+        {
+            if (CapsCacheXml != null && DateTime.UtcNow - CapsCacheFetchedUtc < CapsCacheTtl)
+                return CapsCacheXml;
+        }
+
+        var url = serverUrl
+            + $"?MAP={Uri.EscapeDataString(mapProject)}"
+            + "&SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities";
+        var client = _httpClientFactory.CreateClient();
+        var caps = await client.GetStringAsync(url);
+
+        lock (CapsCacheLock)
+        {
+            CapsCacheXml = caps;
+            CapsCacheFetchedUtc = DateTime.UtcNow;
+        }
+        return caps;
+    }
+
+    // Finds the asset point layer inside the plant group. Groups are named
+    // after the plant ("Plan 17", "Plant 18", ...) — match by numeric code
+    // token; the point layer is the group's child whose name contains "Point"
+    // (or whose geometryType is Point).
+    private static string? ResolveAssetPointLayer(string capsXml, string? plantCode, string? plantName)
+    {
+        var doc = new XmlDocument();
+        doc.LoadXml(capsXml);
+        var nsm = new XmlNamespaceManager(doc.NameTable);
+        nsm.AddNamespace("wms", "http://www.opengis.net/wms");
+
+        foreach (XmlElement group in doc.SelectNodes("//wms:Layer[wms:Layer]", nsm)!)
+        {
+            var groupName = group.SelectSingleNode("wms:Name", nsm)?.InnerText ?? "";
+            if (!GroupMatchesPlant(groupName, plantCode, plantName)) continue;
+
+            foreach (XmlElement child in group.SelectNodes("wms:Layer", nsm)!)
+            {
+                var childName = child.SelectSingleNode("wms:Name", nsm)?.InnerText ?? "";
+                var geometryType = child.GetAttribute("geometryType");
+                if (childName.Contains("Point", StringComparison.OrdinalIgnoreCase)
+                    || geometryType.StartsWith("Point", StringComparison.OrdinalIgnoreCase))
+                    return childName;
+            }
+        }
+        return null;
+    }
+
+    private static bool GroupMatchesPlant(string groupName, string? plantCode, string? plantName)
+    {
+        var tokens = Regex.Split(groupName.ToLowerInvariant(), "[^a-z0-9]+")
+            .Where(t => t.Length > 0)
+            .ToArray();
+
+        if (!string.IsNullOrWhiteSpace(plantCode))
+        {
+            var code = plantCode.Trim().ToLowerInvariant();
+            if (tokens.Any(t => t == code || t == "plant" + code || t == "plan" + code))
+                return true;
+        }
+
+        // No code available — fall back to shared tokens with the plant name.
+        if (string.IsNullOrWhiteSpace(plantCode) && !string.IsNullOrWhiteSpace(plantName))
+        {
+            var nameTokens = Regex.Split(plantName.ToLowerInvariant(), "[^a-z0-9]+")
+                .Where(t => t.Length > 0)
+                .ToArray();
+            if (tokens.Any(nameTokens.Contains)) return true;
+        }
+        return false;
     }
 }

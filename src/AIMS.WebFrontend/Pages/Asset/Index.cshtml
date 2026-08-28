@@ -1,11 +1,23 @@
 @page "/asset/{*tag}"
 @model AIMS.WebFrontend.Pages.Asset.IndexModel
-@using AIMS.WebFrontend.Models
+@using AIMS.Core.Entities
 @{
     ViewData["Title"] = "Asset Details";
+    var asset = Model.Asset;
+    var condBadge = "sims-badge-gray";
+    if (asset != null && !string.IsNullOrEmpty(asset.Condition))
+    {
+        condBadge = asset.Condition.Equals("Good", StringComparison.OrdinalIgnoreCase) ? "sims-badge-green"
+            : asset.Condition.Equals("Fair", StringComparison.OrdinalIgnoreCase) ? "sims-badge-amber"
+            : asset.Condition.Equals("Poor", StringComparison.OrdinalIgnoreCase) ? "sims-badge-red" : "sims-badge-gray";
+    }
 }
 
 <div style="max-width:480px;margin:0 auto;padding:24px;">
+    <div class="sims-nameplate-logos" style="margin-bottom:16px;">
+        <img src="~/asset-pictures/badak-lng-small.png" alt="Badak LNG" />
+        <img src="~/asset-pictures/dtp-small.png" alt="DTP" />
+    </div>
     @if (Model.AssetNotFound)
     {
         <div class="sims-card">
@@ -22,6 +34,73 @@
     }
     else
     {
-        await Html.RenderPartialAsync("_AssetSummary", new AssetSummaryViewModel { Asset = Model.Asset!, Plant = Model.Plant, ShowActions = false });
+        <div class="sims-card">
+            <div class="sims-card-header">
+                <i class="fas fa-box-archive"></i> Asset Details
+            </div>
+            <div class="sims-card-body" style="max-height:60vh;overflow-y:auto;">
+                @if (!string.IsNullOrEmpty(asset!.PicturePath))
+                {
+                    <img src="@asset.PicturePath" alt="@asset.Title" class="sims-mb-3" style="width:100%;max-height:160px;object-fit:cover;border-radius:6px;border:1px solid var(--sims-border);" />
+                }
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Asset Register No.</div>
+                    <div class="sims-fw-bold">@asset.Id</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">GIS Ref. No.</div>
+                    <div class="sims-fw-bold">@(asset.GisRefNo ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Asset Tag No.</div>
+                    <div class="sims-fw-bold"><code>@asset.AssetId</code></div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Asset Description</div>
+                    <div class="sims-fw-bold">@(asset.Title ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Plant</div>
+                    <div class="sims-fw-bold">@(Model.Plant?.Code) @(Model.Plant?.Description)</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Zone</div>
+                    <div class="sims-fw-bold">@(asset.Zone ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Area</div>
+                    <div class="sims-fw-bold">@(asset.Area ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Train</div>
+                    <div class="sims-fw-bold">@(asset.Train ?? "-")</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Coordinate</div>
+                    <div class="sims-fw-bold">@(asset.CoordinateN ?? "-") N, @(asset.CoordinateE ?? "-") E</div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Installed</div>
+                    <div class="sims-fw-bold">
+                        @(asset.YearInstalled?.ToString() ?? "-")
+                        @if (asset.YearInstalled.HasValue)
+                        {
+                            <span class="sims-text-xs sims-text-muted">(age: @(DateTime.Now.Year - asset.YearInstalled) years)</span>
+                        }
+                    </div>
+                </div>
+                <div class="sims-mb-3">
+                    <div class="sims-text-xs sims-text-muted">Condition</div>
+                    @if (!string.IsNullOrEmpty(asset.Condition))
+                    {
+                        <span class="sims-badge @condBadge">@asset.Condition</span>
+                    }
+                    else
+                    {
+                        <span class="sims-fw-bold">-</span>
+                    }
+                </div>
+            </div>
+        </div>
     }
 </div>

@@ -23,9 +23,9 @@
         <div id="map" style="height: 500px; width: 100%;"
              data-qgis-server="@Model.QgisBrowserUrl"
              data-map-project="@Model.MapProject"
-             data-base-layer="Pelatihan Bulan Juli 2026"
-             data-init-lat="-6.16526" data-init-lng="106.92418" data-init-zoom="17"
-             data-search-terms='["Pelatihan Bulan Juli 2026"]'></div>
+             data-base-layer="Citra Satelite"
+             data-init-lat="0.08744" data-init-lng="117.48562" data-init-zoom="16"
+             data-search-terms='["Plan 17"]'></div>
     </div>
 </div>
 @section RightPanel {
@@ -38,6 +38,18 @@
             <div class="sims-card-header" style="padding-left:0">
                 <i class="fas fa-chart-pie"></i> Plant Summary
             </div>
+            @if (Model.TotalAssets > 0)
+            {
+                <div class="sims-mb-2">
+                    <select id="plantFilter" class="sims-form-control sims-form-select" style="width:100%">
+                        <option value="all">All Plant</option>
+                        @for (var i = 1; i < Model.PlantConditionSummaries.Count; i++)
+                        {
+                            <option value="@i">@Model.PlantConditionSummaries[i].PlantName</option>
+                        }
+                    </select>
+                </div>
+            }
             @if (Model.TotalAssets == 0)
             {
                 <p class="sims-text-muted">No assets recorded.</p>
@@ -106,21 +118,29 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
         <script>
             (function () {
-                const labels = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.PlantName)));
-                const good = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.Good)));
-                const fair = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.Fair)));
-                const poor = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.Poor)));
-                const unknown = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => p.Unknown)));
+                // Index 0 = the "All Plant" aggregate; 1..N = one entry per plant.
+                const summaries = @Html.Raw(JsonSerializer.Serialize(Model.PlantConditionSummaries.Select(p => new {
+                    name = p.PlantName,
+                    good = p.Good,
+                    fair = p.Fair,
+                    poor = p.Poor,
+                    unknown = p.Unknown
+                })));
 
-                new Chart(document.getElementById('plantSummaryChart'), {
+                function labelsFor(set) { return set.map(s => s.name); }
+                function column(set, key) { return set.map(s => s[key]); }
+
+                // Default view = "All Plant" aggregate (single bar group), not one bar per plant.
+                const initial = summaries.slice(0, 1);
+                const chart = new Chart(document.getElementById('plantSummaryChart'), {
                     type: 'bar',
                     data: {
-                        labels: labels,
+                        labels: labelsFor(initial),
                         datasets: [
-                            { label: 'Good', data: good, backgroundColor: '#92d050' },
-                            { label: 'Fair', data: fair, backgroundColor: '#e6b800' },
-                            { label: 'Poor', data: poor, backgroundColor: '#ff0000' },
-                            { label: 'Unknown', data: unknown, backgroundColor: '#6b7280' }
+                            { label: 'Good', data: column(initial, 'good'), backgroundColor: '#92d050' },
+                            { label: 'Fair', data: column(initial, 'fair'), backgroundColor: '#e6b800' },
+                            { label: 'Poor', data: column(initial, 'poor'), backgroundColor: '#ff0000' },
+                            { label: 'Unknown', data: column(initial, 'unknown'), backgroundColor: '#6b7280' }
                         ]
                     },
                     options: {
@@ -135,6 +155,25 @@
                         }
                     }
                 });
+
+                function applyFilter() {
+                    const sel = document.getElementById('plantFilter').value;
+                    // "All Plant" shows the site-wide aggregate as a single bar group,
+                    // same shape as a specific plant (which shows just that plant's bar).
+                    const set = (sel === 'all') ? [summaries[0]] : [summaries[parseInt(sel, 10)]];
+
+                    chart.data.labels = labelsFor(set);
+                    chart.data.datasets[0].data = column(set, 'good');
+                    chart.data.datasets[1].data = column(set, 'fair');
+                    chart.data.datasets[2].data = column(set, 'poor');
+                    chart.data.datasets[3].data = column(set, 'unknown');
+                    chart.update();
+
+                    // Condition Breakdown below stays as the All Plant aggregate — the
+                    // filter is scoped to the histogram only, per the dashboard design.
+                }
+
+                document.getElementById('plantFilter').addEventListener('change', applyFilter);
             })();
         </script>
     }
