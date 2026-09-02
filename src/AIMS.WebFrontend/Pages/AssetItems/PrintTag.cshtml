@@ -29,9 +29,9 @@
         <button type="button" class="sims-btn sims-btn-primary" onclick="window.print()">
             <i class="fas fa-print"></i> Print
         </button>
-        <a asp-page="Details" asp-route-id="@item.Id" class="sims-btn sims-btn-outline">
-            <i class="fas fa-arrow-left"></i> Back to Asset
-        </a>
+        <button type="button" class="sims-btn sims-btn-outline" onclick="window.close()">
+            <i class="fas fa-times"></i> Close
+        </button>
     </div>
 
     <script>

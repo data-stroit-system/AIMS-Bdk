@@ -673,7 +673,7 @@ a:hover { color: var(--sims-blue-light); text-decoration: underline; }
 .sims-nameplate-logos img { height: 100px; }
 .sims-nameplate-card h4 { margin: 0; }
 .sims-nameplate-sub { font-size: 12px; color: var(--sims-gray); margin-bottom: 8px; }
-.sims-nameplate-tagno { font-weight: 600; margin-bottom: 16px; }
+.sims-nameplate-tagno { font-weight: 600; margin-bottom: 16px; font-size:large; }
 .sims-nameplate-qr { width: 200px; height: 200px; border: 1px solid var(--sims-border); border-radius: 8px; display: block; margin: 0 auto 20px; }
 .sims-nameplate-field { text-align: left; border-top: 1px solid var(--sims-border); padding-top: 10px; margin-bottom: 10px; }
 .sims-nameplate-field:last-child { margin-bottom: 0; }
