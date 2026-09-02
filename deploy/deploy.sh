@@ -211,6 +211,7 @@ sudo ln -sfn "$SHARED_DIR/Logs" "$RELEASE_DIR/Logs"
 # copy the dtp* and badak* pictures from repo folder AIMS.WebFrontend wwwroot/asset-pictures  into the new shared folder, so they survive redeploys (they are not in the repo itself)
 sudo cp -r "$REPO_ROOT/src/AIMS.WebFrontend/wwwroot/asset-pictures/dtp"* "$SHARED_DIR/wwwroot/asset-pictures/"
 sudo cp -r "$REPO_ROOT/src/AIMS.WebFrontend/wwwroot/asset-pictures/badak"* "$SHARED_DIR/wwwroot/asset-pictures/"
+sudo cp -r "$REPO_ROOT/src/AIMS.WebFrontend/wwwroot/asset-pictures/Badak"* "$SHARED_DIR/wwwroot/asset-pictures/"
 sudo chown -R "$APP_USER:$APP_USER" "$SHARED_DIR/wwwroot/asset-pictures"
 
 sudo chown -R "$APP_USER:$APP_USER" "$RELEASE_DIR"
