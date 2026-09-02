@@ -128,6 +128,7 @@ public sealed class PlantCode
         new() { Code = 63, Description = "6 inch pipeline" },
         new() { Code = 64, Description = "Water Recreation Facilities" },
         new() { Code = 70, Description = "Outside PT. Badak NGL Area" },
+        new() { Code = 99, Description = "Temporary" },
     ];
 
     public static string? GetDescription(int code) =>
