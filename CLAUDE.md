@@ -52,7 +52,7 @@ Two scripts, run in order, share one gitignored `deploy/deploy.conf` (copy from 
 To pull the server's backup files down into the local gitignored `./.db_backups/` folder (run from the repo root):
 
 ```bash
-scp root@159.223.33.82:/opt/aims/backups/* ./.db_backups/
+scp deli@159.223.33.82:/opt/aims/backups/* ./.db_backups/
 ```
 
 `deploy/db_backup.sh` (`backup` / `restore <file> [--yes]` / `list` subcommands) runs on the same server, reusing `deploy/deploy.conf`. It reads the live Oracle connection string straight out of `$APPSETTINGS_FILE` (default `$BASE_DIR/shared/appsettings.Production.json`, overridable in deploy.conf) and does a schema-level Data Pump export/import (`expdp`/`impdp`) of the app's DB user, writing timestamped `.dmp`/`.log` files to `$BASE_DIR/backups` (pruned to `KEEP_BACKUPS`, default 7). `restore` is destructive (`table_exists_action=replace`) and requires typing `yes` unless `--yes` is passed.
@@ -172,7 +172,7 @@ After saving in QGIS 4 desktop, copy the project folder (the `.qgs` + the 4 `*Sa
 
 ```bash
 scp -r "deli@<workstation>:/home/deli/Sample Citra/" 192.168.0.8:"/home/deli/Sample Citra/"   # dev QGIS box
-scp -r "deli@<workstation>:/home/deli/Sample Citra/" root@159.223.33.82:"/home/qgis/projects/SampleCitra/"   # prod
+scp -r "deli@<workstation>:/home/deli/Sample Citra/" deli@159.223.33.82:"/home/qgis/projects/SampleCitra/"   # prod
 ```
 
 Both servers read the QGIS-4 format natively — no conversion step.
