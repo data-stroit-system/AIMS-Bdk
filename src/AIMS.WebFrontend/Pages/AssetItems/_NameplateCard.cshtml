@@ -5,17 +5,17 @@
 }
 <div class="sims-nameplate-card">
     <div class="sims-nameplate-logos">
-        <img src="~/asset-pictures/badak-lng-small.png" alt="Badak LNG" />
+        <img src="~/asset-pictures/Badak_NGL_new_logo.svg" alt="Badak LNG" />
         <img src="~/asset-pictures/dtp-small.png" alt="DTP" />
     </div>
+    <div class="sims-nameplate-tagno">@Model.AssetId</div>
 
     <img id="nameplateQr" class="sims-nameplate-qr" data-src="@Url.Page("QrCode", new { id = Model.Id })"
          alt="QR code for @Model.AssetId" />
 
 
-    <h4>@assetDesc</h4>
+    @* <h4>@assetDesc</h4> *@
     <div class="sims-nameplate-sub"></div>
-    <div class="sims-nameplate-tagno">Tag no.: @Model.AssetId</div>
 
     
     @* <div class="sims-nameplate-field">

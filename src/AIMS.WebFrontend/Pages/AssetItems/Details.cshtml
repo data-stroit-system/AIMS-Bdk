@@ -14,10 +14,10 @@
         <h3 style="margin:0">@Model.AssetItem.AssetId</h3>
         <span class="sims-text-sm sims-text-muted">
             @Model.AssetItem.Title
-            @if (!string.IsNullOrEmpty(Model.Plant?.Description))
+            @* @if (!string.IsNullOrEmpty(Model.Plant?.Description))
             {
                 <span>&middot; @Model.Plant.Description</span>
-            }
+            } *@
         </span>
     </div>
     <div class="sims-d-flex sims-gap-2">
@@ -69,7 +69,7 @@
                                     <a asp-page="Index" asp-route-plantId="@Model.Plant.Id">
                                         <span class="sims-badge sims-badge-sky"><i class="fas fa-industry"></i> @Model.Plant.Name</span>
                                     </a>
-                                    <span class="sims-text-sm sims-text-muted">@Model.Plant.Description</span>
+                                    @* <span class="sims-text-sm sims-text-muted">@Model.Plant.Description</span> *@
                                 }
                                 else
                                 {
