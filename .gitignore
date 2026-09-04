@@ -14,6 +14,7 @@
 *.userprefs
 
 # Build results
+.db_backups/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
