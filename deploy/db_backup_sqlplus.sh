@@ -22,7 +22,7 @@
 #   - Oracle 11gR2+ (uses LISTAGG, q-quoting, DBMS_METADATA, DBMS_LOB).
 #     sqlplus from the Instant Client is fine.
 #   - Only single-level FK chains are ordered (parents before children).
-#   - CLOB/NCLOB values must fit 10 x 1500 = 15,000 chars; the backup fails
+#   - CLOB/NCLOB values must fit 15,000 chars; the backup fails
 #     loudly instead of truncating. No LONG/BLOB/BFILE columns.
 #   - Restore targets the same database instance the backup came from (the
 #     DDL carries TABLESPACE "USERS" etc.).
@@ -148,21 +148,21 @@ END;
 /
 -- emit one SELECT per table; running it later produces the INSERT lines
 SPOOL $GF
-SELECT 'SELECT ' || q'['INSERT INTO "]' || table_name || q'[' VALUES (' || ]' ||
+SELECT 'SELECT ' || q'['INSERT INTO "]' || table_name || q'[" VALUES (' || ]' ||
        LISTAGG(expr, q'[ || ',' || ]') WITHIN GROUP (ORDER BY column_id) ||
-       q'[ || ');' FROM "]' || table_name || q'[';']'
+       q'[ || ');' FROM "]' || table_name || q'[";]'
 FROM (
   SELECT t.table_name, c.column_id,
     (SELECT COUNT(*) FROM user_constraints r JOIN user_constraints p ON r.r_constraint_name = p.constraint_name AND r.constraint_type = 'R' WHERE p.table_name = t.table_name) AS refs,
     CASE c.data_type
       WHEN 'NUMBER' THEN q'[NVL(TO_CHAR("]' || c.column_name || q'["),'NULL')]'
-      WHEN 'DATE' THEN q'[NVL('TO_DATE('''||TO_CHAR("]' || c.column_name || q'[",'YYYY-MM-DD HH24:MI:SS')||''',''YYYY-MM-DD HH24:MI:SS''')','NULL')]'
+      WHEN 'DATE' THEN q'[NVL('TO_DATE('''||TO_CHAR("]' || c.column_name || q'[",'YYYY-MM-DD HH24:MI:SS')||''',''YYYY-MM-DD HH24:MI:SS'')','NULL')]'
       WHEN 'RAW' THEN q'[NVL(''''||LOWER(RAWTOHEX("]' || c.column_name || q'["))||'''','NULL')]'
       ELSE CASE
         WHEN c.data_type LIKE 'TIMESTAMP%' AND c.data_type LIKE '%TIME ZONE' THEN
-          q'[NVL('TO_TIMESTAMP_TZ('''||TO_CHAR("]' || c.column_name || q'[",'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM')||''',''YYYY-MM-DD HH24:MI:SS.FF TZH:TZM''')','NULL')]'
+          q'[NVL('TO_TIMESTAMP_TZ('''||TO_CHAR("]' || c.column_name || q'[",'YYYY-MM-DD HH24:MI:SS.FF TZH:TZM')||''',''YYYY-MM-DD HH24:MI:SS.FF TZH:TZM'')','NULL')]'
         WHEN c.data_type LIKE 'TIMESTAMP%' THEN
-          q'[NVL('TO_TIMESTAMP('''||TO_CHAR("]' || c.column_name || q'[",'YYYY-MM-DD HH24:MI:SS.FF')||''',''YYYY-MM-DD HH24:MI:SS.FF''')','NULL')]'
+          q'[NVL('TO_TIMESTAMP('''||TO_CHAR("]' || c.column_name || q'[",'YYYY-MM-DD HH24:MI:SS.FF')||''',''YYYY-MM-DD HH24:MI:SS.FF'')','NULL')]'
         ELSE q'[NVL(''''||REPLACE("]' || c.column_name || q'[",'''','''''')||'''','NULL')]'
       END
     END AS expr
@@ -172,12 +172,10 @@ FROM (
   UNION ALL
   SELECT t.table_name, c.column_id,
     (SELECT COUNT(*) FROM user_constraints r JOIN user_constraints p ON r.r_constraint_name = p.constraint_name AND r.constraint_type = 'R' WHERE p.table_name = t.table_name) AS refs,
-    'NVL(' || LISTAGG(q'[TO_CLOB('''||REPLACE(DBMS_LOB.SUBSTR("]' || c.column_name || q'[",1500,']' || (x.n * 1500 + 1) || q'['),'''','''''')||'''')]', '||') WITHIN GROUP (ORDER BY x.n) || ',''NULL'')' AS expr
+    q'[NVL(''''||REPLACE("]' || c.column_name || q'[",'''','''''')||'''','NULL')]' AS expr
   FROM user_tab_columns c
   JOIN user_tables t ON t.table_name = c.table_name
-  JOIN (SELECT LEVEL n FROM dual CONNECT BY LEVEL <= 10) x ON 1 = 1
   WHERE c.data_type IN ('CLOB', 'NCLOB')
-  GROUP BY t.table_name, c.column_id, c.column_name
 )
 GROUP BY table_name, refs
 ORDER BY refs DESC, table_name;
@@ -195,8 +193,8 @@ SQL
     RC=$?
     set -e
     rm -f "$BACKUP_DIR/$GF"
-    if [[ $RC -ne 0 ]] || grep -qiE 'ORA-|SP2-|PLS-' "$BACKUP_DIR/$LOGF"; then
-        die "Backup failed (exit $RC) -- see $BACKUP_DIR/$LOGF ($(grep -im1 -E 'ORA-|SP2-|PLS-' "$BACKUP_DIR/$LOGF" | tr -d '\r'))"
+    if [[ $RC -ne 0 ]] || grep -qiE 'ORA-|SP2-|PLS-|overflow' "$BACKUP_DIR/$LOGF"; then
+        die "Backup failed (exit $RC) -- see $BACKUP_DIR/$LOGF ($(grep -im1 -E 'ORA-|SP2-|PLS-|overflow' "$BACKUP_DIR/$LOGF" | tr -d '\r'))"
     fi
     grep -q 'CREATE TABLE' "$BACKUP_DIR/$BF" || die "Backup contains no tables -- connected to the wrong schema? See $BACKUP_DIR/$LOGF"
     log "Backup written: $BACKUP_DIR/$BF ($(du -h "$BACKUP_DIR/$BF" | cut -f1), $(grep -c '^INSERT INTO' "$BACKUP_DIR/$BF") insert rows)"
@@ -271,8 +269,8 @@ SQL
     RC=$?
     set -e
     rm -f "$BACKUP_DIR/drop_$BF_NAME.sql"
-    if [[ $RC -ne 0 ]] || grep -qiE 'ORA-|SP2-|PLS-' "$BACKUP_DIR/$LOGF"; then
-        die "Restore failed (exit $RC) -- see $BACKUP_DIR/$LOGF ($(grep -im1 -E 'ORA-|SP2-|PLS-' "$BACKUP_DIR/$LOGF" | tr -d '\r'))"
+    if [[ $RC -ne 0 ]] || grep -qiE 'ORA-|SP2-|PLS-|overflow' "$BACKUP_DIR/$LOGF"; then
+        die "Restore failed (exit $RC) -- see $BACKUP_DIR/$LOGF ($(grep -im1 -E 'ORA-|SP2-|PLS-|overflow' "$BACKUP_DIR/$LOGF" | tr -d '\r'))"
     fi
     log "Restore complete. See $BACKUP_DIR/$LOGF for the sqlplus transcript."
     log "Restart the app so pooled connections pick up the restored data: sudo systemctl restart $SERVICE_NAME"
