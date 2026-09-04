@@ -63,11 +63,7 @@ QGIS_MAP_PROJECT="/home/qgis/projects/ProjectPelatihan/Ortho Project_QGS.qgs"
 # falls back to QGIS_SERVER_URL directly).
 QGIS_BROWSER_URL="/qgisserver"
 
-# --- DB backup/restore (used by db_backup.sh and db_backup_sqlplus.sh) ---
-BACKUP_DIR="$BASE_DIR/backups"   # where .dmp/.sql backup files land
+# --- DB backup/restore (used by db_backup_sqlplus.sh) ---
+BACKUP_DIR="$BASE_DIR/backups"   # where .sql backup files land
 KEEP_BACKUPS=7                   # how many backups to retain
 APPSETTINGS_FILE="$BASE_DIR/shared/appsettings.Production.json"   # app config whose ConnectionStrings:Oracle is used
-ORACLE_CONTAINER_NAME="oracle-xe-11g"                    # must match setup_oracle_xe.sh
-ORACLE_OS_USER="oracle"                                  # native Oracle only: OS user that owns the install
-ORACLE_HOME="/u01/app/oracle/product/11.2.0/xe"           # native and container mode
-ORACLE_SID="XE"                                           # native and container mode
